@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Wired — a real-time circuit puzzle</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0a0e17">
+<style>
+  :root{
+    /* Surfaces — deep PCB substrate, not arbitrary grays */
+    --bg:            #0a0e17;
+    --bg-pattern:    #16324a; /* circuit-trace background pattern color */
+    --panel:         #10151f;
+    --panel-border:  #24344a;
+    --grid-line:     #1b2740;
+    /* Canvas-facing tokens — read by draw() so a skin reskins the play field,
+       not just the surrounding menu chrome. */
+    --board-bg:      #080c14;
+    --spark:         #fff2b8;
+
+    /* Text */
+    --text:          #eef3fb;
+    --text-dim:      #8b9ab3;
+
+    /* Accents — primary CTA/logo/active states (warm copper-gold), secondary (electric cyan) */
+    --accent:        #f5b942;
+    --accent-ink:    #1a1206;
+    --accent-2:      #4fd6ff;
+
+    /* Semantic */
+    --danger:        #ff5d6c;
+    --good:          #45e0a8;
+
+    /* Effects */
+    --glow:          rgba(245,185,66,.55);
+    --shadow:        rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow-x:hidden;
+  }
+  body{
+    background-color:var(--bg);
+    background-image:
+      repeating-linear-gradient(115deg,
+        color-mix(in srgb, var(--bg-pattern) 6%, transparent) 0px,
+        color-mix(in srgb, var(--bg-pattern) 6%, transparent) 1px,
+        transparent 1px, transparent 64px),
+      repeating-linear-gradient(25deg,
+        color-mix(in srgb, var(--bg-pattern) 6%, transparent) 0px,
+        color-mix(in srgb, var(--bg-pattern) 6%, transparent) 1px,
+        transparent 1px, transparent 64px),
+      radial-gradient(ellipse at 50% 40%, transparent 35%, var(--shadow) 145%);
+    background-attachment:fixed;
+    animation: bgDrift 80s linear infinite;
+  }
+  body.reduce-motion{ animation:none; }
+  @keyframes bgDrift{
+    from{ background-position:0 0, 0 0, 0 0; }
+    to{ background-position:220px 220px, -220px 220px, 0 0; }
+  }
+  #app{
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100%; padding:16px 12px 40px;
+  }
+  .screen{ width:100%; max-width:640px; position:relative; }
+  .hidden{ display:none !important; }
+
+  /* ---------- Menu screen ---------- */
+  header{ text-align:center; margin-bottom:22px; }
+  #settingsBtn{
+    position:absolute; top:0; right:0;
+    background:var(--panel); border:1px solid var(--panel-border); color:var(--text-dim);
+    border-radius:8px; width:36px; height:36px; font-size:16px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #settingsBtn:hover{ color:var(--text); border-color:var(--accent-2); }
+
+  /* ---------- Settings screen ---------- */
+  .settingsSection{
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:12px; padding:16px 18px; margin-bottom:12px;
+    font-size:13px; color:var(--text-dim); line-height:1.6; text-align:left;
+  }
+  .settingsSection h3{ margin:0 0 8px; font-size:14px; color:var(--text); }
+  .settingsSection p{ margin:0; }
+  .toggleRow{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 0; border-top:1px solid var(--panel-border);
+  }
+  .toggleRow:first-child{ border-top:none; }
+  .toggleRow .toggleLabel{ color:var(--text); font-size:13px; font-weight:600; }
+  .toggleRow .toggleDesc{ color:var(--text-dim); font-size:12px; margin-top:2px; }
+  .toggleRow input[type="checkbox"]{ width:18px; height:18px; flex:none; accent-color:var(--accent); }
+  .textInput{
+    font-family:inherit; font-size:13px; width:100%; max-width:220px;
+    background:var(--bg); color:var(--text); border:1px solid var(--panel-border);
+    border-radius:8px; padding:8px 10px;
+  }
+  .textInput:focus{ outline:none; border-color:var(--accent-2); }
+  #settingsCredits{ text-align:center; font-size:11px; color:var(--text-dim); margin-top:4px; }
+
+  .skinRow{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 0; border-top:1px solid var(--panel-border);
+  }
+  .skinRow:first-child{ border-top:none; }
+  .skinRow .skinName{ color:var(--text); font-size:13px; font-weight:600; }
+  .skinRow .skinFlavor{ color:var(--text-dim); font-size:12px; margin-top:2px; }
+  .skinRow .skinCond{ color:var(--text-dim); font-size:11px; margin-top:2px; font-style:italic; }
+  .skinRow .skinBtn{ font-size:12px; padding:7px 12px; white-space:nowrap; }
+  .skinRow .skinBtn.equipped{ background:var(--good); color:#07231a; border-color:var(--good); }
+  .statsGrid{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .statsGrid .stat{
+    background:var(--bg); border:1px solid var(--panel-border); border-radius:8px;
+    padding:10px 12px; text-align:center;
+  }
+  .statsGrid .stat .value{ font-size:20px; font-weight:700; color:var(--text); }
+  .statsGrid .stat .label{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+  #menuBadge{
+    display:inline-block; margin-top:6px; font-size:10px; letter-spacing:0.6px;
+    color:var(--accent-ink); background:var(--accent); border-radius:6px; padding:3px 8px;
+    box-shadow:0 0 10px var(--glow);
+  }
+  h1{
+    font-size:28px; margin:0; letter-spacing:0.5px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  h1 .bolt{ color:var(--accent); text-shadow:0 0 18px var(--glow); }
+  .subtitle{ font-size:13px; color:var(--text-dim); margin-top:4px; }
+
+  .levelCard{
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:12px; padding:16px 18px; margin-bottom:12px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .levelCard .info{ text-align:left; }
+  .levelCard .name{ font-size:17px; font-weight:700; }
+  .levelCard .meta{ font-size:12px; color:var(--text-dim); margin-top:4px; line-height:1.5; }
+  .levelCard .meta b{ color:var(--text); }
+  .levelCard{ transition:border-color .15s; }
+  .levelCard:hover{ border-color:var(--accent-2); }
+  .levelCard .playBtn{
+    background:var(--accent); color:var(--accent-ink); border:none; border-radius:8px;
+    font-weight:700; font-size:14px; padding:10px 18px; cursor:pointer; white-space:nowrap;
+    box-shadow:0 0 16px var(--glow);
+  }
+  .levelCard .playBtn:hover{ filter:brightness(1.08); }
+  .dailyCard{ border-color:var(--accent); background:linear-gradient(135deg, var(--panel), color-mix(in srgb, var(--accent) 10%, var(--panel))); }
+  .dailyCard .dailyDate{ font-weight:400; font-size:12px; color:var(--text-dim); margin-left:4px; }
+  .challengeBanner{ border-color:var(--accent-2); background:color-mix(in srgb, var(--accent-2) 12%, var(--panel)); }
+  .challengeBanner .acceptBtn{ background:var(--accent-2); color:#03202b; border:none; font-weight:700; }
+  .challengeBanner .dismissBtn{ padding:9px 12px; }
+
+  #menuBanner{
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:10px; padding:14px 16px; margin-top:10px;
+    font-size:13px; color:var(--text-dim); line-height:1.6;
+  }
+  #menuBanner b{ color:var(--text); }
+
+  /* ---------- Play screen ---------- */
+  #playTop{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  /* Portrait/desktop (default): stack top-to-bottom in the original order —
+     stats, board, controls+banner. Landscape media query below reorders these
+     into columns instead, so a short landscape phone screen never has to scroll. */
+  #playBody{ display:flex; flex-direction:column; }
+  #playTopStats{ order:1; }
+  #playMain{ order:2; }
+  #playBottom{ order:3; }
+  #menuBtn{
+    background:var(--panel); color:var(--text); border:1px solid var(--panel-border);
+    border-radius:8px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  #playLevelName{ font-size:16px; font-weight:700; }
+  #playLevelName .bolt{ color:var(--accent); margin-right:4px; }
+
+  #hud{
+    width:100%;
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:10px; padding:10px 14px; margin-bottom:12px;
+    font-variant-numeric: tabular-nums;
+  }
+  #hud .stat{ display:flex; flex-direction:column; align-items:center; min-width:64px; }
+  #hud .stat .label{ font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.6px; }
+  #hud .stat .value{ font-size:18px; font-weight:600; }
+  #timer.running{ color:var(--accent); }
+  #timer.win{ color:var(--good); }
+  #zapCount.hasZaps{ color:var(--danger); }
+
+  #challengeTargetBar{
+    text-align:center; font-size:12px; color:var(--accent-2); font-weight:600;
+    margin-bottom:10px;
+  }
+  #boardWrap{
+    position:relative;
+    touch-action:none;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid var(--panel-border);
+    background:var(--panel);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    margin:0 auto;
+  }
+  canvas{ display:block; }
+
+  #controls{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin-top:14px;
+  }
+  button{
+    font-family:inherit; font-size:13px; font-weight:600;
+    background:var(--panel); color:var(--text);
+    border:1px solid var(--panel-border); border-radius:8px;
+    padding:9px 14px; cursor:pointer;
+  }
+  button:hover{ border-color:var(--accent-2); }
+  button.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:0 0 14px var(--glow); }
+  button.primary:hover{ filter:brightness(1.08); }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+  button:disabled:hover{ border-color:var(--panel-border); }
+
+  #banner{
+    width:100%;
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:10px; padding:12px 14px; margin-top:12px;
+    font-size:13px; color:var(--text-dim); line-height:1.5;
+  }
+  #banner b{ color:var(--text); }
+
+  #winModal{
+    position:fixed; inset:0; background:rgba(6,8,12,0.72);
+    display:none; align-items:center; justify-content:center; z-index:10;
+  }
+  #winModal.show{ display:flex; }
+  #winCard{
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:14px; padding:26px 30px; text-align:center;
+    max-width:340px;
+  }
+  #winCard h2{ margin:0 0 6px; color:var(--good); }
+  #winCard .score{ font-size:36px; font-weight:700; margin:10px 0 2px; font-variant-numeric: tabular-nums; }
+  #winCard .breakdown{ font-size:12px; color:var(--text-dim); margin-bottom:4px; }
+  #winCard .best-line{ font-size:12px; color:var(--text-dim); margin-bottom:6px; }
+  #winCard .earn-line{ font-size:12px; color:var(--accent); margin-bottom:16px; min-height:16px; }
+  #winCard .row{ display:flex; gap:8px; justify-content:center; }
+  .zap-flash{ animation: flash 0.35s ease-out; }
+  @keyframes flash{
+    0%{ filter:brightness(2.4); }
+    100%{ filter:brightness(1); }
+  }
+  body.reduce-motion .zap-flash{ animation: flash-reduced 0.35s ease-out; }
+  @keyframes flash-reduced{
+    0%{ filter:brightness(1.4); }
+    100%{ filter:brightness(1); }
+  }
+
+  /* ---------- Intro / splash screen ---------- */
+  #introScreen{
+    position:fixed; inset:0; z-index:100; background:var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; cursor:pointer;
+  }
+  #introScreen.hidden{ display:none; }
+  #introScreen.fadeOut{ animation:introFadeOut .2s ease-out forwards; }
+  @keyframes introFadeOut{ to{ opacity:0; } }
+
+  #introTraces{ position:absolute; inset:0; width:100%; height:100%; }
+  #introTraces line{
+    stroke:var(--accent); stroke-width:0.5; opacity:0;
+    stroke-dasharray:60; stroke-dashoffset:60; vector-effect:non-scaling-stroke;
+  }
+  #introScreen.playing #introTraces line{ animation:introTrace 1s ease-out .2s forwards; }
+  @keyframes introTrace{ 0%{opacity:.85;stroke-dashoffset:60;} 100%{opacity:.85;stroke-dashoffset:0;} }
+
+  #introFlash{
+    position:absolute; width:46vmax; height:46vmax; border-radius:50%;
+    background:radial-gradient(circle, var(--glow) 0%, transparent 70%);
+    opacity:0; transform:scale(.4); pointer-events:none;
+  }
+  #introScreen.playing #introFlash{ animation:introFlash .5s ease-out 1.2s forwards; }
+  @keyframes introFlash{ 0%{opacity:0;transform:scale(.4);} 40%{opacity:1;transform:scale(1.1);} 100%{opacity:0;transform:scale(1.4);} }
+
+  #introWordmark{ position:relative; text-align:center; opacity:0; }
+  #introScreen.playing #introWordmark{ animation:introFadeIn .3s ease-out 1.4s forwards; }
+  #introScreen.reduced #introWordmark{ animation:introFadeIn .4s ease-out .2s forwards; }
+  @keyframes introFadeIn{ to{ opacity:1; } }
+
+  #introScreen #introBolt{ display:inline-block; }
+  #introScreen.playing #introBolt{ opacity:0; animation:introFlicker .5s steps(1) 1.4s forwards; }
+  @keyframes introFlicker{ 0%{opacity:0;} 10%{opacity:1;} 20%{opacity:.2;} 30%{opacity:1;} 45%{opacity:.25;} 60%,100%{opacity:1;} }
+
+  #introTitle{
+    background-image:linear-gradient(90deg, var(--accent) 0%, var(--accent) 50%, var(--text-dim) 50%, var(--text-dim) 100%);
+    background-size:200% 100%; background-position:100% 0;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  #introScreen.playing #introTitle{ animation:introSweep .6s ease-out 1.6s forwards; }
+  #introScreen.reduced #introTitle{ background-position:0 0; }
+  @keyframes introSweep{ to{ background-position:0 0; } }
+
+  #introTagline{ opacity:0; margin-top:6px; }
+  #introScreen.playing #introTagline{ animation:introFadeIn .5s ease-out 2.2s forwards; }
+  #introScreen.reduced #introTagline{ animation:introFadeIn .4s ease-out .2s forwards; }
+
+  #introSkipHint{
+    position:absolute; bottom:22px; right:24px; font-size:11px; color:var(--text-dim); opacity:0;
+  }
+  #introScreen.playing #introSkipHint{ animation:introFadeIn .4s ease-out 1s forwards; }
+  #introScreen.reduced #introSkipHint{ animation:introFadeIn .4s ease-out .3s forwards; }
+
+  /* ---------- Landscape layout ---------- */
+  /* Short-height landscape (typical phone rotated) can't fit the portrait
+     stack without scrolling, so lay the three play-screen zones out as
+     columns instead: board first, then stats, then controls+banner.
+     The max-width bound matters: without it, an ordinary short *desktop*
+     window (e.g. 961x415) also matches and wrongly gets the phone layout. */
+  @media (orientation:landscape) and (max-height:560px) and (max-width:900px){
+    #playScreen{ max-width:100%; }
+    #playBody{
+      flex-direction:row; align-items:flex-start; gap:14px;
+      max-height:calc(100vh - 90px);
+    }
+    #playMain{ flex:none; }
+    #playTopStats, #playBottom{
+      flex:1; min-width:150px; max-width:220px;
+      max-height:100%; overflow-y:auto;
+    }
+    #hud{ flex-direction:column; align-items:stretch; gap:8px; }
+    #hud .stat{ flex-direction:row; justify-content:space-between; min-width:0; }
+    #controls{ flex-direction:column; }
+    #banner{ display:none; } /* the long instructional text is the first thing to drop when space is tight */
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= INTRO / SPLASH SCREEN ================= -->
+<div id="introScreen">
+  <svg id="introTraces" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <line x1="50" y1="-10" x2="50" y2="50"/>
+    <line x1="110" y1="50" x2="50" y2="50"/>
+    <line x1="50" y1="110" x2="50" y2="50"/>
+    <line x1="-10" y1="50" x2="50" y2="50"/>
+  </svg>
+  <div id="introFlash"></div>
+  <div id="introWordmark">
+    <h1><span class="bolt" id="introBolt">⚡</span> <span id="introTitle">Wired</span></h1>
+    <div class="subtitle" id="introTagline">Connect every pair. Dodge the current. Race the clock.</div>
+  </div>
+  <div id="introSkipHint">tap to skip</div>
+</div>
+
+<div id="app">
+
+  <!-- ================= MENU SCREEN ================= -->
+  <div id="menuScreen" class="screen">
+    <button id="settingsBtn" aria-label="Settings">⚙</button>
+    <header>
+      <h1><span class="bolt">⚡</span> Wired</h1>
+      <div class="subtitle">Connect every pair. Dodge the current. Race the clock.</div>
+      <div id="menuBadge" class="hidden"></div>
+    </header>
+    <div id="menuList"></div>
+    <div id="menuBanner">
+      <b>How to play:</b> drag — or tap cell by cell — from one dot to its matching color to wire them
+      together. Paths can't cross. A spark patrols a fixed, repeating track; touch it with an unfinished
+      wire and it shorts out (+3s penalty). Finished wires are insulated and safe. Your score is your
+      solve time plus a penalty for every short — precision counts as much as speed.
+      Hit <b>Trace</b> any time to see where every spark will be one, two and three seconds from now.
+    </div>
+  </div>
+
+  <!-- ================= PLAY SCREEN ================= -->
+  <div id="playScreen" class="screen hidden">
+    <div id="playTop">
+      <button id="menuBtn">‹ Menu</button>
+      <div id="playLevelName"><span class="bolt">⚡</span><span id="playLevelNameText">Apprentice</span></div>
+      <div style="width:64px"></div>
+    </div>
+
+    <div id="playBody">
+      <div id="playTopStats">
+        <div id="hud">
+          <div class="stat"><div class="label">Time</div><div class="value" id="timer">0.0s</div></div>
+          <div class="stat"><div class="label">Zaps</div><div class="value" id="zapCount">0</div></div>
+          <div class="stat"><div class="label">Score</div><div class="value" id="scoreVal">0.0s</div></div>
+          <div class="stat"><div class="label">Best</div><div class="value" id="bestVal">—</div></div>
+        </div>
+        <div id="challengeTargetBar" class="hidden"></div>
+      </div>
+
+      <div id="playMain">
+        <div id="boardWrap">
+          <canvas id="board"></canvas>
+        </div>
+      </div>
+
+      <div id="playBottom">
+        <div id="controls">
+          <button id="restartBtn">Restart</button>
+          <button id="previewBtn">Trace ⚡</button>
+          <button id="shareBtn" class="primary">Share result</button>
+        </div>
+        <div id="banner">
+          <b>Score</b> = time + 3s per short. Finished wires can't be crossed by others, so plan the order
+          you tackle each color. The clock only starts on your first move — and <b>Trace</b> is free and
+          unlimited, so scout before you touch anything and it costs you nothing.
+          <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD extend it one cell at a time,
+          Backspace steps back, Enter/Space grabs a wire if none is selected.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS SCREEN ================= -->
+  <div id="settingsScreen" class="screen hidden">
+    <div id="playTop">
+      <button id="settingsBackBtn">‹ Menu</button>
+      <div id="playLevelName"><span class="bolt">⚡</span><span>Settings</span></div>
+      <div style="width:64px"></div>
+    </div>
+
+    <div class="settingsSection">
+      <h3>About</h3>
+      <p>Wired is a circuit-wiring puzzle that never rolls a die. Every spark's path, every board, every
+      tick of the clock is fixed and repeatable — the only variable in the room is you. Connect the
+      pairs, dodge the current, beat your own best time. No luck to blame for a short, none to thank for
+      a clean run — just better routing and a faster finish.</p>
+    </div>
+
+    <div class="settingsSection">
+      <h3>How to play</h3>
+      <p>Drag from a dot to its matching color — or tap your way there cell by cell — to wire every pair
+      together; no two paths are allowed to cross. Sparks patrol fixed, repeating tracks whose route is
+      always drawn on the board — nothing here is random, and <b>Trace</b> will show you exactly where
+      every spark lands one, two and three seconds from now, free and as often as you like.
+      Touch an unfinished wire with a spark and it shorts out for a time penalty; once a wire is finished
+      it's insulated, and safe for good. Your score is solve time plus a penalty for every short, so
+      precision counts as much as speed. The clock doesn't start until your first move — so plan all you
+      want, then go fast.</p>
+    </div>
+
+    <div class="settingsSection">
+      <h3>Accessibility</h3>
+      <div class="toggleRow">
+        <div>
+          <div class="toggleLabel">Colorblind Mode</div>
+          <div class="toggleDesc">Recolors and reshapes wire pairs so every color reads by more than hue alone.</div>
+        </div>
+        <input type="checkbox" id="colorblindToggle">
+      </div>
+      <div class="toggleRow">
+        <div>
+          <div class="toggleLabel">Reduce Motion</div>
+          <div class="toggleDesc">Softens the spark's pulsing glow and turns off the title screen's intro animation.</div>
+        </div>
+        <input type="checkbox" id="reduceMotionToggle">
+      </div>
+      <div class="toggleRow">
+        <div>
+          <div class="toggleLabel">Mute Sound</div>
+          <div class="toggleDesc">Turns off all game sound effects.</div>
+        </div>
+        <input type="checkbox" id="muteToggle">
+      </div>
+    </div>
+
+    <div class="settingsSection">
+      <h3>Sharing</h3>
+      <p style="margin-bottom:8px;">Optional name or initials to attach when you share a challenge link — purely cosmetic text, no account needed.</p>
+      <input type="text" id="playerNameInput" maxlength="20" placeholder="e.g. Alex" class="textInput">
+    </div>
+
+    <div class="settingsSection">
+      <h3>Cosmetics</h3>
+      <div id="skinList"></div>
+    </div>
+
+    <div class="settingsSection">
+      <h3>Stats</h3>
+      <div id="statsList"></div>
+    </div>
+
+    <div id="settingsCredits">v1.0 · Wired grew out of an earlier puzzle, Cut &amp; Fill.</div>
+  </div>
+
+</div>
+
+<div id="winModal">
+  <div id="winCard">
+    <h2>Circuit complete!</h2>
+    <div class="score" id="winScore">0.0s</div>
+    <div class="breakdown" id="winBreakdown"></div>
+    <div class="best-line" id="winBestLine"></div>
+    <div class="earn-line" id="winEarnLine"></div>
+    <div class="row">
+      <button id="winRestart">Play again</button>
+      <button id="winMenu">Menu</button>
+      <button id="winShare" class="primary">Share</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Tunables ----------
+  const ZAP_PENALTY = 3;       // seconds added to score per short
+  const TRACE_MS = 2500;       // how long a Trace overlay stays up
+
+  // ---------- Level definitions ----------
+  // Every color pair runs straight down its own column, so no two wires can ever
+  // block each other — the only challenge is timing each column past the
+  // horizontal sparks that patrol fixed rows. Guaranteed solvable by design.
+  const LEVELS = [
+    {
+      id: 1, name: "Breadboard", cols: 6, rows: 6,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[0,5] },
+        { color: "#ffd75a", a:[2,0], b:[2,5] },
+        { color: "#54e6a6", a:[5,0], b:[5,5] },
+      ],
+      obstacles: [
+        { cellsPerSecond: 2.2, path: loopPath([[0,2],[5,2]]) },
+      ]
+    },
+    {
+      id: 2, name: "Circuit Board", cols: 7, rows: 7,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[0,6] },
+        { color: "#ffd75a", a:[2,0], b:[2,6] },
+        { color: "#7ab8ff", a:[4,0], b:[4,6] },
+        { color: "#54e6a6", a:[6,0], b:[6,6] },
+      ],
+      obstacles: [
+        { cellsPerSecond: 2.6, path: loopPath([[0,2],[6,2]]) },
+        { cellsPerSecond: 1.8, path: loopPath([[0,4],[6,4]]) },
+      ]
+    },
+    {
+      id: 3, name: "Mainframe", cols: 8, rows: 8,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[0,7] },
+        { color: "#ffd75a", a:[2,0], b:[2,7] },
+        { color: "#7ab8ff", a:[4,0], b:[4,7] },
+        { color: "#c98bff", a:[5,0], b:[5,7] },
+        { color: "#54e6a6", a:[7,0], b:[7,7] },
+      ],
+      obstacles: [
+        { cellsPerSecond: 3.0, path: loopPath([[0,2],[7,2]]) },
+        { cellsPerSecond: 2.2, path: loopPath([[0,4],[7,4]]) },
+        { cellsPerSecond: 2.6, path: loopPath([[0,6],[7,6]]) },
+      ]
+    },
+  ];
+
+  // Turns a list of straight-line waypoints into a full cell-by-cell ping-pong loop path.
+  function loopPath(waypoints){
+    const cells = [waypoints[0]];
+    for(let i=0;i<waypoints.length-1;i++){
+      const [c0,r0]=waypoints[i], [c1,r1]=waypoints[i+1];
+      const dc = Math.sign(c1-c0), dr = Math.sign(r1-r0);
+      let c=c0, r=r0;
+      while(c!==c1 || r!==r1){
+        c+=dc; r+=dr;
+        cells.push([c,r]);
+      }
+    }
+    // ping-pong back to start so it's a smooth repeating loop
+    const back = cells.slice(0,-1).reverse();
+    return cells.concat(back);
+  }
+
+  // ---------- Daily challenge ----------
+  // A fresh level generated from the player's local date instead of hand-authored,
+  // so everyone sees the identical board on a given calendar day with no server —
+  // same idea as Wordle. It reuses the exact "parallel color columns + horizontal
+  // patrols" shape the hand-authored levels use (every wire is a straight column,
+  // so no wire can ever block another), which is solvable by construction — the
+  // generator only has to randomize WITHIN that safe shape, not re-solve
+  // solvability from scratch.
+  function hashStr(s){
+    let h = 0;
+    for(let i=0;i<s.length;i++){ h = (Math.imul(31,h) + s.charCodeAt(i)) | 0; }
+    return h;
+  }
+  function mulberry32(seed){
+    let a = seed | 0;
+    return function(){
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function localDateString(d){
+    d = d || new Date();
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  const DAILY_PALETTE = ["#ff5d6c","#ffd75a","#7ab8ff","#c98bff","#54e6a6"];
+  function generateDailyLevel(dateStr){
+    const rand = mulberry32(hashStr('wired-daily-' + dateStr));
+    const cols = 7, rows = 7, nColors = 4, nObstacles = 2;
+    const availableCols = Array.from({length:cols}, (_,i)=>i);
+    const chosenCols = [];
+    for(let i=0; i<nColors; i++){
+      chosenCols.push(availableCols.splice(Math.floor(rand()*availableCols.length), 1)[0]);
+    }
+    chosenCols.sort((a,b)=>a-b);
+    const terminals = chosenCols.map((c,i)=>({ color: DAILY_PALETTE[i % DAILY_PALETTE.length], a:[c,0], b:[c,rows-1] }));
+    const availableRows = Array.from({length:rows-2}, (_,i)=>i+1); // never the terminal rows
+    const obstacles = [];
+    for(let i=0; i<nObstacles; i++){
+      const row = availableRows.splice(Math.floor(rand()*availableRows.length), 1)[0];
+      const speed = Math.round((1.8 + rand()*1.4) * 10) / 10;
+      obstacles.push({ cellsPerSecond: speed, path: loopPath([[0,row],[cols-1,row]]) });
+    }
+    return { id: 'daily-' + dateStr, name: 'Daily Challenge', cols, rows, terminals, obstacles, isDaily:true, dateStr };
+  }
+  function getDailyStreak(){ return parseInt(localStorage.getItem('wired-v2-daily-streak') || '0', 10); }
+  function recordDailyPlay(dateStr){
+    const last = localStorage.getItem('wired-v2-daily-lastDate');
+    if(last === dateStr) return; // already counted today
+    const y = new Date(); y.setDate(y.getDate()-1);
+    const streak = (last === localDateString(y)) ? getDailyStreak()+1 : 1;
+    localStorage.setItem('wired-v2-daily-lastDate', dateStr);
+    localStorage.setItem('wired-v2-daily-streak', String(streak));
+  }
+
+  // Resolves a shared challenge link's level id back to a real level object.
+  // Daily-challenge ids are date-stamped, so a link opened after its date has
+  // passed can't be honored — that day's board no longer regenerates identically
+  // for direct comparison, so the challenge is treated as expired.
+  function resolveChallengeLevel(challengeId){
+    if(challengeId.indexOf('daily-') === 0){
+      const dateStr = challengeId.slice('daily-'.length);
+      return dateStr === localDateString() ? generateDailyLevel(dateStr) : null;
+    }
+    const id = parseInt(challengeId, 10);
+    return LEVELS.find(lv=>lv.id===id) || null;
+  }
+
+  // ---------- Medals ----------
+  // Hand-tuned time cutoffs (score, so shorts already count against you) per
+  // level — a lightweight goal beyond "beat my own best" without touching
+  // scoring or the leaderboard-fairness rules. The daily challenge always
+  // generates at Circuit Board's grid/color/spark count, so it borrows that
+  // level's thresholds rather than needing its own.
+  const MEDAL_THRESHOLDS = {
+    1: { gold:6,  silver:10, bronze:16 },
+    2: { gold:9,  silver:15, bronze:24 },
+    3: { gold:12, silver:20, bronze:32 },
+  };
+  const MEDAL_ICON = { gold:'🥇', silver:'🥈', bronze:'🥉' };
+  function getMedalThresholds(lv){ return lv.isDaily ? MEDAL_THRESHOLDS[2] : MEDAL_THRESHOLDS[lv.id]; }
+  function medalForScore(lv, score){
+    const t = getMedalThresholds(lv);
+    if(!t || score===null) return null;
+    if(score <= t.gold) return 'gold';
+    if(score <= t.silver) return 'silver';
+    if(score <= t.bronze) return 'bronze';
+    return null;
+  }
+
+  // ---------- Persistent storage (bumped key prefix — scoring rules changed) ----------
+  function bestKey(lv){ return 'wired-v2-best-' + lv.id; }
+  function getBest(lv){
+    const v = localStorage.getItem(bestKey(lv));
+    return v ? parseFloat(v) : null;
+  }
+  function setBestIfBetter(lv, score){
+    const cur = getBest(lv);
+    if(cur === null || score < cur){
+      localStorage.setItem(bestKey(lv), score.toFixed(1));
+      return true;
+    }
+    return false;
+  }
+
+  // Tracks whether a level has EVER been cleared with zero shorts.
+  function cleanClearKey(lv){ return 'wired-v2-clean-' + lv.id; }
+  function hasCleanClear(lv){ return localStorage.getItem(cleanClearKey(lv)) === '1'; }
+  function markCleanClear(lv){ localStorage.setItem(cleanClearKey(lv), '1'); }
+
+  // ---------- Lifetime stats (for the Settings > Stats section) ----------
+  function bumpCounter(key){
+    localStorage.setItem(key, String((parseInt(localStorage.getItem(key)||'0',10)) + 1));
+  }
+  function getCounter(key){ return parseInt(localStorage.getItem(key)||'0',10); }
+  function medalsEarnedCount(){
+    return LEVELS.filter(lv => medalForScore(lv, getBest(lv)) !== null).length;
+  }
+
+  // ---------- Cosmetic perks (purely visual — never affect timing, sparks,
+  // scoring, or preview counts, so every leaderboard time stays comparable) ----------
+  const SKINS = [
+    { id:'default', name:'Default', flavor:'The stock board.', tokens:{},
+      unlocked:()=>true },
+    { id:'fresh-solder', name:'Fresh Solder', flavor:'Every board starts here — bright joints, zero mileage.',
+      cond:'Clear your first level.',
+      unlocked:()=> LEVELS.some(lv=>getBest(lv)!==null),
+      tokens:{ '--accent':'#ffcf66', '--accent-2':'#6be2ff' } },
+    { id:'insulated', name:'Insulated', flavor:'Not one short. The board runs cool.',
+      cond:'Finish any level with zero shorts.',
+      unlocked:()=> LEVELS.some(lv=>hasCleanClear(lv)),
+      tokens:{ '--bg-pattern':'#163a2e', '--grid-line':'#1c3d33', '--good':'#37e6a0' } },
+    { id:'full-board', name:'Full Board', flavor:'Every socket populated. Nothing left breadboarded.',
+      cond:'Clear all three tiers at least once each.',
+      unlocked:()=> LEVELS.every(lv=>getBest(lv)!==null),
+      tokens:{ '--accent-2':'#7df9ff', '--panel-border':'#2b5a7a', '--bg-pattern':'#123049' } },
+    { id:'zero-shorts', name:'Zero Shorts', flavor:'The board that never sparked.',
+      cond:'Earn a zap-free clean clear on all three tiers.',
+      unlocked:()=> LEVELS.every(lv=>hasCleanClear(lv)),
+      tokens:{ '--accent':'#ffd75a', '--bg-pattern':'#2a1f0d', '--grid-line':'#33270f' }, badge:'⚡ ZERO SHORTS' },
+  ];
+  const ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tokens)))];
+  function getEquippedSkinId(){ return localStorage.getItem('wired-v2-skin') || 'default'; }
+  function setEquippedSkinId(id){ localStorage.setItem('wired-v2-skin', id); }
+  function applySkin(){
+    const skin = SKINS.find(s=>s.id===getEquippedSkinId() && s.unlocked()) || SKINS[0];
+    const root = document.documentElement.style;
+    ALL_SKIN_TOKEN_KEYS.forEach(k=>root.removeProperty(k));
+    Object.entries(skin.tokens).forEach(([k,v])=>root.setProperty(k,v));
+    const badgeEl = document.getElementById('menuBadge');
+    if(badgeEl) badgeEl.textContent = skin.badge || '';
+    if(badgeEl) badgeEl.classList.toggle('hidden', !skin.badge);
+  }
+  function renderSkinList(){
+    const list = document.getElementById('skinList');
+    list.innerHTML = '';
+    SKINS.forEach(skin=>{
+      const unlocked = skin.unlocked();
+      const equipped = getEquippedSkinId() === skin.id;
+      const row = document.createElement('div');
+      row.className = 'skinRow';
+      row.innerHTML = `
+        <div>
+          <div class="skinName">${skin.name}</div>
+          <div class="skinFlavor">${skin.flavor}</div>
+          ${!unlocked ? `<div class="skinCond">🔒 ${skin.cond}</div>` : ''}
+        </div>
+        <button class="skinBtn${equipped ? ' equipped':''}" ${unlocked ? '' : 'disabled'}>
+          ${equipped ? 'Equipped' : (unlocked ? 'Equip' : 'Locked')}
+        </button>
+      `;
+      row.querySelector('.skinBtn').onclick = ()=>{
+        if(!unlocked) return;
+        setEquippedSkinId(skin.id);
+        applySkin();
+        renderSkinList();
+      };
+      list.appendChild(row);
+    });
+  }
+
+  // ---------- Screen management ----------
+  let screen = 'menu'; // 'menu' | 'play' | 'settings'
+  const menuScreen = document.getElementById('menuScreen');
+  const playScreen = document.getElementById('playScreen');
+  const settingsScreen = document.getElementById('settingsScreen');
+  const menuList = document.getElementById('menuList');
+  const playLevelNameText = document.getElementById('playLevelNameText');
+  const colorblindToggle = document.getElementById('colorblindToggle');
+  const reduceMotionToggle = document.getElementById('reduceMotionToggle');
+  const muteToggle = document.getElementById('muteToggle');
+  const playerNameInput = document.getElementById('playerNameInput');
+
+  const SETTINGS_DEFAULTS = {colorblind:false, reduceMotion:false, muted:false, playerName:''};
+  const SETTINGS_KEY = 'wired-v2-settings';
+  function loadSettings(){
+    try{
+      return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+    } catch(e){
+      return Object.assign({}, SETTINGS_DEFAULTS);
+    }
+  }
+  let settings = loadSettings();
+
+  // A shared challenge link opened this session, if any: {level, score, name}.
+  let pendingChallenge = null;
+  (function parsePendingChallenge(){
+    const params = new URLSearchParams(location.search);
+    if(!params.has('challenge')) return;
+    const lv = resolveChallengeLevel(params.get('challenge'));
+    const score = parseFloat(params.get('score'));
+    if(lv && !isNaN(score)){
+      pendingChallenge = { level: lv, score, name: (params.get('name')||'').slice(0,20) };
+    }
+  })();
+
+  function saveSettings(){
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }
+  function applySettings(){
+    document.body.classList.toggle('reduce-motion', settings.reduceMotion);
+    document.body.classList.toggle('colorblind', settings.colorblind);
+    colorblindToggle.checked = settings.colorblind;
+    reduceMotionToggle.checked = settings.reduceMotion;
+    muteToggle.checked = settings.muted;
+    playerNameInput.value = settings.playerName;
+  }
+  colorblindToggle.addEventListener('change', ()=>{
+    settings.colorblind = colorblindToggle.checked;
+    saveSettings();
+    applySettings();
+  });
+  reduceMotionToggle.addEventListener('change', ()=>{
+    settings.reduceMotion = reduceMotionToggle.checked;
+    saveSettings();
+    applySettings();
+  });
+  muteToggle.addEventListener('change', ()=>{
+    settings.muted = muteToggle.checked;
+    saveSettings();
+    applySettings();
+  });
+  playerNameInput.addEventListener('input', ()=>{
+    settings.playerName = playerNameInput.value.trim();
+    saveSettings();
+  });
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderMenu(){
+    menuList.innerHTML = '';
+
+    // A challenge link puts untrusted data (the "name" query param) into the
+    // page — escape it before it ever touches innerHTML.
+    if(pendingChallenge){
+      const cName = pendingChallenge.name ? escapeHtml(pendingChallenge.name) : 'Someone';
+      const banner = document.createElement('div');
+      banner.className = 'levelCard challengeBanner';
+      banner.innerHTML = `
+        <div class="info">
+          <div class="name">🎯 Challenge from ${cName}</div>
+          <div class="meta">Beat <b>${pendingChallenge.score.toFixed(1)}s</b> on <b>${escapeHtml(pendingChallenge.level.name)}</b></div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="acceptBtn">Accept</button>
+          <button class="dismissBtn">✕</button>
+        </div>
+      `;
+      banner.querySelector('.acceptBtn').onclick = () => enterLevel(pendingChallenge.level);
+      banner.querySelector('.dismissBtn').onclick = () => { pendingChallenge = null; renderMenu(); };
+      menuList.appendChild(banner);
+    }
+
+    const todayStr = localDateString();
+    const dailyLevel = generateDailyLevel(todayStr);
+    const dailyBest = getBest(dailyLevel);
+    const dailyMedal = medalForScore(dailyLevel, dailyBest);
+    const streak = getDailyStreak();
+    const playedToday = localStorage.getItem('wired-v2-daily-lastDate') === todayStr;
+    const dailyCard = document.createElement('div');
+    dailyCard.className = 'levelCard dailyCard';
+    dailyCard.innerHTML = `
+      <div class="info">
+        <div class="name">⚡ Daily Challenge <span class="dailyDate">${todayStr}</span></div>
+        <div class="meta">Same board for everyone today · ${dailyLevel.cols}×${dailyLevel.rows} grid · ${dailyLevel.terminals.length} colors<br>
+        ${playedToday ? `Today's score: <b>${dailyBest!==null?dailyBest.toFixed(1)+'s':'—'}</b>${dailyMedal?' '+MEDAL_ICON[dailyMedal]:''}` : 'Not played yet today'} &nbsp;·&nbsp; Streak: <b>${streak} day${streak===1?'':'s'}</b></div>
+      </div>
+      <button class="playBtn">${playedToday ? 'Play Again' : 'Play'}</button>
+    `;
+    dailyCard.querySelector('.playBtn').onclick = () => enterLevel(dailyLevel);
+    menuList.appendChild(dailyCard);
+
+    LEVELS.forEach(lv=>{
+      const best = getBest(lv);
+      const medal = medalForScore(lv, best);
+      const t = getMedalThresholds(lv);
+      const card = document.createElement('div');
+      card.className = 'levelCard';
+      card.innerHTML = `
+        <div class="info">
+          <div class="name">${lv.name}</div>
+          <div class="meta">${lv.cols}×${lv.rows} grid · ${lv.terminals.length} colors · ${lv.obstacles.length} spark${lv.obstacles.length===1?'':'s'}<br>
+          Best score: <b>${best!==null ? best.toFixed(1)+'s' : '—'}</b>${medal?' '+MEDAL_ICON[medal]:''}${t?` &nbsp;·&nbsp; Gold at <b>${t.gold}s</b>`:''}</div>
+        </div>
+        <button class="playBtn">Play</button>
+      `;
+      card.querySelector('.playBtn').onclick = () => enterLevel(lv);
+      menuList.appendChild(card);
+    });
+  }
+
+  function showMenu(){
+    screen = 'menu';
+    renderMenu();
+    winModal.classList.remove('show');
+    playScreen.classList.add('hidden');
+    settingsScreen.classList.add('hidden');
+    menuScreen.classList.remove('hidden');
+  }
+
+  function renderStats(){
+    const rows = [
+      { label:'Levels Cleared', value: getCounter('wired-v2-stats-plays') },
+      { label:'Total Shorts', value: getCounter('wired-v2-stats-zaps') },
+      { label:'Daily Streak', value: getDailyStreak() },
+      { label:'Medals Earned', value: `${medalsEarnedCount()}/${LEVELS.length}` },
+    ];
+    document.getElementById('statsList').innerHTML = '<div class="statsGrid">' +
+      rows.map(r => `<div class="stat"><div class="value">${r.value}</div><div class="label">${escapeHtml(r.label)}</div></div>`).join('') +
+      '</div>';
+  }
+
+  function showSettings(){
+    screen = 'settings';
+    renderSkinList();
+    renderStats();
+    menuScreen.classList.add('hidden');
+    playScreen.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+  }
+
+  function enterLevel(lv){
+    level = lv;
+    resizeCanvasForLevel();
+    playLevelNameText.textContent = level.name;
+    resetPuzzle();
+    screen = 'play';
+    menuScreen.classList.add('hidden');
+    settingsScreen.classList.add('hidden');
+    playScreen.classList.remove('hidden');
+
+    if(pendingChallenge && pendingChallenge.level.id === level.id){
+      const cName = pendingChallenge.name ? escapeHtml(pendingChallenge.name) : 'Someone';
+      challengeTargetBar.innerHTML = `🎯 Beat ${cName}'s ${pendingChallenge.score.toFixed(1)}s`;
+      challengeTargetBar.classList.remove('hidden');
+    } else {
+      challengeTargetBar.classList.add('hidden');
+    }
+  }
+
+  // ---------- State ----------
+  // CELL is recomputed per level/viewport instead of a fixed 64px so boards
+  // fit on phones — see resizeCanvasForLevel(). All drawing/hit-testing code
+  // below just reads CELL, so it works unchanged at any size.
+  const MIN_CELL = 32, MAX_CELL = 64;
+  let CELL = MAX_CELL;
+  let level = LEVELS[0];
+  let wires = {};            // colorIndex -> {cells:[[c,r],...], locked:bool}
+  let activeColor = null;    // colorIndex currently being built — persists across pointer-up so taps can continue it
+  let dragging = false;      // true only while the pointer/finger is physically down
+  let startTime = null;
+  let elapsed = 0;
+  let running = false;
+  let won = false;
+  let zapCount = 0;
+  let previewUntil = 0;      // timestamp; while now < previewUntil, obstacles run but board is locked from input
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const timerEl = document.getElementById('timer');
+  const bestValEl = document.getElementById('bestVal');
+  const zapCountEl = document.getElementById('zapCount');
+  const scoreValEl = document.getElementById('scoreVal');
+  const previewBtn = document.getElementById('previewBtn');
+  const challengeTargetBar = document.getElementById('challengeTargetBar');
+  const winModal = document.getElementById('winModal');
+  const winScoreEl = document.getElementById('winScore');
+  const winBreakdownEl = document.getElementById('winBreakdown');
+  const winBestLineEl = document.getElementById('winBestLine');
+  const winEarnLineEl = document.getElementById('winEarnLine');
+
+  // Sizes the board to fit the viewport (phones can't show an 8-column board
+  // at a fixed 64px/cell) while keeping the canvas crisp on high-DPI screens.
+  // Grid coordinates (wires[i].cells) are stored as [col,row], not pixels, so
+  // changing CELL never invalidates in-progress state — just re-render.
+  function computeCellSize(cols, rows){
+    // In the compact-landscape layout the board shares horizontal space with
+    // a sidebar (see the matching @media rule), and vertical space is capped
+    // too — both need to shrink the budget, not just width the rest of the time.
+    // Must stay byte-identical to the CSS @media rule above, or the board gets
+    // sized for one layout while the page is actually rendering the other.
+    const isLandscapeCompact = window.matchMedia('(orientation: landscape) and (max-height: 560px) and (max-width: 900px)').matches;
+    const reservedForSidebar = isLandscapeCompact ? 200 : 0;
+    const availableW = Math.min(window.innerWidth - 32 - reservedForSidebar, 640);
+    const availableH = isLandscapeCompact ? (window.innerHeight - 90) : Infinity;
+    const bySize = Math.min(availableW / cols, availableH / rows);
+    return Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor(bySize)));
+  }
+  function resizeCanvasForLevel(){
+    CELL = computeCellSize(level.cols, level.rows);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(level.cols * CELL * dpr);
+    canvas.height = Math.round(level.rows * CELL * dpr);
+    canvas.style.width = (level.cols * CELL) + 'px';
+    canvas.style.height = (level.rows * CELL) + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', ()=>{
+    if(screen === 'play') resizeCanvasForLevel();
+  });
+
+  function currentScore(){ return elapsed + zapCount * ZAP_PENALTY; }
+
+  function resetPuzzle(){
+    wires = {};
+    level.terminals.forEach((t,i)=>{ wires[i] = { cells: [], locked:false }; });
+    activeColor = null;
+    dragging = false;
+    startTime = null;
+    elapsed = 0;
+    running = false;
+    won = false;
+    zapCount = 0;
+    previewUntil = 0;
+    winModal.classList.remove('show');
+    updateHud();
+  }
+
+  function updateHud(){
+    const score = currentScore();
+    timerEl.textContent = elapsed.toFixed(1) + 's';
+    timerEl.className = 'value ' + (won ? 'win' : (running ? 'running' : ''));
+    zapCountEl.textContent = zapCount;
+    zapCountEl.className = 'value ' + (zapCount>0 ? 'hasZaps' : '');
+    scoreValEl.textContent = score.toFixed(1) + 's';
+    const best = getBest(level);
+    bestValEl.textContent = best!==null ? best.toFixed(1)+'s' : '—';
+  }
+
+  // ---------- Geometry helpers ----------
+  function cellAt(px, py){
+    const c = Math.floor(px / CELL), r = Math.floor(py / CELL);
+    if(c<0||r<0||c>=level.cols||r>=level.rows) return null;
+    return [c,r];
+  }
+  function sameCell(a,b){ return a[0]===b[0] && a[1]===b[1]; }
+  function adjacent(a,b){ return Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]) === 1; }
+  function terminalAt(cell){
+    for(let i=0;i<level.terminals.length;i++){
+      const t = level.terminals[i];
+      if(sameCell(t.a, cell)) return {idx:i, which:'a'};
+      if(sameCell(t.b, cell)) return {idx:i, which:'b'};
+    }
+    return null;
+  }
+  function occupiedBy(cell, excludeIdx){
+    for(const key in wires){
+      const i = parseInt(key,10);
+      if(i===excludeIdx) continue;
+      const w = wires[i];
+      if(w.cells.some(c=>sameCell(c,cell))) return i;
+    }
+    return null;
+  }
+  function ownPathIndexAt(cell){
+    for(const key in wires){
+      const i = parseInt(key,10);
+      const w = wires[i];
+      if(w.locked) continue;
+      const pos = w.cells.findIndex(c=>sameCell(c,cell));
+      if(pos !== -1) return {idx:i, pos};
+    }
+    return null;
+  }
+
+  // ---------- Sound (synthesized via Web Audio API — no asset files, keeps
+  // this a single self-contained file). The AudioContext is created lazily
+  // on the first call from inside a real user-gesture handler (click/tap/key),
+  // since browsers block audio until one happens — no separate "unlock" step
+  // needed as long as every sfx.* call happens inside such a handler.
+  let audioCtx = null;
+  function ensureAudio(){
+    if(settings.muted) return null;
+    if(!audioCtx){
+      try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e){ return null; }
+    }
+    if(audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+    return audioCtx;
+  }
+  function playTone(freq, opts){
+    const {duration=0.12, type='sine', gain=0.18, sweepTo=null, delay=0} = opts || {};
+    const ctx = ensureAudio();
+    if(!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if(sweepTo !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(1,sweepTo), t0+duration);
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+duration);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t0); osc.stop(t0+duration+0.02);
+  }
+  function playNoise(opts){
+    const {duration=0.15, gain=0.25} = opts || {};
+    const ctx = ensureAudio();
+    if(!ctx) return;
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate*duration));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+duration);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 220;
+    src.connect(filter); filter.connect(g); g.connect(ctx.destination);
+    src.start();
+  }
+  const sfx = {
+    click(){ playTone(520, {duration:0.05, type:'square', gain:0.08}); },
+    lock(){ playTone(660, {duration:0.16, type:'sine', gain:0.16, sweepTo:990}); },
+    zap(){ playNoise({duration:0.22, gain:0.3}); },
+    win(){ [660,880,1100,1320].forEach((f,i)=>playTone(f,{duration:0.14, type:'triangle', gain:0.15, delay:i*0.09})); },
+  };
+
+  // Vibration API is Android-only in practice (iOS Safari has no support at
+  // all), so this is feature-detected and silently absent elsewhere — no
+  // dedicated settings toggle needed since there's nothing to disable there.
+  function haptic(pattern){
+    if('vibrate' in navigator){
+      try{ navigator.vibrate(pattern); } catch(e){}
+    }
+  }
+
+  // ---------- Input ----------
+  function pointerPos(evt){
+    const rect = canvas.getBoundingClientRect();
+    const p = evt.touches ? evt.touches[0] : evt;
+    return [p.clientX - rect.left, p.clientY - rect.top];
+  }
+
+  // Handles both a click-and-drag gesture AND a tap-cell-by-cell gesture:
+  // - tapping a cell already on our own unfinished wire resumes/trims from there
+  // - tapping the FAR terminal of the color currently being built completes
+  //   that connection (must be checked before the generic terminal case below,
+  //   or a tap that lands on the destination dot would wipe the path you just
+  //   built and restart from that end instead of locking it)
+  // - tapping any other terminal (re)starts that color fresh
+  // - tapping any other cell extends whichever color is currently active,
+  //   so a sequence of taps (no held drag) can build a path one step at a time
+  function onPointerDown(cell){
+    const own = ownPathIndexAt(cell);
+    if(own){
+      wires[own.idx].cells = wires[own.idx].cells.slice(0, own.pos+1);
+      activeColor = own.idx;
+      dragging = true;
+      return;
+    }
+
+    const term = terminalAt(cell);
+
+    if(term && term.idx === activeColor){
+      const w = wires[activeColor];
+      if(w && !w.locked && w.cells.length && !sameCell(w.cells[0], cell)){
+        dragging = true;
+        extendDraw(cell);
+        return;
+      }
+    }
+
+    if(term){
+      wires[term.idx] = { cells:[cell], locked:false };
+      activeColor = term.idx;
+      dragging = true;
+      sfx.click();
+      if(!running && !won){
+        running = true;
+        startTime = performance.now();
+      }
+      return;
+    }
+    if(activeColor !== null && wires[activeColor] && !wires[activeColor].locked && wires[activeColor].cells.length){
+      dragging = true;
+      extendDraw(cell);
+    }
+  }
+
+  // Fast real mouse drags (and coarse touch input) don't fire a move event for
+  // every cell crossed — the pointer can jump several cells between events.
+  // So we walk single unit steps from the last drawn cell toward the reported
+  // cell instead of requiring exact adjacency, applying the normal rules at
+  // each step and stopping early if a step is invalid.
+  function extendDraw(cell){
+    if(activeColor===null) return;
+    let guard = 0;
+    while(guard++ < 64){
+      const w = wires[activeColor];
+      if(!w || w.locked || !w.cells.length) return;
+      const last = w.cells[w.cells.length-1];
+      if(sameCell(last, cell)) return;
+
+      if(w.cells.length>1 && sameCell(w.cells[w.cells.length-2], cell)){
+        w.cells.pop();
+        continue;
+      }
+
+      let step;
+      if(adjacent(last, cell)){
+        step = cell;
+      } else {
+        const dCol = cell[0]-last[0], dRow = cell[1]-last[1];
+        step = Math.abs(dCol) >= Math.abs(dRow)
+          ? [last[0]+Math.sign(dCol), last[1]]
+          : [last[0], last[1]+Math.sign(dRow)];
+      }
+
+      if(w.cells.length>1 && sameCell(w.cells[w.cells.length-2], step)){
+        w.cells.pop();
+        continue;
+      }
+
+      const term = level.terminals[activeColor];
+      const isOwnOtherEnd =
+        (sameCell(term.a, w.cells[0]) && sameCell(term.b, step)) ||
+        (sameCell(term.b, w.cells[0]) && sameCell(term.a, step));
+
+      const occ = occupiedBy(step, activeColor);
+      if(occ !== null){
+        const occWire = wires[occ];
+        if(occWire.locked) return; // can't cross a finished wire — stop here
+        wires[occ] = { cells:[], locked:false };
+      }
+
+      if(w.cells.some(c=>sameCell(c,step))) return;
+
+      w.cells.push(step);
+
+      if(isOwnOtherEnd){
+        w.locked = true;
+        activeColor = null;
+        sfx.lock();
+        checkWin();
+        return;
+      }
+    }
+  }
+
+  function endPointer(){
+    dragging = false;
+  }
+
+  canvas.addEventListener('mousedown', e=>{
+    if(performance.now() < previewUntil) return;
+    const [px,py] = pointerPos(e);
+    const c = cellAt(px,py);
+    if(c) onPointerDown(c);
+  });
+  canvas.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const [px,py] = pointerPos(e);
+    const c = cellAt(px,py);
+    if(c) extendDraw(c);
+  });
+  window.addEventListener('mouseup', endPointer);
+
+  canvas.addEventListener('touchstart', e=>{
+    if(performance.now() < previewUntil) return;
+    e.preventDefault();
+    const [px,py] = pointerPos(e);
+    const c = cellAt(px,py);
+    if(c) onPointerDown(c);
+  }, {passive:false});
+  canvas.addEventListener('touchmove', e=>{
+    e.preventDefault();
+    if(!dragging) return;
+    const [px,py] = pointerPos(e);
+    const c = cellAt(px,py);
+    if(c) extendDraw(c);
+  }, {passive:false});
+  canvas.addEventListener('touchend', endPointer);
+
+  // ---------- Keyboard input (WASD / arrows) ----------
+  // Cycles activeColor with Tab/Shift+Tab, then reuses extendDraw for
+  // single-step movement so keyboard play follows the exact same
+  // adjacency/occupancy/lock rules as a drag — no duplicated logic.
+  function cycleActiveColor(dir){
+    const n = level.terminals.length;
+    if(!n) return;
+    const start = activeColor===null ? -1 : activeColor;
+    for(let step=1; step<=n; step++){
+      const idx = ((start + dir*step) % n + n) % n;
+      if(wires[idx].locked) continue;
+      activeColor = idx;
+      if(wires[idx].cells.length === 0){
+        wires[idx] = { cells:[level.terminals[idx].a], locked:false };
+        sfx.click();
+      }
+      if(!running && !won){
+        running = true;
+        startTime = performance.now();
+      }
+      return;
+    }
+  }
+
+  function keyboardStep(dc, dr){
+    if(activeColor === null){
+      cycleActiveColor(1);
+      if(activeColor === null) return;
+    }
+    const w = wires[activeColor];
+    if(!w || w.locked || !w.cells.length) return;
+    const head = w.cells[w.cells.length-1];
+    const target = [head[0]+dc, head[1]+dr];
+    if(target[0]<0 || target[1]<0 || target[0]>=level.cols || target[1]>=level.rows) return;
+    extendDraw(target);
+  }
+
+  function keyboardBack(){
+    if(activeColor === null) return;
+    const w = wires[activeColor];
+    if(!w || w.locked || w.cells.length<2) return;
+    extendDraw(w.cells[w.cells.length-2]);
+  }
+
+  window.addEventListener('keydown', e=>{
+    if(screen !== 'play') return;
+    if(performance.now() < previewUntil) return;
+    const key = e.key;
+    if(key === 'Tab'){
+      e.preventDefault();
+      cycleActiveColor(e.shiftKey ? -1 : 1);
+      return;
+    }
+    if(key === 'Backspace'){
+      e.preventDefault();
+      keyboardBack();
+      return;
+    }
+    if(key === 'Enter' || key === ' '){
+      e.preventDefault();
+      if(activeColor === null) cycleActiveColor(1);
+      return;
+    }
+    let dc=0, dr=0;
+    if(key==='ArrowUp' || key==='w' || key==='W') dr=-1;
+    else if(key==='ArrowDown' || key==='s' || key==='S') dr=1;
+    else if(key==='ArrowLeft' || key==='a' || key==='A') dc=-1;
+    else if(key==='ArrowRight' || key==='d' || key==='D') dc=1;
+    else return;
+    e.preventDefault();
+    keyboardStep(dc, dr);
+  });
+
+  function checkWin(){
+    const allLocked = level.terminals.every((_,i)=>wires[i].locked);
+    if(allLocked){
+      won = true;
+      running = false;
+      sfx.win();
+      haptic([40,30,40]);
+      bumpCounter('wired-v2-stats-plays');
+      if(level.isDaily) recordDailyPlay(level.dateStr);
+      const score = currentScore();
+      const improved = setBestIfBetter(level, score);
+
+      let earnLine = '';
+      if(zapCount === 0) markCleanClear(level);
+
+      const medal = medalForScore(level, score);
+      const t = getMedalThresholds(level);
+      if(medal === 'gold'){
+        earnLine = 'Gold — nothing left to shave here.';
+      } else if(t){
+        const next = medal === 'silver' ? t.gold : (medal === 'bronze' ? t.silver : t.bronze);
+        const nextName = medal === 'silver' ? 'gold' : (medal === 'bronze' ? 'silver' : 'bronze');
+        earnLine = `Beat ${next.toFixed(1)}s for ${nextName}.`;
+      }
+      applySkin(); // a fresh clear/clean-run may just have unlocked a cosmetic
+
+      winScoreEl.textContent = score.toFixed(1)+'s' + (medal ? ' ' + MEDAL_ICON[medal] : '');
+      winBreakdownEl.textContent = `${elapsed.toFixed(1)}s time + ${zapCount}×${ZAP_PENALTY}s penalty`;
+      winBestLineEl.textContent = improved ? 'New personal best!' : ('Best: ' + getBest(level).toFixed(1) + 's');
+      winEarnLineEl.textContent = earnLine;
+      winModal.classList.add('show');
+      updateHud();
+    }
+  }
+
+  // ---------- Obstacle motion + collision ----------
+  // Two obstacle kinds, both fully deterministic (no randomness anywhere, so
+  // any two players facing the same board face the identical challenge):
+  //   • patrol — travels its path loop. A "pause" variant is expressed purely
+  //     by repeating cells in the path array, so the motion code below needs
+  //     no special case: interpolating between two identical cells simply
+  //     produces no movement for that beat.
+  //   • gate  — never moves; a fixed cell that energizes on a timed cycle.
+  function isGate(ob){ return ob.type === 'gate'; }
+  function gateIsLive(ob, tSec){
+    const phase = ((tSec / ob.periodSec) + (ob.phase || 0)) % 1;
+    return phase < (ob.duty || 0.5);
+  }
+  function obstacleCellNow(ob, tSec){
+    if(isGate(ob)) return ob.cell;
+    const n = ob.path.length;
+    const pos = (tSec * ob.cellsPerSecond) % n;
+    const i = Math.floor(pos);
+    return ob.path[i];
+  }
+  function obstacleInterpNow(ob, tSec){
+    if(isGate(ob)) return ob.cell;
+    const n = ob.path.length;
+    const pos = (tSec * ob.cellsPerSecond) % n;
+    const i0 = Math.floor(pos), i1 = (i0+1)%n;
+    const f = pos - i0;
+    const a = ob.path[i0], b = ob.path[i1];
+    return [ a[0] + (b[0]-a[0])*f, a[1] + (b[1]-a[1])*f ];
+  }
+  // A gate only threatens wires while it's energized; a patrol always does.
+  function obstacleIsDangerous(ob, tSec){
+    return isGate(ob) ? gateIsLive(ob, tSec) : true;
+  }
+
+  function checkZaps(tSec){
+    if(won) return;
+    level.obstacles.forEach(ob=>{
+      if(!obstacleIsDangerous(ob, tSec)) return;
+      const cell = obstacleCellNow(ob, tSec);
+      for(const key in wires){
+        const w = wires[key];
+        if(w.locked || w.cells.length===0) continue;
+        if(w.cells.some(c=>sameCell(c,cell))){
+          wires[key] = { cells:[], locked:false };
+          if(parseInt(key,10)===activeColor) activeColor = null;
+          zapCount++;
+          bumpCounter('wired-v2-stats-zaps');
+          flashZap();
+          sfx.zap();
+          haptic(30);
+        }
+      }
+    });
+  }
+
+  function flashZap(){
+    const el = document.getElementById('boardWrap');
+    el.classList.remove('zap-flash');
+    void el.offsetWidth; // force reflow so the animation can restart
+    el.classList.add('zap-flash');
+  }
+
+  // ---------- Wire identity: shape + pattern (always on) and palette (swappable) ----------
+  // Shape glyphs and dash patterns are applied for EVERY player, not just in
+  // colorblind mode — they're what give the board its texture and make each
+  // wire readable at a glance, and hiding them behind an accessibility toggle
+  // meant most players saw a flatter, plainer board than the game actually had.
+  // Only the COLOR swaps when colorblind mode is on. Dash arrays are expressed
+  // at CELL=64 and scaled by CELL/64 at draw time so pattern density is
+  // consistent at any board size.
+  const WIRE_STYLE = {
+    "#ff5d6c": { shape:"triangle", cap:'butt',  dash:{unlocked:[14,10],    locked:[20,14]} },
+    "#ffd75a": { shape:"square",   cap:'butt',  dash:{unlocked:[10,10],    locked:[14,14]} },
+    "#7ab8ff": { shape:"diamond",  cap:'round', dash:{unlocked:[1,9],      locked:[1,13]} },
+    "#54e6a6": { shape:"star",     cap:'round', dash:{unlocked:[14,6,2,6], locked:[20,8,2,8]} },
+    "#c98bff": { shape:"plus",     cap:'butt',  dash:{unlocked:[],         locked:[]} },
+  };
+  // Deuteranopia/protanopia/tritanopia-safe replacements, verified distinguishable
+  // pairwise (not just individually) — applied only when the toggle is on.
+  const COLORBLIND_PALETTE = {
+    "#ff5d6c": "#FA3F2E",
+    "#ffd75a": "#F5CA47",
+    "#7ab8ff": "#0AB6FF",
+    "#54e6a6": "#14FFA5",
+    "#c98bff": "#E56198",
+  };
+  function styleFor(baseColor){
+    const style = WIRE_STYLE[baseColor] || { shape:null, cap:'round', dash:{unlocked:[],locked:[]} };
+    const color = settings.colorblind ? (COLORBLIND_PALETTE[baseColor] || baseColor) : baseColor;
+    return { style, color };
+  }
+  function drawGlyph(shape, x, y, size){
+    const r = size/2;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    if(shape==='triangle'){
+      ctx.moveTo(x, y-r); ctx.lineTo(x+r*0.9, y+r*0.75); ctx.lineTo(x-r*0.9, y+r*0.75); ctx.closePath();
+    } else if(shape==='square'){
+      ctx.rect(x-r*0.75, y-r*0.75, r*1.5, r*1.5);
+    } else if(shape==='diamond'){
+      ctx.moveTo(x, y-r); ctx.lineTo(x+r, y); ctx.lineTo(x, y+r); ctx.lineTo(x-r, y); ctx.closePath();
+    } else if(shape==='star'){
+      let rot = Math.PI/2*3;
+      const step = Math.PI/5, outerR = r, innerR = r*0.45;
+      ctx.moveTo(x, y-outerR);
+      for(let k=0;k<5;k++){
+        ctx.lineTo(x+Math.cos(rot)*outerR, y+Math.sin(rot)*outerR); rot+=step;
+        ctx.lineTo(x+Math.cos(rot)*innerR, y+Math.sin(rot)*innerR); rot+=step;
+      }
+      ctx.closePath();
+    } else if(shape==='plus'){
+      const w = r*0.42;
+      ctx.rect(x-w, y-r, w*2, r*2);
+      ctx.rect(x-r, y-w, r*2, w*2);
+    }
+    ctx.fill();
+  }
+
+  // ---------- Rendering ----------
+  function cssVar(name, fallback){
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  function draw(tSec){
+    const boardW = level.cols*CELL, boardH = level.rows*CELL;
+    const traceColor = cssVar('--grid-line', '#1b2740');
+    const boardBg = cssVar('--board-bg', '#080c14');
+    const sparkColor = cssVar('--spark', '#fff2b8');
+
+    // Board substrate — a darker panel than the page so the play field reads
+    // as a physical board sitting on the desk, not just more page background.
+    ctx.fillStyle = boardBg;
+    ctx.fillRect(0,0,boardW,boardH);
+
+    // PCB trace grid: thin traces plus a small junction pad at each crossing,
+    // which is what visually separates this from a generic graph-paper grid.
+    ctx.strokeStyle = traceColor;
+    ctx.lineWidth = 1;
+    for(let c=0;c<=level.cols;c++){
+      ctx.beginPath(); ctx.moveTo(c*CELL,0); ctx.lineTo(c*CELL, boardH); ctx.stroke();
+    }
+    for(let r=0;r<=level.rows;r++){
+      ctx.beginPath(); ctx.moveTo(0,r*CELL); ctx.lineTo(boardW, r*CELL); ctx.stroke();
+    }
+    ctx.fillStyle = traceColor;
+    const padR = Math.max(1, CELL*0.045);
+    for(let c=0;c<=level.cols;c++){
+      for(let r=0;r<=level.rows;r++){
+        ctx.beginPath(); ctx.arc(c*CELL, r*CELL, padR, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    // All drawn sizes below are proportional to CELL (not fixed pixels) so
+    // the board keeps its proportions whether it's rendered at 32px/cell on
+    // a phone or 64px/cell on desktop.
+    const dotR = CELL*0.25, lockedW = CELL*0.219, unlockedW = CELL*0.156;
+
+    // Faint always-visible patrol tracks, so the hazard's route is readable
+    // without having to watch it travel first. Drawn as an etched channel —
+    // a dark recess with a thin lit rail down the middle — rather than a flat
+    // bar, so it reads as part of the board instead of a UI overlay.
+    level.obstacles.forEach(ob=>{
+      if(!ob.path || ob.path.length < 2) return;
+      const tracePathFor = ()=>{
+        ctx.beginPath();
+        ob.path.forEach((c,idx)=>{
+          const x = c[0]*CELL+CELL/2, y = c[1]*CELL+CELL/2;
+          if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+      };
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#000';
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = CELL*0.34;
+      tracePathFor();
+      ctx.stroke();
+      ctx.strokeStyle = sparkColor;
+      ctx.globalAlpha = 0.16;
+      ctx.lineWidth = CELL*0.05;
+      tracePathFor();
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    level.terminals.forEach((t,i)=>{
+      const w = wires[i];
+      const { style, color: drawColor } = styleFor(t.color);
+
+      // Wires render in two passes: a wide, low-alpha glow underneath and the
+      // patterned wire on top, so a live wire reads as carrying current.
+      if(w.cells.length>1){
+        const tracePath = ()=>{
+          ctx.beginPath();
+          w.cells.forEach((c,idx)=>{
+            const x = c[0]*CELL+CELL/2, y = c[1]*CELL+CELL/2;
+            if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+          });
+        };
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = drawColor;
+        ctx.globalAlpha = w.locked ? 0.28 : 0.18;
+        ctx.lineWidth = (w.locked ? lockedW : unlockedW) * 2.1;
+        tracePath();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = drawColor;
+        ctx.lineWidth = w.locked ? lockedW : unlockedW;
+        ctx.lineCap = style.cap;
+        ctx.lineJoin = 'round';
+        ctx.setLineDash(style.dash[w.locked ? 'locked':'unlocked'].map(d=>d*(CELL/64)));
+        ctx.globalAlpha = w.locked ? 1 : 0.9;
+        tracePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Terminals as solder pads: an outer ring, a colored pad, and the
+      // color's identifying glyph punched through the middle.
+      [t.a, t.b].forEach(pt=>{
+        const x = pt[0]*CELL+CELL/2, y = pt[1]*CELL+CELL/2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x,y,dotR*1.32,0,Math.PI*2);
+        ctx.fillStyle = boardBg;
+        ctx.fill();
+        ctx.lineWidth = Math.max(1, CELL*0.028);
+        ctx.strokeStyle = drawColor;
+        ctx.globalAlpha = 0.5;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.shadowColor = drawColor;
+        ctx.shadowBlur = w.locked ? CELL*0.22 : CELL*0.10;
+        ctx.beginPath();
+        ctx.arc(x,y,dotR,0,Math.PI*2);
+        ctx.fillStyle = drawColor;
+        ctx.fill();
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.arc(x,y,dotR,0,Math.PI*2);
+        ctx.lineWidth = Math.max(1.5, CELL*0.03);
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+        ctx.stroke();
+
+        if(style.shape) drawGlyph(style.shape, x, y, dotR*1.15);
+      });
+    });
+
+    // Selection feedback: a pulsing ring on the "head" cell of whichever color
+    // is currently being built (mouse/touch drag head, or the keyboard cursor —
+    // both just mean "the last cell in that wire's path"), so it's always
+    // obvious at a glance what's live and where the next move will land.
+    if(activeColor !== null && wires[activeColor] && !wires[activeColor].locked && wires[activeColor].cells.length){
+      const w = wires[activeColor];
+      const head = w.cells[w.cells.length-1];
+      const t = level.terminals[activeColor];
+      const x = head[0]*CELL+CELL/2, y = head[1]*CELL+CELL/2;
+      const pulse = settings.reduceMotion ? 0.8 : (0.55 + 0.45*Math.sin(tSec*6));
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x,y,dotR*1.375,0,Math.PI*2);
+      ctx.lineWidth = Math.max(2, CELL*0.047);
+      ctx.strokeStyle = t.color;
+      ctx.globalAlpha = pulse;
+      ctx.shadowColor = t.color;
+      ctx.shadowBlur = CELL*0.19;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    level.obstacles.forEach(ob=>{
+      const [ic,ir] = obstacleInterpNow(ob, tSec);
+      const x = ic*CELL+CELL/2, y = ir*CELL+CELL/2;
+      const coreR = CELL*0.16;
+
+      // A short trail sampled from where the spark just was, so its direction
+      // of travel is obvious at a glance rather than needing a second look.
+      if(!settings.reduceMotion){
+        for(let s=1; s<=5; s++){
+          const [tc,tr] = obstacleInterpNow(ob, tSec - s*0.045);
+          const tx = tc*CELL+CELL/2, ty = tr*CELL+CELL/2;
+          ctx.save();
+          ctx.globalAlpha = 0.30 * (1 - s/6);
+          ctx.fillStyle = sparkColor;
+          ctx.beginPath();
+          ctx.arc(tx, ty, coreR * (1 - s*0.12), 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // Outer danger halo + hot white core.
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = sparkColor;
+      ctx.beginPath();
+      ctx.arc(x, y, coreR*2.4, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.shadowColor = sparkColor;
+      ctx.shadowBlur = CELL*0.45;
+      ctx.fillStyle = sparkColor;
+      ctx.beginPath();
+      ctx.arc(x, y, coreR, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x, y, coreR*0.5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Trace overlay: shows each hazard's FUTURE positions as numbered ghosts
+    // along its loop. This is the thing the old "Preview" couldn't tell you —
+    // just watching the spark move is something you can already do for free
+    // (the clock doesn't start until your first move), whereas seeing where it
+    // will be in 1s / 2s / 3s at a glance is genuinely new information.
+    if(performance.now() < previewUntil){
+      ctx.save();
+      ctx.fillStyle = 'rgba(4,8,14,0.55)';
+      ctx.fillRect(0,0,boardW,boardH);
+      level.obstacles.forEach(ob=>{
+        for(let s=1; s<=3; s++){
+          const [fc,fr] = obstacleInterpNow(ob, tSec + s);
+          const x = fc*CELL+CELL/2, y = fr*CELL+CELL/2;
+          ctx.globalAlpha = 0.85 - s*0.18;
+          ctx.beginPath();
+          ctx.arc(x, y, CELL*0.20, 0, Math.PI*2);
+          ctx.strokeStyle = sparkColor;
+          ctx.lineWidth = Math.max(1.5, CELL*0.035);
+          ctx.setLineDash([CELL*0.09, CELL*0.06]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 0.95 - s*0.18;
+          ctx.fillStyle = sparkColor;
+          ctx.font = `bold ${Math.round(CELL*0.22)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(s+'s', x, y);
+        }
+      });
+      ctx.restore();
+    }
+  }
+
+  // ---------- Main loop ----------
+  // Wrapped in try/catch so a single bad frame can't permanently freeze/blank
+  // the board — worst case we drop a frame's update and keep going.
+  let obstacleClock0 = performance.now();
+  function tick(now){
+    try{
+      if(screen === 'play'){
+        const tSec = (now - obstacleClock0)/1000;
+        if(running && !won){
+          elapsed = (now - startTime)/1000;
+        }
+        if(performance.now() >= previewUntil){
+          checkZaps(tSec);
+        }
+        updateHud();
+        draw(tSec);
+      }
+    } catch(err){
+      console.error('Wired: frame error', err);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- Buttons ----------
+  document.getElementById('menuBtn').onclick = showMenu;
+  document.getElementById('winMenu').onclick = showMenu;
+  document.getElementById('settingsBtn').onclick = showSettings;
+  document.getElementById('settingsBackBtn').onclick = showMenu;
+  document.getElementById('restartBtn').onclick = resetPuzzle;
+  document.getElementById('winRestart').onclick = resetPuzzle;
+  // Trace is free and unlimited — the clock keeps running while it's up, so
+  // using it mid-run already costs you time. That natural cost is enough;
+  // no scarce currency needed on top of it.
+  previewBtn.onclick = ()=>{
+    previewUntil = performance.now() + TRACE_MS;
+  };
+  function shareText(){
+    const score = currentScore();
+    const best = getBest(level);
+    return `⚡ Wired — ${level.name}\nScore ${score.toFixed(1)}s (best ${best!==null?best.toFixed(1):score.toFixed(1)}s), ${zapCount} short${zapCount===1?'':'s'}.`;
+  }
+  // Encodes level + score in the URL itself — no backend needed — so opening
+  // the link can greet the recipient with a specific score to beat.
+  function challengeUrl(){
+    const base = location.href.split('?')[0].split('#')[0];
+    const params = new URLSearchParams();
+    params.set('challenge', String(level.id));
+    params.set('score', currentScore().toFixed(1));
+    if(settings.playerName) params.set('name', settings.playerName);
+    return base + '?' + params.toString();
+  }
+  function doShare(){
+    const text = shareText();
+    const url = challengeUrl();
+    if(navigator.share){
+      navigator.share({text, url}).catch(()=>{});
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(text + '\n' + url).then(()=>alert('Result + challenge link copied to clipboard!'));
+    } else {
+      alert(text + '\n' + url);
+    }
+  }
+  document.getElementById('shareBtn').onclick = doShare;
+  document.getElementById('winShare').onclick = doShare;
+
+  // ---------- Intro / splash screen ----------
+  // Shown once on first load (a fresh page load = a new "session" for this
+  // single-page app); returning to the menu later never re-triggers it.
+  const introScreen = document.getElementById('introScreen');
+  function playIntro(){
+    const reduced = settings.reduceMotion;
+    introScreen.classList.add(reduced ? 'reduced' : 'playing');
+    const totalMs = reduced ? 2000 : 4200;
+    let done = false;
+    function finish(){
+      if(done) return;
+      done = true;
+      introScreen.classList.add('fadeOut');
+      setTimeout(()=>{ introScreen.classList.add('hidden'); }, 200);
+      window.removeEventListener('click', finish);
+      window.removeEventListener('touchstart', finish);
+      window.removeEventListener('keydown', finish);
+    }
+    const autoTimer = setTimeout(finish, totalMs);
+    window.addEventListener('click', finish);
+    window.addEventListener('touchstart', finish);
+    window.addEventListener('keydown', finish);
+  }
+
+  // ---------- Boot ----------
+  level = LEVELS[0];
+  resizeCanvasForLevel();
+  applySettings();
+  applySkin();
+  showMenu();
+  playIntro();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
