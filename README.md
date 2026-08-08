@@ -99,6 +99,26 @@ never a warning: telling someone their winnable board is hopeless would make the
 were about to solve, which is far worse than staying quiet. The test suite asserts both halves — that it
 fires on a genuinely sealed board, and that it stays quiet on a healthy one.
 
+## The board editor
+
+Build a board, hit Verify, get a share code. The code is the board as text, base64url'd — no server, no
+accounts, no database, no moderation queue, and the game keeps every offline property it had. A 6×6 board
+with two pairs, two components, a patrol and a gate comes to 88 characters.
+
+Two properties do the work:
+
+- **A board that can't be proved finishable gets no code.** Most level editors ship broken levels with
+  invented pars because nobody can check. This one refuses, and says which way it failed: unroutable,
+  unschedulable, too big, or *couldn't verify* — which is treated as a refusal, not a maybe.
+- **Par is re-derived on import, never carried in the code.** There is no par field to forge. A
+  hand-edited code claiming an impossible target simply gets corrected, and anything that doesn't decode
+  cleanly is rejected outright rather than half-read.
+
+The size cap is 7×7 because that is where certainty actually ends. Measured against random boards at a
+4,000,000-node budget: **7×7 resolved 40/40** (worst case ~3.4s), **8×8 only 29–39/40** — and the 8×8
+failures did not improve from 400k to 4M, so those instances are hard rather than starved. Fewer pairs is
+harder, not easier: more empty space means more routes to rule out.
+
 ## Tests
 
 ```bash

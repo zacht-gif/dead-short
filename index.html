@@ -219,7 +219,7 @@
     background:var(--danger); color:#2a0207; border-color:var(--danger);
     font-weight:700; white-space:nowrap;
   }
-  #boardWrap{
+  .boardFrame{
     position:relative;
     touch-action:none;
     border-radius:12px;
@@ -254,6 +254,32 @@
     font-size:13px; color:var(--text-dim); line-height:1.5;
   }
   #banner b{ color:var(--text); }
+
+  /* Share sheet. Exists because the platform paths can't be relied on: itch.io
+     serves HTML games in a cross-origin iframe where navigator.share and
+     clipboard.writeText are not permitted, and both fail SILENTLY — so a game
+     that only calls them looks like its share button does nothing. Selectable
+     text the player can always copy by hand is the only thing guaranteed to
+     work everywhere. */
+  #shareModal{
+    position:fixed; inset:0; background:rgba(6,8,12,0.72);
+    display:none; align-items:center; justify-content:center; z-index:20; padding:16px;
+  }
+  #shareModal.show{ display:flex; }
+  #shareCard{
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:14px; padding:22px 24px; text-align:center; max-width:420px; width:100%;
+  }
+  #shareCard h2{ margin:0 0 6px; font-size:18px; }
+  #shareCard #shareBlurb{ margin:0 0 12px; font-size:12px; color:var(--text-dim); line-height:1.5; }
+  #shareBox{
+    width:100%; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px;
+    background:var(--bg); color:var(--text); border:1px solid var(--panel-border);
+    border-radius:8px; padding:9px 10px; resize:vertical; word-break:break-all;
+  }
+  #shareBox:focus{ outline:none; border-color:var(--accent-2); }
+  #shareStatus{ font-size:11px; color:var(--good); min-height:15px; margin:7px 0 11px; }
+  #shareCard .row{ display:flex; gap:8px; justify-content:center; }
 
   #winModal{
     position:fixed; inset:0; background:rgba(6,8,12,0.72);
@@ -335,6 +361,34 @@
   }
   #introScreen.playing #introSkipHint{ animation:introFadeIn .4s ease-out 1s forwards; }
   #introScreen.reduced #introSkipHint{ animation:introFadeIn .4s ease-out .3s forwards; }
+
+  /* ---------- Editor ---------- */
+  #editorTools{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  #editorTools button{ font-size:12px; padding:8px 10px; }
+  #editorTools button.on{
+    background:var(--accent); color:var(--accent-ink); border-color:var(--accent);
+    box-shadow:0 0 12px var(--glow);
+  }
+  #editorSizeRow{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-size:12px; color:var(--text-dim); margin-bottom:10px;
+  }
+  #editorSizeRow select{
+    font-family:inherit; font-size:12px; background:var(--panel); color:var(--text);
+    border:1px solid var(--panel-border); border-radius:6px; padding:6px 8px;
+  }
+  #editorVerdict{
+    border-radius:10px; padding:11px 13px; margin-top:12px;
+    font-size:12px; line-height:1.5; border:1px solid var(--panel-border);
+    background:var(--panel); color:var(--text-dim);
+  }
+  #editorVerdict.good{ border-color:var(--good); background:color-mix(in srgb, var(--good) 13%, var(--panel)); }
+  #editorVerdict.bad{ border-color:var(--danger); background:color-mix(in srgb, var(--danger) 13%, var(--panel)); }
+  #editorVerdict.busy{ border-color:var(--accent-2); }
+  #editorVerdict b{ color:var(--text); }
+  #editorCodeRow{ display:flex; gap:6px; margin-top:10px; }
+  #editorCodeRow .textInput{ max-width:none; flex:1; font-size:12px; }
+  #editorHint{ font-size:11px; color:var(--text-dim); margin-top:8px; line-height:1.5; }
 
   /* ---------- Landscape layout ---------- */
   /* Short-height landscape (typical phone rotated) can't fit the portrait
@@ -424,7 +478,7 @@
       </div>
 
       <div id="playMain">
-        <div id="boardWrap">
+        <div id="boardWrap" class="boardFrame">
           <canvas id="board"></canvas>
         </div>
       </div>
@@ -445,6 +499,46 @@
           time, Backspace steps back, Enter/Space grabs a wire if none is selected.
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= EDITOR SCREEN ================= -->
+  <div id="editorScreen" class="screen hidden">
+    <div id="playTop">
+      <button id="editorBackBtn">‹ Menu</button>
+      <div id="playLevelName"><span class="bolt">⚡</span><span>Board Editor</span></div>
+      <div style="width:64px"></div>
+    </div>
+
+    <div id="editorSizeRow">
+      <label>Grid <select id="editorSize"></select></label>
+      <button id="editorClear">Clear</button>
+      <button id="editorRandom">Random</button>
+    </div>
+
+    <div id="editorTools"></div>
+
+    <div class="boardFrame" style="margin-bottom:0">
+      <canvas id="editorCanvas"></canvas>
+    </div>
+
+    <div id="editorVerdict">Place a pair of matching pads, then <b>Verify</b>.</div>
+
+    <div id="controls" style="margin-top:10px">
+      <button id="editorVerify" class="primary">Verify</button>
+      <button id="editorPlay" disabled>Play it</button>
+      <button id="editorCopy" disabled>Copy code</button>
+    </div>
+
+    <div id="editorCodeRow">
+      <input type="text" id="editorImport" class="textInput" placeholder="Paste a board code to load it">
+      <button id="editorLoad">Load</button>
+    </div>
+
+    <div id="editorHint">
+      Boards are checked before they can be shared: if the solver can't prove every pair is
+      connectable, the code isn't produced. Par is worked out from the board itself, so a code carries
+      no score to fake — anyone who loads it gets the same target you did.
     </div>
   </div>
 
@@ -529,6 +623,19 @@
 
 </div>
 
+<div id="shareModal">
+  <div id="shareCard">
+    <h2 id="shareTitle">Share</h2>
+    <p id="shareBlurb">Copy this and paste it anywhere.</p>
+    <textarea id="shareBox" readonly rows="3"></textarea>
+    <div id="shareStatus"></div>
+    <div class="row">
+      <button id="shareCopyBtn" class="primary">Copy</button>
+      <button id="shareCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <div id="winModal">
   <div id="winCard">
     <h2>Circuit complete!</h2>
@@ -537,9 +644,10 @@
     <div class="best-line" id="winBestLine"></div>
     <div class="earn-line" id="winEarnLine"></div>
     <div class="row">
-      <button id="winRestart">Play again</button>
+      <button id="winRestart">Retry</button>
       <button id="winMenu">Menu</button>
-      <button id="winShare" class="primary">Share</button>
+      <button id="winShare">Share</button>
+      <button id="winNext" class="primary">Next ›</button>
     </div>
   </div>
 </div>
@@ -606,7 +714,7 @@
       ],
       blocked: [[1,3],[2,3],[4,3]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,1],[5,1]]) },
+        patrol(2, [[0,1],[5,1]]),
         { type:'gate', cell:[3,2], periodTicks:8, onTicks:4, phaseTicks:2 },
       ]
     },
@@ -621,7 +729,7 @@
       ],
       blocked: [[3,2]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[1,4],[5,4],[5,2]]) },
+        patrol(2, [[1,4],[5,4],[5,2]]),
         { type:'gate', cell:[1,1], periodTicks:10, onTicks:4, phaseTicks:8 },
       ]
     },
@@ -637,7 +745,7 @@
       ],
       blocked: [[3,3]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,3],[2,3]]) },
+        patrol(2, [[0,3],[2,3]]),
         { type:'gate', cell:[2,1], periodTicks:10, onTicks:4, phaseTicks:4 },
       ]
     },
@@ -654,7 +762,7 @@
       ],
       blocked: [[3,4]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,3],[6,3]]) },
+        patrol(2, [[0,3],[6,3]]),
         { type:'gate', cell:[1,2], periodTicks:12, onTicks:5, phaseTicks:2 },
       ]
     },
@@ -671,7 +779,7 @@
       ],
       blocked: [[3,2]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,6],[6,6]]) },
+        patrol(2, [[0,6],[6,6]]),
         { type:'gate', cell:[0,2], periodTicks:16, onTicks:6, phaseTicks:0 },
       ]
     },
@@ -685,7 +793,7 @@
       ],
       blocked: [[3,2],[3,3]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,6],[6,6]]) },
+        patrol(2, [[0,6],[6,6]]),
         { type:'gate', cell:[3,0], periodTicks:8, onTicks:4, phaseTicks:6 },
       ]
     },
@@ -700,7 +808,7 @@
       ],
       blocked: [[3,2],[3,3],[3,4]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,6],[6,6]]) },
+        patrol(2, [[0,6],[6,6]]),
         { type:'gate', cell:[2,5], periodTicks:16, onTicks:6, phaseTicks:0 },
       ]
     },
@@ -718,7 +826,7 @@
       ],
       blocked: [[1,3],[3,3],[5,3],[6,3]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,1],[6,1]]) },
+        patrol(2, [[0,1],[6,1]]),
         { type:'gate', cell:[4,2], periodTicks:12, onTicks:5, phaseTicks:4 },
       ]
     },
@@ -732,11 +840,20 @@
       ],
       blocked: [[3,2],[3,3]],
       obstacles: [
-        { ticksPerCell: 2, path: loopPath([[0,4],[6,4]]) },
+        patrol(2, [[0,4],[6,4]]),
         { type:'gate', cell:[2,2], periodTicks:16, onTicks:6, phaseTicks:2 },
       ]
     },
   ];
+
+  // Builds a patrol that remembers the waypoints it was defined by, not just the
+  // expanded cell route. The share codec needs the corners: re-deriving them from
+  // an expanded path guesses wrong the moment a patrol turns a corner, and a code
+  // that disagrees with the game about where a hazard goes is unfixable from the
+  // outside.
+  function patrol(ticksPerCell, waypoints){
+    return { ticksPerCell, waypoints, path: loopPath(waypoints) };
+  }
 
   // Turns a list of straight-line waypoints into a full cell-by-cell ping-pong loop path.
   function loopPath(waypoints){
@@ -826,8 +943,7 @@
     if(!blocked.length || blocked.length >= cols - 1) return null;
 
     const patrolRow = wallRow === 1 ? rows-2 : 1;
-    const obstacles = [{ ticksPerCell: 2 + Math.floor(rand()*2),
-                         path: loopPath([[0,patrolRow],[cols-1,patrolRow]]) }];
+    const obstacles = [patrol(2 + Math.floor(rand()*2), [[0,patrolRow],[cols-1,patrolRow]])];
 
     return { slug:'daily-' + dateStr, name:'Daily Challenge', cols, rows,
              terminals, blocked, obstacles, isDaily:true, dateStr };
@@ -1113,10 +1229,11 @@
   }
 
   // ---------- Screen management ----------
-  let screen = 'menu'; // 'menu' | 'play' | 'settings'
+  let screen = 'menu'; // 'menu' | 'play' | 'settings' | 'editor'
   const menuScreen = document.getElementById('menuScreen');
   const playScreen = document.getElementById('playScreen');
   const settingsScreen = document.getElementById('settingsScreen');
+  const editorScreen = document.getElementById('editorScreen');
   const menuList = document.getElementById('menuList');
   const playLevelNameText = document.getElementById('playLevelNameText');
   const colorblindToggle = document.getElementById('colorblindToggle');
@@ -1142,12 +1259,28 @@
 
   // A shared challenge link opened this session, if any: {level, score, name}.
   let pendingChallenge = null;
-  (function parsePendingChallenge(){
+  let pendingBoard = null;     // a shared custom board, with or without a score attached
+  (function parseIncomingLink(){
     const params = new URLSearchParams(location.search);
+    const score = parseInt(params.get('t'), 10);
+    const hasScore = !isNaN(score) && score > 0;
+
+    // A custom board travels as the board itself, so it needs no server and
+    // never expires. Par is re-derived here, not read from the link.
+    if(params.has('board')){
+      const lv = decodeLevel(params.get('board'));
+      if(lv){
+        pendingBoard = lv;
+        if(hasScore){
+          pendingChallenge = { level: lv, score, name: (params.get('name')||'').slice(0,20) };
+        }
+      }
+      return;
+    }
+
     if(!params.has('challenge')) return;
     const lv = resolveChallengeLevel(params.get('challenge'));
-    const score = parseInt(params.get('t'), 10);
-    if(lv && !isNaN(score) && score > 0){
+    if(lv && hasScore){
       pendingChallenge = { level: lv, score, name: (params.get('name')||'').slice(0,20) };
     }
   })();
@@ -1247,14 +1380,49 @@
       card.querySelector('.playBtn').onclick = () => enterLevel(lv);
       menuList.appendChild(card);
     });
+
+    // A shared board someone sent, offered even when no score came with it.
+    if(pendingBoard && !pendingChallenge){
+      const card = document.createElement('div');
+      card.className = 'levelCard challengeBanner';
+      card.innerHTML = `
+        <div class="info">
+          <div class="name">🛠 A board someone shared</div>
+          <div class="meta">${pendingBoard.cols}×${pendingBoard.rows} grid · ${pendingBoard.terminals.length} pairs<br>
+          Par is worked out on your machine, so it's the same target they had.</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="acceptBtn">Play</button>
+          <button class="dismissBtn">✕</button>
+        </div>
+      `;
+      card.querySelector('.acceptBtn').onclick = ()=>enterLevel(pendingBoard);
+      card.querySelector('.dismissBtn').onclick = ()=>{ pendingBoard = null; renderMenu(); };
+      menuList.insertBefore(card, menuList.firstChild);
+    }
+
+    const edCard = document.createElement('div');
+    edCard.className = 'levelCard';
+    edCard.innerHTML = `
+      <div class="info">
+        <div class="name">🛠 Board Editor</div>
+        <div class="meta">Build your own and share it as a code · up to ${EDITOR_MAX}×${EDITOR_MAX}<br>
+        Every board is machine-checked before it can be shared, and its par is worked out for you.</div>
+      </div>
+      <button class="playBtn">Open</button>
+    `;
+    edCard.querySelector('.playBtn').onclick = showEditor;
+    menuList.appendChild(edCard);
   }
 
   function showMenu(){
     screen = 'menu';
     renderMenu();
     winModal.classList.remove('show');
+    shareModal.classList.remove('show');
     playScreen.classList.add('hidden');
     settingsScreen.classList.add('hidden');
+    editorScreen.classList.add('hidden');
     menuScreen.classList.remove('hidden');
   }
 
@@ -1276,6 +1444,7 @@
     renderStats();
     menuScreen.classList.add('hidden');
     playScreen.classList.add('hidden');
+    editorScreen.classList.add('hidden');
     settingsScreen.classList.remove('hidden');
   }
 
@@ -1287,6 +1456,7 @@
     screen = 'play';
     menuScreen.classList.add('hidden');
     settingsScreen.classList.add('hidden');
+    editorScreen.classList.add('hidden');
     playScreen.classList.remove('hidden');
 
     if(pendingChallenge && pendingChallenge.level.slug === level.slug){
@@ -1974,6 +2144,8 @@
         `${fmtTicks(tickCount)} time + ${zapCount}×${fmtTicks(ZAP_PENALTY_TICKS)} penalty`;
       winBestLineEl.textContent = improved ? 'New personal best!' : ('Best: ' + fmtTicks(getBest(level)));
       winEarnLineEl.textContent = earnLine;
+      const next = nextLevelAfter(level);
+      winNextBtn.textContent = next ? 'Next: ' + next.name + ' ›' : 'Menu';
       winModal.classList.add('show');
       updateHud();
     }
@@ -2540,6 +2712,21 @@
   // ---------- Buttons ----------
   document.getElementById('menuBtn').onclick = showMenu;
   document.getElementById('winMenu').onclick = showMenu;
+
+  // Winning used to dead-end into Retry / Menu / Share, which made a ten-level
+  // set feel like ten separate arcade cabinets. Keyed off the level's identity
+  // rather than a stored index, so reordering the set can't send anybody to the
+  // wrong next board.
+  function nextLevelAfter(lv){
+    const i = LEVELS.findIndex(x=>x.slug === lv.slug);
+    if(i < 0 || i + 1 >= LEVELS.length) return null;
+    return LEVELS[i+1];
+  }
+  const winNextBtn = document.getElementById('winNext');
+  winNextBtn.onclick = ()=>{
+    const next = nextLevelAfter(level);
+    if(next) enterLevel(next); else showMenu();
+  };
   document.getElementById('settingsBtn').onclick = showSettings;
   document.getElementById('settingsBackBtn').onclick = showMenu;
   document.getElementById('restartBtn').onclick = resetPuzzle;
@@ -2561,7 +2748,9 @@
   function challengeUrl(){
     const base = location.href.split('?')[0].split('#')[0];
     const params = new URLSearchParams();
-    params.set('challenge', level.slug);
+    // A custom board can't be looked up by name, so the link carries the board.
+    if(level.isCustom && level.code) params.set('board', level.code);
+    else params.set('challenge', level.slug);
     // Deliberately a different param name than v1's float-seconds `score`: an
     // old link's "12.4" must not be silently read as 12 ticks and shown as a
     // 2.0s target nobody could have set.
@@ -2569,16 +2758,48 @@
     if(settings.playerName) params.set('name', settings.playerName);
     return base + '?' + params.toString();
   }
+  // Always shows the text. The old version called navigator.share / clipboard and
+  // trusted them, which breaks exactly where this game is meant to live: inside
+  // itch.io's cross-origin iframe neither is permitted, and both reject
+  // silently, so the Share button appeared to do nothing at all. Copy is still
+  // attempted — from a real click, which is what permission policies want — but
+  // it's a convenience on top of text the player can always select by hand.
+  const shareModal = document.getElementById('shareModal');
+  const shareBox = document.getElementById('shareBox');
+  const shareStatus = document.getElementById('shareStatus');
+  function shareTextOut(title, body, blurb){
+    document.getElementById('shareTitle').textContent = title;
+    document.getElementById('shareBlurb').textContent =
+      blurb || 'Copy this and paste it anywhere.';
+    shareBox.value = body;
+    shareStatus.textContent = '';
+    shareModal.classList.add('show');
+    shareBox.focus();
+    shareBox.setSelectionRange(0, body.length);
+  }
+  document.getElementById('shareCopyBtn').onclick = ()=>{
+    shareBox.focus();
+    shareBox.setSelectionRange(0, shareBox.value.length);
+    const done = ()=>{ shareStatus.textContent = 'Copied.'; };
+    const failed = ()=>{ shareStatus.textContent = 'Couldn\'t copy automatically — the text above is selected, so copy it by hand.'; };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(shareBox.value).then(done, failed);
+    } else {
+      // execCommand is deprecated but still the only path in some embedded
+      // contexts, so it's worth one attempt before telling the player to copy.
+      let okCopy = false;
+      try{ okCopy = document.execCommand('copy'); } catch(e){ okCopy = false; }
+      okCopy ? done() : failed();
+    }
+  };
+  document.getElementById('shareCloseBtn').onclick = ()=>shareModal.classList.remove('show');
+  shareModal.addEventListener('click', e=>{ if(e.target === shareModal) shareModal.classList.remove('show'); });
+
   function doShare(){
     const text = shareText();
     const url = challengeUrl();
-    if(navigator.share){
-      navigator.share({text, url}).catch(()=>{});
-    } else if(navigator.clipboard){
-      navigator.clipboard.writeText(text + '\n' + url).then(()=>alert('Result + challenge link copied to clipboard!'));
-    } else {
-      alert(text + '\n' + url);
-    }
+    shareTextOut('Share your result', text + '\n' + url,
+      'Anyone who opens the link gets your score as a target on the same board.');
   }
   document.getElementById('shareBtn').onclick = doShare;
   document.getElementById('winShare').onclick = doShare;
@@ -2817,6 +3038,192 @@
       return { status:'solved', paths: byPair, totalCells: bestCost, nodes, exhaustive: !budgetHit };
     }
     return { status: budgetHit ? 'unknown' : 'impossible', nodes, exhaustive: !budgetHit };
+  }
+
+  // ============================================================================
+  // LEVEL CODEC
+  // ============================================================================
+  // A level is text, so a share code is just that text, base64url'd. No server,
+  // no accounts, no database, no moderation queue — a player pastes a code into
+  // chat and the game keeps every offline property it had.
+  //
+  // The code carries NO par and NO difficulty numbers. There is nothing to
+  // forge, because those are re-derived locally from the board on import. A
+  // hand-edited code claiming an impossible par simply gets corrected.
+  //
+  // Wire format (before base64url), one line:
+  //   W1~cols~rows~grid~hazard~hazard...
+  //   grid    cols*rows chars, row-major:
+  //             .  free        #  component
+  //             a-e  pair 0-4 first pad     A-E  pair 0-4 second pad
+  //   hazard  P<ticksPerCell>:c,r:c,r...    patrol, waypoints joined by loopPath
+  //           G<c,r>:<period>:<on>:<phase>  gate
+  const CODE_VERSION = 'W1';
+  const PAIR_COLORS = ["#ff5d6c","#ffd75a","#7ab8ff","#54e6a6","#c98bff"];
+  const EDITOR_MIN = 5;
+  // Measured, not chosen. Random boards at a 4,000,000-node budget resolved to a
+  // definite answer 40/40 at 7x7 (worst case ~3.4s) but only 29-39/40 at 8x8, and
+  // the 8x8 failures did not improve from 400k to 4M — those instances are hard,
+  // not starved. Publishing a board we cannot verify is the one thing this editor
+  // exists to prevent, so the cap is where certainty actually ends.
+  const EDITOR_MAX = 7;
+  const VERIFY_BUDGET = 4000000;
+
+  function b64urlEncode(s){
+    return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64urlDecode(s){
+    const pad = s.replace(/-/g,'+').replace(/_/g,'/');
+    try{ return atob(pad + '==='.slice((pad.length + 3) % 4)); }
+    catch(e){ return null; }
+  }
+
+  function encodeLevel(lv){
+    const grid = new Array(lv.cols * lv.rows).fill('.');
+    (lv.blocked || []).forEach(c=>{ grid[c[1]*lv.cols + c[0]] = '#'; });
+    lv.terminals.forEach((t,i)=>{
+      const lower = String.fromCharCode(97 + i), upper = String.fromCharCode(65 + i);
+      grid[t.a[1]*lv.cols + t.a[0]] = lower;
+      grid[t.b[1]*lv.cols + t.b[0]] = upper;
+    });
+    const parts = [CODE_VERSION, lv.cols, lv.rows, grid.join('')];
+    (lv.obstacles || []).forEach(ob=>{
+      if(isGate(ob)){
+        parts.push('G' + ob.cell[0] + ',' + ob.cell[1] + ':' +
+                   ob.periodTicks + ':' + ob.onTicks + ':' + (ob.phaseTicks || 0));
+      } else {
+        // Only the corners are stored; loopPath rebuilds the cell-by-cell route,
+        // so a code can't disagree with the game about where a patrol goes.
+        const pts = ob.waypoints || [ob.path[0], ob.path[Math.floor(ob.path.length/2)]];
+        parts.push('P' + ob.ticksPerCell + ':' + pts.map(c=>c[0]+','+c[1]).join(':'));
+      }
+    });
+    return b64urlEncode(parts.join('~'));
+  }
+
+  // Strict on purpose: anything unexpected returns null rather than a
+  // half-understood level. A board that decodes "mostly" is a board that plays
+  // wrong in a way nobody can debug from a share code.
+  function decodeLevel(code){
+    if(typeof code !== 'string' || !code.length) return null;
+    const raw = b64urlDecode(code.trim());
+    if(raw === null) return null;
+    const parts = raw.split('~');
+    if(parts.length < 4 || parts[0] !== CODE_VERSION) return null;
+
+    const cols = parseInt(parts[1], 10), rows = parseInt(parts[2], 10);
+    if(!Number.isInteger(cols) || !Number.isInteger(rows)) return null;
+    if(cols < 2 || rows < 2 || cols > 12 || rows > 12) return null;
+
+    const grid = parts[3];
+    if(grid.length !== cols * rows) return null;
+
+    const blocked = [];
+    const firstPad = {}, secondPad = {};
+    for(let i=0;i<grid.length;i++){
+      const ch = grid[i];
+      const cell = [i % cols, Math.floor(i / cols)];
+      if(ch === '.') continue;
+      if(ch === '#'){ blocked.push(cell); continue; }
+      const lower = ch.charCodeAt(0) - 97, upper = ch.charCodeAt(0) - 65;
+      if(lower >= 0 && lower < PAIR_COLORS.length){
+        if(firstPad[lower]) return null;      // duplicate pad for one pair
+        firstPad[lower] = cell;
+      } else if(upper >= 0 && upper < PAIR_COLORS.length){
+        if(secondPad[upper]) return null;
+        secondPad[upper] = cell;
+      } else return null;                      // character outside the format
+    }
+
+    // Every pair needs exactly both of its pads, and they must be contiguous
+    // from index 0 — a code naming pair 3 without pairs 0-2 is malformed.
+    const terminals = [];
+    for(let i=0;i<PAIR_COLORS.length;i++){
+      const hasA = !!firstPad[i], hasB = !!secondPad[i];
+      if(hasA !== hasB) return null;
+      if(!hasA){
+        for(let j=i+1;j<PAIR_COLORS.length;j++) if(firstPad[j] || secondPad[j]) return null;
+        break;
+      }
+      if(sameCell(firstPad[i], secondPad[i])) return null;
+      terminals.push({ color: PAIR_COLORS[i], a: firstPad[i], b: secondPad[i] });
+    }
+    if(!terminals.length) return null;
+
+    const inB = (c)=>c[0]>=0 && c[1]>=0 && c[0]<cols && c[1]<rows;
+    const onTerminal = (c)=>terminals.some(t=>sameCell(t.a,c) || sameCell(t.b,c));
+
+    const obstacles = [];
+    for(let p=4;p<parts.length;p++){
+      const spec = parts[p];
+      if(!spec.length) return null;
+      const kind = spec[0], body = spec.slice(1).split(':');
+      if(kind === 'G'){
+        if(body.length !== 4) return null;
+        const cell = body[0].split(',').map(n=>parseInt(n,10));
+        const periodTicks = parseInt(body[1],10), onTicks = parseInt(body[2],10),
+              phaseTicks = parseInt(body[3],10);
+        if(cell.length !== 2 || !cell.every(Number.isInteger) || !inB(cell)) return null;
+        if(![periodTicks,onTicks,phaseTicks].every(Number.isInteger)) return null;
+        if(periodTicks < 2 || periodTicks > 60) return null;
+        if(onTicks < 1 || onTicks >= periodTicks) return null;   // never always-on
+        if(phaseTicks < 0 || phaseTicks >= periodTicks) return null;
+        // A gate on a solder pad or inside a component is unplayable, not hard.
+        if(onTerminal(cell) || blocked.some(b=>sameCell(b,cell))) return null;
+        obstacles.push({ type:'gate', cell, periodTicks, onTicks, phaseTicks });
+      } else if(kind === 'P'){
+        if(body.length < 3) return null;      // speed plus at least two waypoints
+        const ticksPerCell = parseInt(body[0],10);
+        if(!Number.isInteger(ticksPerCell) || ticksPerCell < 1 || ticksPerCell > 12) return null;
+        const pts = [];
+        for(let i=1;i<body.length;i++){
+          const c = body[i].split(',').map(n=>parseInt(n,10));
+          if(c.length !== 2 || !c.every(Number.isInteger) || !inB(c)) return null;
+          pts.push(c);
+        }
+        // loopPath only understands straight runs between waypoints.
+        for(let i=0;i<pts.length-1;i++){
+          if(pts[i][0] !== pts[i+1][0] && pts[i][1] !== pts[i+1][1]) return null;
+          if(sameCell(pts[i], pts[i+1])) return null;
+        }
+        obstacles.push({ ticksPerCell, waypoints: pts, path: loopPath(pts) });
+      } else return null;
+    }
+
+    const slug = customSlug(code);
+    return { slug, name:'Custom Board', cols, rows, terminals, blocked, obstacles,
+             isCustom:true, code };
+  }
+
+  // Slug from the code's content, so a shared board gets its own best score and
+  // the fingerprint key machinery works on it unchanged.
+  function customSlug(code){
+    return 'custom-' + (hashStr(String(code)) >>> 0).toString(36);
+  }
+
+  // The single gate every authored or imported board passes through. Returns a
+  // verdict a human can act on, never a shrug dressed up as a number.
+  function verifyLevel(lv){
+    if(lv.cols > EDITOR_MAX || lv.rows > EDITOR_MAX){
+      return { ok:false, reason:'too-big',
+        message: `Boards larger than ${EDITOR_MAX}×${EDITOR_MAX} can't be checked reliably, so they can't be published.` };
+    }
+    const sol = solveLevel(lv, { budget: VERIFY_BUDGET });
+    if(sol.status === 'impossible'){
+      return { ok:false, reason:'impossible',
+        message: 'This board can\'t be wired — at least one pair has no route that avoids the others.' };
+    }
+    if(sol.status === 'unknown'){
+      return { ok:false, reason:'unverified',
+        message: 'Couldn\'t finish checking this board. It might be solvable, but an unverified board won\'t be published — try fewer pairs or a smaller grid.' };
+    }
+    if(sol.status !== 'solved'){
+      return { ok:false, reason:'unschedulable',
+        message: 'The wiring works, but the hazards leave no way to finish it. Try a slower patrol or a shorter gate.' };
+    }
+    const p = measurePressure(lv, sol);
+    return { ok:true, par: sol.par, paths: sol.paths, detour: p.detour, holds: p.holds,
+             message: 'Verified solvable.' };
   }
 
   // ---------- Trap measurement ----------
@@ -3121,6 +3528,450 @@
     return out;
   }
 
+  // ============================================================================
+  // EDITOR
+  // ============================================================================
+  // The one thing this editor does that others can't: it refuses to hand out a
+  // share code for a board it cannot prove finishable, and it works out par
+  // itself rather than asking the author to guess one.
+  const GATE_PRESETS = [
+    { periodTicks:12, onTicks:5 }, { periodTicks:10, onTicks:4 },
+    { periodTicks:16, onTicks:6 }, { periodTicks:8,  onTicks:3 },
+  ];
+  const PATROL_SPEEDS = [2, 3, 1, 4];
+
+  let edCols = 6, edRows = 6;
+  let edPads = [];        // [{pair, a:[c,r]|null, b:[c,r]|null}]
+  let edBlocked = [];
+  let edGates = [];       // {cell, presetIdx, phaseTicks}
+  let edPatrols = [];     // {speedIdx, waypoints}
+  let edTool = 'pair0';
+  let edPatrolDraft = null;
+  let edVerified = null;  // the verdict from the last Verify, or null once edited
+
+  const editorCanvas = document.getElementById('editorCanvas');
+  const edCtx = editorCanvas.getContext('2d');
+  const editorVerdict = document.getElementById('editorVerdict');
+  const editorTools = document.getElementById('editorTools');
+  const editorPlayBtn = document.getElementById('editorPlay');
+  const editorCopyBtn = document.getElementById('editorCopy');
+  const editorSizeSel = document.getElementById('editorSize');
+
+  function edPadFor(i){
+    let p = edPads.find(x=>x.pair === i);
+    if(!p){ p = { pair:i, a:null, b:null }; edPads.push(p); }
+    return p;
+  }
+  function edCellUsed(cell){
+    if(edBlocked.some(c=>sameCell(c,cell))) return 'block';
+    if(edPads.some(p=>(p.a && sameCell(p.a,cell)) || (p.b && sameCell(p.b,cell)))) return 'pad';
+    if(edGates.some(g=>sameCell(g.cell,cell))) return 'gate';
+    return null;
+  }
+  function edInBounds(cell){
+    return cell[0]>=0 && cell[1]>=0 && cell[0]<edCols && cell[1]<edRows;
+  }
+
+  // Builds a real level object out of the editor state, so everything downstream
+  // — solver, renderer, codec, play — sees exactly what the game sees.
+  function editorLevel(){
+    const terminals = [];
+    edPads.slice().sort((x,y)=>x.pair-y.pair).forEach(p=>{
+      if(p.a && p.b) terminals.push({ color: PAIR_COLORS[p.pair], a:p.a, b:p.b });
+    });
+    if(!terminals.length) return null;
+    const obstacles = [];
+    edPatrols.forEach(p=>obstacles.push(patrol(PATROL_SPEEDS[p.speedIdx], p.waypoints)));
+    edGates.forEach(g=>{
+      const preset = GATE_PRESETS[g.presetIdx];
+      obstacles.push({ type:'gate', cell:g.cell, periodTicks:preset.periodTicks,
+                       onTicks:preset.onTicks, phaseTicks:g.phaseTicks });
+    });
+    const lv = { slug:'editor-draft', name:'Custom Board', cols:edCols, rows:edRows,
+                 terminals, blocked:edBlocked.slice(), obstacles, isCustom:true };
+    lv.code = encodeLevel(lv);
+    lv.slug = customSlug(lv.code);
+    return lv;
+  }
+
+  function edInvalidate(){
+    edVerified = null;
+    editorPlayBtn.disabled = true;
+    editorCopyBtn.disabled = true;
+    setVerdict('Board changed — <b>Verify</b> again to share or play it.', '');
+  }
+  function setVerdict(html, cls){
+    editorVerdict.innerHTML = html;
+    editorVerdict.className = cls || '';
+  }
+
+  function editorTap(cell){
+    if(!edInBounds(cell)) return;
+
+    if(edTool === 'erase'){
+      edBlocked = edBlocked.filter(c=>!sameCell(c,cell));
+      edGates = edGates.filter(g=>!sameCell(g.cell,cell));
+      edPatrols = edPatrols.filter(p=>!p.waypoints.some(w=>sameCell(w,cell)) &&
+                                      !loopPath(p.waypoints).some(w=>sameCell(w,cell)));
+      edPads.forEach(p=>{
+        if(p.a && sameCell(p.a,cell)) p.a = null;
+        if(p.b && sameCell(p.b,cell)) p.b = null;
+      });
+      edPatrolDraft = null;
+      edInvalidate();
+      return;
+    }
+
+    if(edTool === 'block'){
+      if(edCellUsed(cell) === 'block') edBlocked = edBlocked.filter(c=>!sameCell(c,cell));
+      else if(edCellUsed(cell)) return;      // don't silently clobber a pad or gate
+      else edBlocked.push(cell);
+      edInvalidate();
+      return;
+    }
+
+    if(edTool === 'gate'){
+      const existing = edGates.find(g=>sameCell(g.cell,cell));
+      if(existing){
+        // Repeated taps walk the duty presets, then remove — no extra UI needed.
+        existing.presetIdx++;
+        if(existing.presetIdx >= GATE_PRESETS.length) edGates = edGates.filter(g=>g!==existing);
+        edInvalidate();
+        return;
+      }
+      if(edCellUsed(cell)) return;
+      edGates.push({ cell, presetIdx:0, phaseTicks:0 });
+      edInvalidate();
+      return;
+    }
+
+    if(edTool === 'patrol'){
+      const hit = edPatrols.find(p=>loopPath(p.waypoints).some(w=>sameCell(w,cell)));
+      if(hit && !edPatrolDraft){
+        hit.speedIdx++;
+        if(hit.speedIdx >= PATROL_SPEEDS.length) edPatrols = edPatrols.filter(p=>p!==hit);
+        edInvalidate();
+        return;
+      }
+      if(!edPatrolDraft){ edPatrolDraft = [cell]; edInvalidate(); return; }
+      const from = edPatrolDraft[edPatrolDraft.length-1];
+      // Patrols travel in straight runs, so an off-axis tap can't be honoured.
+      if(from[0] !== cell[0] && from[1] !== cell[1]){
+        setVerdict('A patrol only travels in straight lines — pick a cell in the same row or column.', 'bad');
+        return;
+      }
+      if(sameCell(from, cell)){ edPatrolDraft = null; edInvalidate(); return; }
+      edPatrols.push({ speedIdx:0, waypoints:[from, cell] });
+      edPatrolDraft = null;
+      edInvalidate();
+      return;
+    }
+
+    const idx = parseInt(edTool.slice(4), 10);
+    const pad = edPadFor(idx);
+    if(pad.a && sameCell(pad.a, cell)){ pad.a = null; edInvalidate(); return; }
+    if(pad.b && sameCell(pad.b, cell)){ pad.b = null; edInvalidate(); return; }
+    if(edCellUsed(cell)) return;
+    if(!pad.a) pad.a = cell;
+    else if(!pad.b) pad.b = cell;
+    else { pad.a = pad.b; pad.b = cell; }   // slide the pair along rather than refusing
+    edInvalidate();
+  }
+
+  function renderEditorTools(){
+    editorTools.innerHTML = '';
+    const mk = (id, label, title)=>{
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.title = title || '';
+      b.className = edTool === id ? 'on' : '';
+      b.onclick = ()=>{ edTool = id; edPatrolDraft = null; renderEditorTools(); drawEditor(); };
+      editorTools.appendChild(b);
+    };
+    const SHAPES = ['▲','■','◆','★','✚'];
+    PAIR_COLORS.forEach((c,i)=>mk('pair'+i, SHAPES[i], 'Place the ' + (i+1) + (i===0?'st':i===1?'nd':i===2?'rd':'th') + ' pair'));
+    mk('block', 'Chip', 'A component no wire can route through');
+    mk('gate',  'Gate', 'A contact that switches on and off — tap again to change its timing');
+    mk('patrol','Spark', 'Tap a start then an end cell — tap again to change speed');
+    mk('erase', 'Erase', 'Remove whatever is in a cell');
+  }
+
+  function resizeEditorCanvas(){
+    const cell = computeCellSize(edCols, edRows);
+    const dpr = window.devicePixelRatio || 1;
+    editorCanvas.width = Math.round(edCols * cell * dpr);
+    editorCanvas.height = Math.round(edRows * cell * dpr);
+    editorCanvas.style.width = (edCols * cell) + 'px';
+    editorCanvas.style.height = (edRows * cell) + 'px';
+    edCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return cell;
+  }
+
+  function drawEditor(){
+    const C = resizeEditorCanvas();
+    const W = edCols*C, H = edRows*C;
+    edCtx.fillStyle = cssVar('--board-bg', '#080c14');
+    edCtx.fillRect(0,0,W,H);
+    edCtx.strokeStyle = cssVar('--grid-line', '#1b2740');
+    edCtx.lineWidth = 1;
+    for(let c=0;c<=edCols;c++){ edCtx.beginPath(); edCtx.moveTo(c*C,0); edCtx.lineTo(c*C,H); edCtx.stroke(); }
+    for(let r=0;r<=edRows;r++){ edCtx.beginPath(); edCtx.moveTo(0,r*C); edCtx.lineTo(W,r*C); edCtx.stroke(); }
+
+    const spark = cssVar('--spark', '#fff2b8');
+    const border = cssVar('--panel-border', '#24344a');
+
+    edPatrols.forEach(p=>{
+      const path = loopPath(p.waypoints);
+      edCtx.save();
+      edCtx.strokeStyle = spark;
+      edCtx.globalAlpha = 0.5;
+      edCtx.lineWidth = C*0.12;
+      edCtx.lineCap = 'round'; edCtx.lineJoin = 'round';
+      edCtx.beginPath();
+      path.forEach((c,i)=>{ const x=c[0]*C+C/2, y=c[1]*C+C/2; i?edCtx.lineTo(x,y):edCtx.moveTo(x,y); });
+      edCtx.stroke();
+      edCtx.globalAlpha = 0.9;
+      edCtx.fillStyle = spark;
+      edCtx.font = `bold ${Math.round(C*0.22)}px sans-serif`;
+      edCtx.textAlign='center'; edCtx.textBaseline='middle';
+      const w0 = p.waypoints[0];
+      edCtx.fillText(PATROL_SPEEDS[p.speedIdx] + 't', w0[0]*C+C/2, w0[1]*C+C/2);
+      edCtx.restore();
+    });
+
+    if(edPatrolDraft){
+      const c = edPatrolDraft[edPatrolDraft.length-1];
+      edCtx.save();
+      edCtx.strokeStyle = spark; edCtx.globalAlpha = 0.9;
+      edCtx.lineWidth = Math.max(2, C*0.05);
+      edCtx.setLineDash([C*0.12, C*0.08]);
+      edCtx.strokeRect(c[0]*C+C*0.1, c[1]*C+C*0.1, C*0.8, C*0.8);
+      edCtx.restore();
+    }
+
+    edBlocked.forEach(cell=>{
+      const x=cell[0]*C, y=cell[1]*C, inset=C*0.16;
+      edCtx.save();
+      edCtx.fillStyle = '#1a2030';
+      edCtx.strokeStyle = border;
+      edCtx.lineWidth = Math.max(1, C*0.03);
+      edCtx.beginPath();
+      edCtx.rect(x+inset, y+inset, C-inset*2, C-inset*2);
+      edCtx.fill(); edCtx.stroke();
+      edCtx.restore();
+    });
+
+    edGates.forEach(g=>{
+      const preset = GATE_PRESETS[g.presetIdx];
+      const cx = g.cell[0]*C+C/2, cy = g.cell[1]*C+C/2;
+      const gap=C*0.13, ew=C*0.10, eh=C*0.34;
+      edCtx.save();
+      edCtx.fillStyle = spark; edCtx.globalAlpha = 0.9;
+      edCtx.fillRect(cx-gap-ew, cy-eh/2, ew, eh);
+      edCtx.fillRect(cx+gap,    cy-eh/2, ew, eh);
+      edCtx.globalAlpha = 0.75;
+      edCtx.font = `bold ${Math.round(C*0.18)}px sans-serif`;
+      edCtx.textAlign='center'; edCtx.textBaseline='middle';
+      edCtx.fillText(preset.onTicks + '/' + preset.periodTicks, cx, cy + C*0.32);
+      edCtx.restore();
+    });
+
+    edPads.forEach(p=>{
+      const { style, color } = styleFor(PAIR_COLORS[p.pair]);
+      [p.a, p.b].forEach(pt=>{
+        if(!pt) return;
+        const x = pt[0]*C+C/2, y = pt[1]*C+C/2, r = C*0.25;
+        edCtx.save();
+        edCtx.beginPath(); edCtx.arc(x,y,r,0,Math.PI*2);
+        edCtx.fillStyle = color; edCtx.fill();
+        edCtx.lineWidth = Math.max(1.5, C*0.03);
+        edCtx.strokeStyle = 'rgba(255,255,255,0.45)'; edCtx.stroke();
+        edCtx.restore();
+        if(style.shape) drawGlyphOn(edCtx, style.shape, x, y, r*1.15);
+      });
+      // A pair with only one pad placed is incomplete; say so on the board.
+      if((p.a && !p.b) || (p.b && !p.a)){
+        const pt = p.a || p.b;
+        edCtx.save();
+        edCtx.strokeStyle = cssVar('--danger', '#ff5d6c');
+        edCtx.lineWidth = Math.max(2, C*0.05);
+        edCtx.setLineDash([C*0.1, C*0.07]);
+        edCtx.strokeRect(pt[0]*C+C*0.06, pt[1]*C+C*0.06, C*0.88, C*0.88);
+        edCtx.restore();
+      }
+    });
+  }
+
+  // drawGlyph writes to the play canvas's context; the editor needs the same
+  // shapes on its own canvas, so the shape code takes a context.
+  function drawGlyphOn(c2d, shape, x, y, size){
+    const r = size/2;
+    c2d.fillStyle = '#000';
+    c2d.beginPath();
+    if(shape==='triangle'){ c2d.moveTo(x,y-r); c2d.lineTo(x+r*0.9,y+r*0.75); c2d.lineTo(x-r*0.9,y+r*0.75); c2d.closePath(); }
+    else if(shape==='square'){ c2d.rect(x-r*0.75,y-r*0.75,r*1.5,r*1.5); }
+    else if(shape==='diamond'){ c2d.moveTo(x,y-r); c2d.lineTo(x+r,y); c2d.lineTo(x,y+r); c2d.lineTo(x-r,y); c2d.closePath(); }
+    else if(shape==='star'){
+      let rot = Math.PI/2*3; const step = Math.PI/5, oR=r, iR=r*0.45;
+      c2d.moveTo(x,y-oR);
+      for(let k=0;k<5;k++){ c2d.lineTo(x+Math.cos(rot)*oR, y+Math.sin(rot)*oR); rot+=step;
+                            c2d.lineTo(x+Math.cos(rot)*iR, y+Math.sin(rot)*iR); rot+=step; }
+      c2d.closePath();
+    }
+    else if(shape==='plus'){ const w=r*0.42; c2d.rect(x-w,y-r,w*2,r*2); c2d.rect(x-r,y-w,r*2,w*2); }
+    c2d.fill();
+  }
+
+  function editorCellAt(evt){
+    const rect = editorCanvas.getBoundingClientRect();
+    const p = evt.touches ? evt.touches[0] : evt;
+    const C = rect.width / edCols;
+    return [Math.floor((p.clientX - rect.left)/C), Math.floor((p.clientY - rect.top)/C)];
+  }
+  editorCanvas.addEventListener('mousedown', e=>{ editorTap(editorCellAt(e)); drawEditor(); });
+  editorCanvas.addEventListener('touchstart', e=>{
+    e.preventDefault(); editorTap(editorCellAt(e)); drawEditor();
+  }, {passive:false});
+
+  function runVerify(){
+    const lv = editorLevel();
+    if(!lv){
+      setVerdict('Place at least one complete pair — two pads of the same shape.', 'bad');
+      return;
+    }
+    const incomplete = edPads.some(p=>(p.a && !p.b) || (p.b && !p.a));
+    if(incomplete){
+      setVerdict('One pair only has a single pad. Every pair needs both ends.', 'bad');
+      return;
+    }
+    setVerdict('Checking every possible route…', 'busy');
+    // Let the busy state paint before the solver blocks the thread; a 7x7 board
+    // can take a few seconds and a silent freeze reads as a crash.
+    //
+    // setTimeout, not requestAnimationFrame: rAF doesn't fire at all while the
+    // page isn't compositing (a background tab, or a hidden iframe), which would
+    // leave Verify stuck on "Checking…" forever with no way to recover.
+    setTimeout(()=>{
+      const v = verifyLevel(lv);
+      if(!v.ok){ setVerdict(escapeHtml(v.message), 'bad'); return; }
+      edVerified = { level: lv, verdict: v };
+      // Cache the verified par so medals work on this board without re-solving
+      // at the smaller in-game budget, which might not finish.
+      parCache.set(lv.slug, v.par);
+      const trap = trapMeasure(lv, { maxPerPair: 120 });
+      setVerdict(
+        `<b>Verified solvable.</b> Par <b>${fmtTicks(v.par)}</b> ` +
+        `(${v.par} ticks) · detour <b>${v.detour}</b> · waiting <b>${v.holds}</b>` +
+        (trap.density === null ? '' : ` · trap <b>${Math.round(trap.density*100)}%</b>`) +
+        `<br>Gold is set at par, so it's reachable — we just replayed a run that hits it.`,
+        'good');
+      editorPlayBtn.disabled = false;
+      editorCopyBtn.disabled = false;
+    }, 16);
+  }
+
+  function editorClear(){
+    edPads = []; edBlocked = []; edGates = []; edPatrols = []; edPatrolDraft = null;
+    edInvalidate();
+    setVerdict('Place a pair of matching pads, then <b>Verify</b>.', '');
+    drawEditor();
+  }
+
+  // A random start is far more useful than an empty grid for a first-time author,
+  // and it can lean on the same generate-and-verify the daily uses.
+  function editorRandom(){
+    const seed = (hashStr('ed' + edCols + 'x' + edRows + Date.now()) >>> 0);
+    const rand = mulberry32(seed);
+    editorClear();
+    const nPairs = 2 + Math.floor(rand()*2);
+    const cells = [];
+    for(let r=0;r<edRows;r++) for(let c=0;c<edCols;c++) cells.push([c,r]);
+    for(let i=cells.length-1;i>0;i--){ const j=Math.floor(rand()*(i+1)); const t=cells[i]; cells[i]=cells[j]; cells[j]=t; }
+    let k = 0;
+    for(let p=0;p<nPairs;p++){ const pad = edPadFor(p); pad.a = cells[k++]; pad.b = cells[k++]; }
+    const nBlock = Math.floor(rand()*3);
+    for(let i=0;i<nBlock;i++) edBlocked.push(cells[k++]);
+    const row = 1 + Math.floor(rand()*(edRows-2));
+    edPatrols.push({ speedIdx:0, waypoints:[[0,row],[edCols-1,row]] });
+    edInvalidate();
+    setVerdict('Random board placed — <b>Verify</b> to see whether it can actually be wired.', '');
+    drawEditor();
+  }
+
+  function showEditor(){
+    screen = 'editor';
+    menuScreen.classList.add('hidden');
+    playScreen.classList.add('hidden');
+    settingsScreen.classList.add('hidden');
+    editorScreen.classList.remove('hidden');
+    renderEditorTools();
+    drawEditor();
+  }
+
+  editorSizeSel.innerHTML = '';
+  for(let n=EDITOR_MIN; n<=EDITOR_MAX; n++){
+    const o = document.createElement('option');
+    o.value = String(n); o.textContent = n + '×' + n;
+    editorSizeSel.appendChild(o);
+  }
+  editorSizeSel.value = String(edCols);
+  editorSizeSel.onchange = ()=>{
+    edCols = edRows = parseInt(editorSizeSel.value, 10);
+    // Anything now off the board would become an invisible, unfixable problem.
+    edBlocked = edBlocked.filter(edInBounds);
+    edGates = edGates.filter(g=>edInBounds(g.cell));
+    edPatrols = edPatrols.filter(p=>p.waypoints.every(edInBounds));
+    edPads.forEach(p=>{
+      if(p.a && !edInBounds(p.a)) p.a = null;
+      if(p.b && !edInBounds(p.b)) p.b = null;
+    });
+    edInvalidate();
+    drawEditor();
+  };
+
+  document.getElementById('editorBackBtn').onclick = showMenu;
+  document.getElementById('editorVerify').onclick = runVerify;
+  document.getElementById('editorClear').onclick = editorClear;
+  document.getElementById('editorRandom').onclick = editorRandom;
+  editorPlayBtn.onclick = ()=>{ if(edVerified) enterLevel(edVerified.level); };
+  editorCopyBtn.onclick = ()=>{
+    if(!edVerified) return;
+    shareTextOut('Wired — custom board', edVerified.level.code);
+  };
+  document.getElementById('editorLoad').onclick = ()=>{
+    const raw = document.getElementById('editorImport').value.trim();
+    if(!raw){ setVerdict('Paste a board code first.', 'bad'); return; }
+    // Accept a bare code or a full challenge link, since people paste both.
+    let code = raw;
+    const m = raw.match(/[?&]board=([A-Za-z0-9\-_]+)/);
+    if(m) code = m[1];
+    const lv = decodeLevel(code);
+    if(!lv){
+      setVerdict('That code isn\'t a valid board. Codes are refused outright rather than half-read, so nothing was changed.', 'bad');
+      return;
+    }
+    edCols = lv.cols; edRows = lv.rows;
+    if(edCols >= EDITOR_MIN && edCols <= EDITOR_MAX) editorSizeSel.value = String(edCols);
+    edPads = lv.terminals.map((t,i)=>({ pair:i, a:t.a, b:t.b }));
+    edBlocked = lv.blocked.slice();
+    edGates = [];
+    edPatrols = [];
+    lv.obstacles.forEach(ob=>{
+      if(isGate(ob)){
+        let presetIdx = GATE_PRESETS.findIndex(g=>g.periodTicks===ob.periodTicks && g.onTicks===ob.onTicks);
+        if(presetIdx < 0){ GATE_PRESETS.push({ periodTicks:ob.periodTicks, onTicks:ob.onTicks }); presetIdx = GATE_PRESETS.length-1; }
+        edGates.push({ cell:ob.cell, presetIdx, phaseTicks:ob.phaseTicks||0 });
+      } else {
+        let speedIdx = PATROL_SPEEDS.indexOf(ob.ticksPerCell);
+        if(speedIdx < 0){ PATROL_SPEEDS.push(ob.ticksPerCell); speedIdx = PATROL_SPEEDS.length-1; }
+        edPatrols.push({ speedIdx, waypoints: ob.waypoints || [ob.path[0], ob.path[1]] });
+      }
+    });
+    edInvalidate();
+    setVerdict('Board loaded. <b>Verify</b> to work out its par — the code doesn\'t carry one.', '');
+    drawEditor();
+  };
+
   // ---------- Self test ----------
   // Assertions live next to the code they cover and return plain data, touching
   // no DOM, so the same definition runs headless (node test.js, which evaluates
@@ -3329,6 +4180,132 @@
       onPointerDown([4,0]); planTo([4,4]);
       runTicks(8);
       ok('the level still completes normally after that', won === true);
+
+      // --- Share codes round-trip, and reject anything they don't understand --
+      LEVELS.forEach(lv=>{
+        const code = encodeLevel(lv);
+        const back = decodeLevel(code);
+        ok(lv.slug + ': code round-trips', !!back, code);
+        if(!back) return;
+        ok(lv.slug + ': grid survives the round trip',
+           back.cols === lv.cols && back.rows === lv.rows &&
+           back.blocked.length === (lv.blocked||[]).length &&
+           back.terminals.length === lv.terminals.length);
+        ok(lv.slug + ': pads survive the round trip',
+           lv.terminals.every((t,i)=>sameCell(t.a, back.terminals[i].a) &&
+                                     sameCell(t.b, back.terminals[i].b)));
+        // Patrol routes must come back cell-for-cell, including corners. This is
+        // why patrols carry their waypoints instead of having them guessed back
+        // out of an expanded path.
+        ok(lv.slug + ': hazards survive the round trip',
+           back.obstacles.length === lv.obstacles.length &&
+           lv.obstacles.every((ob,i)=>{
+             const b = back.obstacles[i];
+             if(isGate(ob)) return isGate(b) && sameCell(ob.cell,b.cell) &&
+               ob.periodTicks===b.periodTicks && ob.onTicks===b.onTicks &&
+               (ob.phaseTicks||0)===(b.phaseTicks||0);
+             return !isGate(b) && ob.ticksPerCell===b.ticksPerCell &&
+               ob.path.length===b.path.length &&
+               ob.path.every((c,j)=>sameCell(c,b.path[j]));
+           }));
+        // Par is re-derived from the board, never carried in the code, so there
+        // is nothing in a share code to forge.
+        ok(lv.slug + ': re-derived par matches the original',
+           solveLevel(back).par === PAR_CONTRACT[lv.slug],
+           'decoded=' + solveLevel(back).par + ' contract=' + PAR_CONTRACT[lv.slug]);
+      });
+
+      // Malformed codes must be refused outright. A code that decodes "mostly"
+      // produces a board that plays wrong in a way nobody can debug remotely.
+      [
+        ['empty string', ''],
+        ['not base64', '!!!!!!'],
+        ['wrong version', b64urlEncode('W9~5~5~' + '.'.repeat(25))],
+        ['grid length mismatch', b64urlEncode('W1~5~5~' + '.'.repeat(24))],
+        ['pad with no partner', b64urlEncode('W1~3~3~a........')],
+        ['both pads on one cell', b64urlEncode('W1~3~3~' + 'a' + '.'.repeat(8))],
+        ['pair 1 without pair 0', b64urlEncode('W1~3~3~bB.......')],
+        ['unknown grid character', b64urlEncode('W1~3~3~aA.....z.')],
+        ['gate always on', b64urlEncode('W1~3~3~aA.......~G1,1:8:8:0')],
+        ['gate phase out of range', b64urlEncode('W1~3~3~aA.......~G1,1:8:4:8')],
+        ['gate off the board', b64urlEncode('W1~3~3~aA.......~G9,9:8:4:0')],
+        ['gate on a pad', b64urlEncode('W1~3~3~aA.......~G0,0:8:4:0')],
+        ['patrol with a diagonal leg', b64urlEncode('W1~4~4~aA..............~P2:0,0:2,2')],
+        ['patrol speed zero', b64urlEncode('W1~4~4~aA..............~P0:0,3:3,3')],
+        ['unknown hazard kind', b64urlEncode('W1~3~3~aA.......~X1,1')],
+        ['truncated hazard', b64urlEncode('W1~3~3~aA.......~G1,1:8')],
+      ].forEach(([label, bad])=>{
+        ok('rejects a code with a ' + label, decodeLevel(bad) === null);
+      });
+
+      // A valid minimal code must still be accepted, so the rejections above
+      // aren't just "rejects everything".
+      (function(){
+        const good = b64urlEncode('W1~5~5~a...A' + '.'.repeat(20) + '~P2:0,2:4,2~G2,4:10:4:0');
+        const lv = decodeLevel(good);
+        ok('accepts a well-formed hand-written code', !!lv);
+        if(lv){
+          ok('hand-written code yields a playable board',
+             lv.cols===5 && lv.rows===5 && lv.terminals.length===1 && lv.obstacles.length===2);
+          ok('two codes for the same board give the same slug',
+             decodeLevel(good).slug === lv.slug);
+        }
+      })();
+
+      // --- Progression is keyed by identity, not position ---------------------
+      ok('every level except the last has a next one',
+         LEVELS.slice(0,-1).every(lv=>nextLevelAfter(lv) !== null));
+      ok('the last level has no next one',
+         nextLevelAfter(LEVELS[LEVELS.length-1]) === null);
+      ok('next level is found by slug, not array index',
+         nextLevelAfter({ slug: LEVELS[0].slug }) === LEVELS[1]);
+      ok('an unknown level has no next one', nextLevelAfter({ slug:'not-a-level' }) === null);
+
+      // --- A custom board travels inside its own link ------------------------
+      (function(){
+        const built = { slug:'x', name:'X', cols:5, rows:5,
+          terminals:[{ color:PAIR_COLORS[0], a:[0,0], b:[4,4] }],
+          blocked:[], obstacles:[patrol(2, [[0,2],[4,2]])] };
+        built.code = encodeLevel(built);
+        built.slug = customSlug(built.code);
+        built.isCustom = true;
+        const saved = level;
+        level = built;
+        const url = challengeUrl();
+        level = saved;
+        ok('a custom board link carries the board itself', url.indexOf('board=') !== -1);
+        ok('a custom board link needs no level name to resolve',
+           url.indexOf('challenge=') === -1, url);
+        const m = url.match(/[?&]board=([A-Za-z0-9\-_]+)/);
+        ok('the board in the link decodes back', !!m && !!decodeLevel(m[1]));
+        // Built-in levels stay short links rather than embedding a whole board.
+        const saved2 = level;
+        level = LEVELS[0];
+        const builtinUrl = challengeUrl();
+        level = saved2;
+        ok('a built-in level link stays a short name reference',
+           builtinUrl.indexOf('challenge=') !== -1 && builtinUrl.indexOf('board=') === -1);
+      })();
+
+      // --- The editor gate refuses what it cannot prove -----------------------
+      (function(){
+        const impossible = { slug:'v-imp', cols:3, rows:3,
+          terminals:[{ color:PAIR_COLORS[0], a:[0,0], b:[2,2] }],
+          blocked:[[1,0],[0,1],[1,1],[2,1],[1,2]], obstacles:[] };
+        const v1 = verifyLevel(impossible);
+        ok('verify refuses an unroutable board', v1.ok === false && v1.reason === 'impossible',
+           v1.reason);
+        const tooBig = { slug:'v-big', cols:EDITOR_MAX+1, rows:EDITOR_MAX+1,
+          terminals:[{ color:PAIR_COLORS[0], a:[0,0], b:[1,0] }], blocked:[], obstacles:[] };
+        const v2 = verifyLevel(tooBig);
+        ok('verify refuses a board bigger than it can check',
+           v2.ok === false && v2.reason === 'too-big', v2.reason);
+        ok('the refusal explains itself', typeof v2.message === 'string' && v2.message.length > 20);
+        const fine = LEVELS.find(l=>l.slug==='interlock');
+        const v3 = verifyLevel(fine);
+        ok('verify passes a real board and reports its par',
+           v3.ok === true && v3.par === PAR_CONTRACT['interlock'], String(v3.par));
+      })();
 
       // --- Save keys are tied to identity, not array position ----------------
       // Asserted over every level rather than a named one at a known position.

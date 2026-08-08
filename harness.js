@@ -86,7 +86,7 @@ function buildSandbox(){
   const sandbox = {
     document: makeDocument(),
     localStorage: makeLocalStorage(),
-    console, performance, URLSearchParams,
+    console, performance, URLSearchParams, btoa, atob,
     Math, JSON, Date, Number, String, Array, Object, Set, Map, Boolean, RegExp, Error,
     Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array, Float64Array,
     isNaN, parseInt, parseFloat,
