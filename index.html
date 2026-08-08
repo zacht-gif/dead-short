@@ -203,6 +203,22 @@
     text-align:center; font-size:12px; color:var(--accent-2); font-weight:600;
     margin-bottom:10px;
   }
+  /* Finishing a wire is irreversible, so it can cut off a pair that still needs
+     to get somewhere. Without this the board just quietly becomes unwinnable
+     and the player keeps trying — the whole point of the warning is that the
+     game already knows. */
+  #sealedBar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:color-mix(in srgb, var(--danger) 16%, var(--panel));
+    border:1px solid var(--danger); border-radius:10px;
+    padding:10px 12px; margin-bottom:10px;
+    font-size:12px; color:var(--text); line-height:1.45; text-align:left;
+  }
+  #sealedBar b{ color:var(--danger); }
+  #sealedBar button{
+    background:var(--danger); color:#2a0207; border-color:var(--danger);
+    font-weight:700; white-space:nowrap;
+  }
   #boardWrap{
     position:relative;
     touch-action:none;
@@ -401,6 +417,10 @@
           <div class="stat"><div class="label">Best</div><div class="value" id="bestVal">—</div></div>
         </div>
         <div id="challengeTargetBar" class="hidden"></div>
+        <div id="sealedBar" class="hidden">
+          <div><b>Board sealed.</b> <span id="sealedText"></span></div>
+          <button id="sealedRestart">Restart</button>
+        </div>
       </div>
 
       <div id="playMain">
@@ -591,6 +611,37 @@
       ]
     },
     {
+      // Teaches: patrols don't only sweep in straight lines.
+      slug: "elbow", name: "Elbow", cols: 7, rows: 7,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[6,0] },
+        { color: "#ffd75a", a:[1,0], b:[5,0] },
+        { color: "#7ab8ff", a:[0,6], b:[3,6] },
+        { color: "#c98bff", a:[4,6], b:[6,6] },
+      ],
+      blocked: [[3,2]],
+      obstacles: [
+        { ticksPerCell: 2, path: loopPath([[1,4],[5,4],[5,2]]) },
+        { type:'gate', cell:[1,1], periodTicks:10, onTicks:4, phaseTicks:8 },
+      ]
+    },
+    {
+      // Teaches: two nested groups can face each other and compete for
+      // the middle of the board.
+      slug: "interlock", name: "Interlock", cols: 7, rows: 7,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[6,0] },
+        { color: "#ffd75a", a:[2,0], b:[4,0] },
+        { color: "#7ab8ff", a:[0,6], b:[6,6] },
+        { color: "#c98bff", a:[2,6], b:[4,6] },
+      ],
+      blocked: [[3,3]],
+      obstacles: [
+        { ticksPerCell: 2, path: loopPath([[0,3],[2,3]]) },
+        { type:'gate', cell:[2,1], periodTicks:10, onTicks:4, phaseTicks:4 },
+      ]
+    },
+    {
       // Teaches: wires nest. Three pairs share the top edge, so each route has
       // to fit inside the next one out, and getting that order wrong strands a
       // wire with nowhere left to go.
@@ -605,6 +656,84 @@
       obstacles: [
         { ticksPerCell: 2, path: loopPath([[0,3],[6,3]]) },
         { type:'gate', cell:[1,2], periodTicks:12, onTicks:5, phaseTicks:2 },
+      ]
+    },
+
+    // ---- Main set. Same nested silhouette, tightened one component at a time,
+    // so `detour` climbs 8 -> 10 -> 12 and routing carries the ramp. ----------
+    {
+      slug: "relay-yard", name: "Relay Yard", cols: 7, rows: 8,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[6,0] },
+        { color: "#ffd75a", a:[1,0], b:[5,0] },
+        { color: "#7ab8ff", a:[2,0], b:[4,0] },
+        { color: "#54e6a6", a:[0,7], b:[6,7] },
+      ],
+      blocked: [[3,2]],
+      obstacles: [
+        { ticksPerCell: 2, path: loopPath([[0,6],[6,6]]) },
+        { type:'gate', cell:[0,2], periodTicks:16, onTicks:6, phaseTicks:0 },
+      ]
+    },
+    {
+      slug: "backplane", name: "Backplane", cols: 7, rows: 8,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[6,0] },
+        { color: "#ffd75a", a:[1,0], b:[5,0] },
+        { color: "#7ab8ff", a:[2,0], b:[4,0] },
+        { color: "#54e6a6", a:[0,7], b:[6,7] },
+      ],
+      blocked: [[3,2],[3,3]],
+      obstacles: [
+        { ticksPerCell: 2, path: loopPath([[0,6],[6,6]]) },
+        { type:'gate', cell:[3,0], periodTicks:8, onTicks:4, phaseTicks:6 },
+      ]
+    },
+    {
+      // Peak routing pressure: the longest detour in the game.
+      slug: "logic-array", name: "Logic Array", cols: 7, rows: 8,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[6,0] },
+        { color: "#ffd75a", a:[1,0], b:[5,0] },
+        { color: "#7ab8ff", a:[2,0], b:[4,0] },
+        { color: "#54e6a6", a:[0,7], b:[6,7] },
+      ],
+      blocked: [[3,2],[3,3],[3,4]],
+      obstacles: [
+        { ticksPerCell: 2, path: loopPath([[0,6],[6,6]]) },
+        { type:'gate', cell:[2,5], periodTicks:16, onTicks:6, phaseTicks:0 },
+      ]
+    },
+
+    // ---- The last two peak on TRAP instead: most of the routes a player would
+    // reasonably draw finish a wire in a place that strands another pair. Note
+    // Fault Line's par (38) is LOWER than Backplane's (39) — ordering this
+    // chapter by par would have buried the finale in the middle. -------------
+    {
+      slug: "ladder", name: "Ladder", cols: 7, rows: 7,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[2,6] },
+        { color: "#ffd75a", a:[2,0], b:[4,6] },
+        { color: "#7ab8ff", a:[4,0], b:[6,6] },
+      ],
+      blocked: [[1,3],[3,3],[5,3],[6,3]],
+      obstacles: [
+        { ticksPerCell: 2, path: loopPath([[0,1],[6,1]]) },
+        { type:'gate', cell:[4,2], periodTicks:12, onTicks:5, phaseTicks:4 },
+      ]
+    },
+    {
+      slug: "fault-line", name: "Fault Line", cols: 7, rows: 6,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[6,0] },
+        { color: "#ffd75a", a:[1,0], b:[5,0] },
+        { color: "#7ab8ff", a:[2,0], b:[4,0] },
+        { color: "#54e6a6", a:[0,5], b:[6,5] },
+      ],
+      blocked: [[3,2],[3,3]],
+      obstacles: [
+        { ticksPerCell: 2, path: loopPath([[0,4],[6,4]]) },
+        { type:'gate', cell:[2,2], periodTicks:16, onTicks:6, phaseTicks:2 },
       ]
     },
   ];
@@ -813,7 +942,14 @@
   const PAR_CONTRACT = {
     "breadboard":    14,
     "circuit-board": 28,
+    "elbow":         26,
+    "interlock":     29,
     "mainframe":     34,
+    "relay-yard":    36,
+    "backplane":     39,
+    "logic-array":   39,
+    "ladder":        31,
+    "fault-line":    38,
   };
 
   // Medals are anchored to par instead of guessed: gold means you matched a
@@ -1185,6 +1321,8 @@
   let won = false;
   let zapCount = 0;
   let previewUntil = 0;      // timestamp; while now < previewUntil, the board is locked from input
+  let sealed = false;        // a finished wire has made the board unwinnable
+  let justLocked = false;    // a wire locked this tick, so the seal probe is worth running
 
   // ---------- The clock ----------
   // tickCount is the ONLY thing the simulation reads. It starts at 0 on the
@@ -1205,6 +1343,8 @@
   const scoreValEl = document.getElementById('scoreVal');
   const previewBtn = document.getElementById('previewBtn');
   const challengeTargetBar = document.getElementById('challengeTargetBar');
+  const sealedBar = document.getElementById('sealedBar');
+  const sealedText = document.getElementById('sealedText');
   const winModal = document.getElementById('winModal');
   const winScoreEl = document.getElementById('winScore');
   const winBreakdownEl = document.getElementById('winBreakdown');
@@ -1256,6 +1396,9 @@
     won = false;
     zapCount = 0;
     previewUntil = 0;
+    sealed = false;
+    justLocked = false;
+    sealedBar.classList.add('hidden');
     winModal.classList.remove('show');
     updateHud();
   }
@@ -1603,6 +1746,7 @@
         w.locked = true;
         w.intent = w.cells.slice();
         activeColor = null;
+        justLocked = true;
         sfx.lock();
         advanceToNextPlanned();
       }
@@ -1611,14 +1755,77 @@
     return 'wait';
   }
 
+  // Is every unfinished pair still connectable, treating finished wires as walls?
+  //
+  // Only ever reports a seal when the search PROVED it impossible. A budget
+  // timeout returns "no opinion", because telling somebody their winnable board
+  // is hopeless would make them abandon a level they were about to solve — far
+  // worse than staying quiet.
+  function findSealedPair(){
+    const wallCells = [];
+    const open = [];
+    level.terminals.forEach((t,i)=>{
+      if(wires[i].locked) wires[i].cells.forEach(c=>wallCells.push([c[0],c[1]]));
+      else open.push(t);
+    });
+    if(!open.length) return null;
+    const probe = routeSolve({
+      slug: level.slug + '-live', cols: level.cols, rows: level.rows,
+      blocked: (level.blocked || []).concat(wallCells),
+      terminals: open, obstacles: []
+    }, { budget: 400000 });
+    if(probe.status !== 'impossible') return null;
+
+    // Name the specific pair that can no longer get through, so the message says
+    // what went wrong rather than just that something did.
+    //
+    // The other open pairs' PADS have to stay blocked here. Without them a solo
+    // probe happily routes straight over a neighbour's terminal and reports the
+    // pair as fine, so nothing ever gets named.
+    for(let i=0;i<open.length;i++){
+      const otherPads = [];
+      open.forEach((t,j)=>{ if(j!==i){ otherPads.push(t.a, t.b); } });
+      const solo = routeSolve({
+        slug:'solo', cols: level.cols, rows: level.rows,
+        blocked: (level.blocked || []).concat(wallCells, otherPads),
+        terminals: [open[i]], obstacles: []
+      }, { budget: 120000 });
+      if(solo.status === 'impossible') return open[i];
+    }
+    return open[0];   // the pairs conflict with each other rather than one being walled in
+  }
+
+  function announceSealIfAny(){
+    if(sealed || won) return;
+    const pair = findSealedPair();
+    if(!pair) return;
+    sealed = true;
+    running = false;
+    const idx = level.terminals.indexOf(pair);
+    const { style } = styleFor(pair.color);
+    const shapeName = style.shape ? style.shape : 'remaining';
+    sealedText.textContent =
+      `A finished wire has cut off the ${shapeName} pair — it can't reach its other end any more. ` +
+      `Nothing else on this board can be completed.`;
+    sealedBar.classList.remove('hidden');
+    if(idx >= 0) activeColor = null;
+    sfx.zap();
+  }
+
   // One whole tick of the world. This is the single place the simulation
   // advances, and it reads nothing but the tick counter — so replaying the same
   // actions from tick 0 always produces the same run.
   function stepTick(){
     tickCount++;
-    propagateActiveWire();
+    const action = propagateActiveWire();
     checkZaps(tickCount);   // a wire that locked this tick is already safe
     checkWin();
+    // Locking is the only irreversible event, so it's the only thing that can
+    // seal the board — no need to re-probe on every tick.
+    if(action === 'extend' && !won && justLocked){
+      justLocked = false;
+      announceSealIfAny();
+    }
   }
 
   function endPointer(){
@@ -2336,6 +2543,7 @@
   document.getElementById('settingsBtn').onclick = showSettings;
   document.getElementById('settingsBackBtn').onclick = showMenu;
   document.getElementById('restartBtn').onclick = resetPuzzle;
+  document.getElementById('sealedRestart').onclick = resetPuzzle;
   document.getElementById('winRestart').onclick = resetPuzzle;
   // Trace is free and unlimited — the clock keeps running while it's up, so
   // using it mid-run already costs you time. That natural cost is enough;
@@ -2450,7 +2658,7 @@
     const lb = new Int32Array(order.length+1);
     for(let k=order.length-1;k>=0;k--) lb[k] = lb[k+1] + order[k].d + 1;
 
-    let nodes = 0, budgetHit = false;
+    let nodes = 0, budgetHit = false, stopNow = false;
     let bestCost = Infinity, bestPaths = null;
     const chosen = new Array(order.length).fill(null);
 
@@ -2515,9 +2723,10 @@
     }
 
     function place(k, cost){
-      if(budgetHit) return;
+      if(budgetHit || stopNow) return;
       if(k === order.length){
         if(cost < bestCost){ bestCost = cost; bestPaths = chosen.map(p=>p.slice()); }
+        stopNow = true;   // the deepening loop makes the first hit the shortest
         return;
       }
       if(cost + lb[k] >= bestCost) return;
@@ -2527,7 +2736,7 @@
 
     function walk(k, p, cur, path, costBefore){
       if(++nodes > budget){ budgetHit = true; return; }
-      if(budgetHit) return;
+      if(budgetHit || stopNow) return;
 
       const goal = p.b;
       const remain = Math.abs(cur[0]-goal[0]) + Math.abs(cur[1]-goal[1]);
@@ -2569,7 +2778,7 @@
         walk(k, p, [nx,ny], path, costBefore);
         path.pop();
         occ[ni] = FREE;
-        if(budgetHit) return;
+        if(budgetHit || stopNow) return;
       }
     }
 
@@ -2582,11 +2791,20 @@
     //
     // Every path from a to b has length congruent to manhattan+1 mod 2, so the
     // achievable totals step by 2 — odd intermediate limits cannot be hit.
+    // The ceiling is cols*rows, not floorCost + cols*rows. Routes are disjoint,
+    // so a complete routing can never use more cells than the board HAS — every
+    // limit above that is searching for something that cannot exist. The looser
+    // ceiling is what made proving a board unroutable so expensive that the
+    // seal probe used to time out and report 'unknown' on a provably sealed
+    // board.
     const floorCost = lb[0];
-    const maxSlack = (opts && opts.maxSlack !== undefined) ? opts.maxSlack : (cols*rows);
-    for(let limit = floorCost; limit <= floorCost + maxSlack; limit += 2){
+    const ceiling = (opts && opts.maxSlack !== undefined)
+      ? Math.min(floorCost + opts.maxSlack, cols*rows)
+      : cols*rows;
+    for(let limit = floorCost; limit <= ceiling; limit += 2){
       bestCost = limit + 1;          // prune anything that would exceed `limit`
       bestPaths = null;
+      stopNow = false;
       place(0, 0);
       if(bestPaths || budgetHit) break;
     }
@@ -2599,6 +2817,104 @@
       return { status:'solved', paths: byPair, totalCells: bestCost, nodes, exhaustive: !budgetHit };
     }
     return { status: budgetHit ? 'unknown' : 'impossible', nodes, exhaustive: !budgetHit };
+  }
+
+  // ---------- Trap measurement ----------
+  // Locking a wire is irreversible: once current reaches the far pad it is
+  // insulated for good and nothing may cross it. So a routing puzzle here has a
+  // real "I ruined this twenty seconds ago and didn't notice" axis — finish one
+  // wire along the wrong route and the board can become unwinnable while still
+  // looking fine.
+  //
+  // This measures that directly: for each pair, enumerate the routes a player
+  // might plausibly draw, and count how many of them seal the remaining pairs
+  // off. Difficulty comes out measured rather than asserted, which matters
+  // because par measures LENGTH, and length is not difficulty.
+  //
+  // Deliberately not reported as a single number when the enumeration is capped
+  // — a truncated count is worse than no count, since routes we never generated
+  // would masquerade as safe ones.
+  function enumerateRoutes(lv, pairIdx, slack, maxCount){
+    const cols = lv.cols, rows = lv.rows;
+    const blockedKey = new Set((lv.blocked||[]).map(c=>c[1]*cols+c[0]));
+    const otherTerms = new Set();
+    lv.terminals.forEach((t,i)=>{
+      if(i === pairIdx) return;
+      otherTerms.add(t.a[1]*cols+t.a[0]);
+      otherTerms.add(t.b[1]*cols+t.b[0]);
+    });
+    const p = lv.terminals[pairIdx];
+    const goal = p.b;
+    const shortest = Math.abs(p.a[0]-p.b[0]) + Math.abs(p.a[1]-p.b[1]) + 1;
+    const maxLen = shortest + slack;
+
+    const out = [];
+    const inPath = new Set();
+    let truncated = false;
+
+    (function walk(cur, path){
+      if(out.length >= maxCount){ truncated = true; return; }
+      if(cur[0]===goal[0] && cur[1]===goal[1]){ out.push(path.slice()); return; }
+      if(path.length >= maxLen) return;
+      const remain = Math.abs(cur[0]-goal[0]) + Math.abs(cur[1]-goal[1]);
+      if(path.length + remain > maxLen) return;
+      const steps = [[cur[0]+1,cur[1]],[cur[0]-1,cur[1]],[cur[0],cur[1]+1],[cur[0],cur[1]-1]];
+      for(let s=0;s<steps.length;s++){
+        const nx = steps[s][0], ny = steps[s][1];
+        if(nx<0||ny<0||nx>=cols||ny>=rows) continue;
+        const key = ny*cols+nx;
+        const isGoal = (nx===goal[0] && ny===goal[1]);
+        if(!isGoal && (blockedKey.has(key) || otherTerms.has(key) || inPath.has(key))) continue;
+        if(isGoal && inPath.has(key)) continue;
+        inPath.add(key);
+        path.push([nx,ny]);
+        walk([nx,ny], path);
+        path.pop();
+        inPath.delete(key);
+        if(out.length >= maxCount) return;
+      }
+    })(p.a, [p.a]);
+
+    inPath.clear();
+    return { routes: out, truncated };
+  }
+
+  // Would finishing `pairIdx` along `route` leave every other pair routable?
+  function restRoutable(lv, pairIdx, route){
+    const sub = {
+      slug: lv.slug + '-rest',
+      cols: lv.cols, rows: lv.rows,
+      // A finished wire is a wall, so it becomes terrain for this question.
+      blocked: (lv.blocked||[]).concat(route.map(c=>[c[0],c[1]])),
+      terminals: lv.terminals.filter((_,i)=>i !== pairIdx),
+      obstacles: []
+    };
+    if(!sub.terminals.length) return { ok:true, certain:true };
+    // Only the yes/no matters here, so skip the length optimisation.
+    const r = routeSolve(sub, { budget: 120000 });
+    return { ok: r.status === 'solved', certain: r.status !== 'unknown' };
+  }
+
+  function trapMeasure(lv, opts){
+    const slack = (opts && opts.slack !== undefined) ? opts.slack : 2;
+    const maxPerPair = (opts && opts.maxPerPair) || 240;
+    let considered = 0, sealing = 0, truncated = false, uncertain = 0;
+    for(let i=0;i<lv.terminals.length;i++){
+      const e = enumerateRoutes(lv, i, slack, maxPerPair);
+      if(e.truncated) truncated = true;
+      e.routes.forEach(route=>{
+        const r = restRoutable(lv, i, route);
+        if(!r.certain){ uncertain++; return; }
+        considered++;
+        if(!r.ok) sealing++;
+      });
+    }
+    // Honesty: a capped enumeration cannot report a density, because the routes
+    // it never generated would silently count as safe.
+    return {
+      considered, sealing, uncertain, truncated,
+      density: (truncated || !considered) ? null : sealing / considered
+    };
   }
 
   // ---------- Hazard timing helpers ----------
@@ -2959,10 +3275,69 @@
       ok('a route cannot be drawn through a finished wire', wires[1].intent.length === 1,
          'intent=' + wires[1].intent.length);
 
+      // --- Sealing the board is detected, and only when certain ---------------
+      // A horizontal wire finished across the middle row severs the vertical
+      // pair's only route. The game knows this the moment it happens, so it has
+      // to say so rather than let the player keep trying.
+      load({ slug:'test-seal', name:'Seal', cols:3, rows:3,
+        terminals:[
+          { color:'#ff5d6c', a:[0,1], b:[2,1] },
+          { color:'#ffd75a', a:[1,0], b:[1,2] },
+        ], blocked:[], obstacles:[] });
+      onPointerDown([0,1]); planTo([2,1]);
+      runTicks(4);
+      ok('the wire that seals the board finishes', wires[0].locked === true);
+      ok('sealing the board is detected', sealed === true);
+      ok('a sealed board stops the clock', running === false);
+
+      // The same thing on a real shipped board, because a synthetic 3x3 proves
+      // the mechanism but not that the probe can actually decide a full-size
+      // board inside its budget. It could not, at first: the search ceiling was
+      // loose enough that this probe timed out and stayed silent on a board that
+      // is provably sealed.
+      (function(){
+        const fault = LEVELS.find(l=>l.slug === 'fault-line');
+        if(!fault) { ok('fault-line exists to test sealing', false); return; }
+        load(fault);
+        // Run the outermost pair tight against row 1 — a route a player would
+        // plausibly draw, which strands the two pairs that must nest inside it.
+        const greedy = [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[6,0]];
+        onPointerDown([0,0]);
+        greedy.forEach(c=>planTo(c));
+        ok('the greedy outer route is drawable', wires[0].intent.length === 9,
+           'intent=' + wires[0].intent.length);
+        runTicks(40);
+        ok('fault-line: the greedy route does finish', wires[0].locked === true);
+        ok('fault-line: sealing it is detected on a real board', sealed === true);
+        ok('fault-line: the warning names a specific pair',
+           sealedText.textContent.length > 0 && sealedText.textContent.indexOf('cut off') !== -1,
+           sealedText.textContent.slice(0, 60));
+      })();
+
+      // And the far more important half: it must NOT cry wolf. Losing faith in
+      // this warning is worse than not having it, because a player told their
+      // winnable board is hopeless abandons a level they were about to solve.
+      load({ slug:'test-noseal', name:'NoSeal', cols:5, rows:5,
+        terminals:[
+          { color:'#ff5d6c', a:[0,0], b:[0,4] },
+          { color:'#ffd75a', a:[4,0], b:[4,4] },
+        ], blocked:[], obstacles:[] });
+      onPointerDown([0,0]); planTo([0,4]);
+      runTicks(6);
+      ok('a wire that seals nothing raises no warning',
+         wires[0].locked === true && sealed === false);
+      onPointerDown([4,0]); planTo([4,4]);
+      runTicks(8);
+      ok('the level still completes normally after that', won === true);
+
       // --- Save keys are tied to identity, not array position ----------------
-      ok('best-score keys are slug-based, not index-based',
-         bestKey(LEVELS[LEVELS.length-1]).indexOf('mainframe') !== -1,
-         bestKey(LEVELS[LEVELS.length-1]));
+      // Asserted over every level rather than a named one at a known position.
+      // The previous version of this check read LEVELS[LEVELS.length-1] and
+      // expected 'mainframe' — so appending levels broke the test while the code
+      // was perfectly correct. Referencing by position is the bug this very
+      // check exists to prevent.
+      ok('every best-score key embeds its own level slug',
+         LEVELS.every(lv=>bestKey(lv).indexOf(lv.slug) !== -1));
       ok('reordering levels cannot collide two levels onto one key',
          new Set(LEVELS.map(lv=>bestKey(lv))).size === LEVELS.length);
       // Redesigning a level under the same slug must retire its old scores —
@@ -2984,13 +3359,16 @@
       // A corridor with the only through-route blocked off is unroutable, and
       // the solver must say so having actually EXHAUSTED the search — reporting
       // 'impossible' off a truncated search would be the dangerous failure.
-      const sealed = routeSolve({
+      // Named sealedProbe, not sealed: a local `sealed` here shadows the engine's
+      // module-level `sealed` flag for the whole of selfTest, putting it in the
+      // temporal dead zone for every assertion written above this line.
+      const sealedProbe = routeSolve({
         slug:'t-sealed', cols:3, rows:3,
         terminals:[{ color:'#ff5d6c', a:[0,0], b:[2,2] }],
         blocked:[[1,0],[0,1],[1,1],[2,1],[1,2]], obstacles:[]
       });
-      ok('a sealed-off pair is reported unroutable', sealed.status === 'impossible', sealed.status);
-      ok('that verdict came from an exhausted search', sealed.exhaustive === true);
+      ok('a sealed-off pair is reported unroutable', sealedProbe.status === 'impossible', sealedProbe.status);
+      ok('that verdict came from an exhausted search', sealedProbe.exhaustive === true);
 
       // A component in the direct line forces a detour, and the solver should
       // find the shortest one rather than the first one.
@@ -3010,6 +3388,23 @@
       const starved = routeSolve(LEVELS[LEVELS.length-1], { budget: 5 });
       ok('a starved search says unknown rather than impossible',
          starved.status !== 'impossible', starved.status);
+
+      // The search ceiling is cols*rows. That has to be high enough that no real
+      // routing is excluded — if it were too low, a solvable board would be
+      // declared 'impossible', which is the worst outcome this code can produce:
+      // it would both reject good levels and pop a false "board sealed" warning.
+      ok('every shipped board is still found routable under the ceiling',
+         LEVELS.every(lv=>routeSolve(lv).status === 'solved'));
+      (function(){
+        // A board whose routing genuinely needs a long way round: the ceiling
+        // must not cut it off.
+        const winding = { slug:'t-winding', cols:5, rows:5,
+          terminals:[{ color:'#ff5d6c', a:[0,0], b:[2,2] }],
+          blocked:[[1,0],[1,1],[1,2],[1,3],[3,1],[3,2],[3,3],[3,4]], obstacles:[] };
+        const r = routeSolve(winding);
+        ok('a route forced the long way round is still found', r.status === 'solved',
+           r.status + (r.status==='solved' ? ' cells=' + r.totalCells : ''));
+      })();
 
       // --- Solution contract -------------------------------------------------
       // Par is re-derived from the solver and checked against the committed
@@ -3109,7 +3504,8 @@
   // for new levels, and the in-game editor will use the same functions, so a
   // level's par comes from the same code whichever way it was authored.
   window.__wiredDev = { solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ,
-                        generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT };
+                        generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT,
+                        trapMeasure, measurePressure };
 
   // ---------- Boot ----------
   level = LEVELS[0];

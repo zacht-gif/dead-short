@@ -72,13 +72,32 @@ contiguously, while the game also allows parking a half-built wire to run anothe
 par. That's the safe direction: every par ships with a witness we replay, so gold is always attainable. A
 par that was too low would make gold impossible.
 
-Boards are scored on two measured axes, and a level with zero on both is a straight-line race with no
-decisions in it:
+Boards are scored on three measured axes, and a level with zero on all of them is a straight-line race
+with no decisions in it:
 
 - **detour** — wire cells beyond the straight-line minimum, so routing around something is really required.
 - **holds** — ticks spent waiting, so the hazards constrain the run. This is a *band*, not a maximum:
   tuning found placements scoring 56 holds, which is a wire sitting idle for nine seconds — not a hard
   level, a boring one.
+- **trap** — share of plausible routes that seal the board. Finishing a wire is irreversible, so a
+  wire completed along the wrong route can strand another pair permanently.
+
+Difficulty ordering uses these, not par, and the difference is not academic: **Fault Line's par (38) is
+lower than Backplane's (39) while its trap density is 76% against 0%.** Ordering the set by par would
+have buried the finale in the middle.
+
+A capped route enumeration reports *no* trap number rather than a low one, because routes that were never
+generated would silently count as safe and drag the figure toward zero.
+
+## The board-sealed warning
+
+Because trap is real, the game watches for it. When a wire locks, it re-checks whether every unfinished
+pair can still be connected, and says so if not — naming the pair that got cut off.
+
+It only ever warns when the search **proved** the board unwinnable. A budget timeout produces silence,
+never a warning: telling someone their winnable board is hopeless would make them abandon a level they
+were about to solve, which is far worse than staying quiet. The test suite asserts both halves — that it
+fires on a genuinely sealed board, and that it stays quiet on a healthy one.
 
 ## Tests
 
