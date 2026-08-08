@@ -374,11 +374,13 @@
     </header>
     <div id="menuList"></div>
     <div id="menuBanner">
-      <b>How to play:</b> drag — or tap cell by cell — from one dot to its matching color to wire them
-      together. Paths can't cross. A spark patrols a fixed, repeating track; touch it with an unfinished
-      wire and it shorts out (+3s penalty). Finished wires are insulated and safe. Your score is your
-      solve time plus a penalty for every short — precision counts as much as speed.
-      Hit <b>Trace</b> any time to see where every spark will be one, two and three seconds from now.
+      <b>How to play:</b> drag from a dot to its matching color to lay out a route. Drawing is free and
+      instant — but current only flows one cell at a time, down one route at a time, and the clock is
+      running while it does. Routes can't cross each other or the components on the board, so the order
+      you energize them decides what's still possible. A spark patrols a fixed, repeating track and the
+      cell it's sitting on is outlined: let the current touch it and that wire shorts out (+3s). Your
+      route survives the short; only the current is lost. Finished wires are insulated for good.
+      Hit <b>Trace</b> to see exactly where every spark will be one, two and three seconds from now.
     </div>
   </div>
 
@@ -414,11 +416,13 @@
           <button id="shareBtn" class="primary">Share result</button>
         </div>
         <div id="banner">
-          <b>Score</b> = time + 3s per short. Finished wires can't be crossed by others, so plan the order
-          you tackle each color. The clock only starts on your first move — and <b>Trace</b> is free and
-          unlimited, so scout before you touch anything and it costs you nothing.
-          <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD extend it one cell at a time,
-          Backspace steps back, Enter/Space grabs a wire if none is selected.
+          <b>Score</b> = time + 3s per short. Draw as many routes as you like up front; the current runs
+          them one at a time, in order, and moves to the next when one completes. A half-built wire left
+          waiting is still live and still shortable — that's the cost of switching away. Tap any color to
+          jump the queue. The board is frozen until your first move, and <b>Trace</b> is free and
+          unlimited, so scout all you want before you commit.
+          <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD draw its route one cell at a
+          time, Backspace steps back, Enter/Space grabs a wire if none is selected.
         </div>
       </div>
     </div>
@@ -442,14 +446,17 @@
 
     <div class="settingsSection">
       <h3>How to play</h3>
-      <p>Drag from a dot to its matching color — or tap your way there cell by cell — to wire every pair
-      together; no two paths are allowed to cross. Sparks patrol fixed, repeating tracks whose route is
-      always drawn on the board — nothing here is random, and <b>Trace</b> will show you exactly where
-      every spark lands one, two and three seconds from now, free and as often as you like.
-      Touch an unfinished wire with a spark and it shorts out for a time penalty; once a wire is finished
-      it's insulated, and safe for good. Your score is solve time plus a penalty for every short, so
-      precision counts as much as speed. The clock doesn't start until your first move — so plan all you
-      want, then go fast.</p>
+      <p>Drag from a dot to its matching color — or tap your way there cell by cell — to lay out that
+      pair's route. Drawing costs nothing and happens instantly. <b>Current is the slow part:</b> it
+      flows one cell per tick, down one route at a time, and when a wire completes the current moves to
+      the next route you've drawn. No two routes may cross, and neither may pass through a component
+      soldered to the board, so the order things energize decides what's still reachable.</p>
+      <p style="margin-top:8px;">Sparks patrol fixed, repeating tracks that are always drawn on the
+      board, and the cell a spark occupies right now is outlined — that outline is the hitbox, exactly.
+      Let live current touch it and that wire shorts out for a time penalty; your drawn route survives,
+      so it simply starts filling again. A finished wire is insulated and safe for good. Nothing here is
+      random: <b>Trace</b> shows you precisely where every spark lands one, two and three seconds from
+      now, free and as often as you like, and the board stays frozen until your first move.</p>
     </div>
 
     <div class="settingsSection">
@@ -493,7 +500,11 @@
       <div id="statsList"></div>
     </div>
 
-    <div id="settingsCredits">v1.0 · Wired grew out of an earlier puzzle, Cut &amp; Fill.</div>
+    <div id="settingsCredits">
+      v2.0 · Wired grew out of an earlier puzzle, Cut &amp; Fill.<br>
+      © 2026 Zach Thornsbury. All rights reserved.<br>
+      No trackers, no ads, no network calls — this game never phones home.
+    </div>
   </div>
 
 </div>
@@ -518,51 +529,82 @@
   "use strict";
 
   // ---------- Tunables ----------
-  const ZAP_PENALTY = 3;       // seconds added to score per short
-  const TRACE_MS = 2500;       // how long a Trace overlay stays up
+  // The whole simulation runs on an integer tick counter, never on wall-clock
+  // time. Everything that can affect a score — spark position, wire growth,
+  // the penalty for a short — is a pure function of that integer, so a run is
+  // exactly reproducible and a solver can search it. Wall-clock time only ever
+  // decides WHEN a tick fires; it never decides what a tick does.
+  const TICK_HZ = 6;                       // ticks per second
+  const MS_PER_TICK = 1000 / TICK_HZ;
+  const MAX_FRAME_MS = 250;                // clamp after a tab-away so we don't
+                                           // burn through a spiral of catch-up ticks
+  const ZAP_PENALTY_TICKS = 3 * TICK_HZ;   // a short costs 3 seconds
+  const TRACE_MS = 2500;                   // how long a Trace overlay stays up
 
   // ---------- Level definitions ----------
-  // Every color pair runs straight down its own column, so no two wires can ever
-  // block each other — the only challenge is timing each column past the
-  // horizontal sparks that patrol fixed rows. Guaranteed solvable by design.
+  // Schema notes:
+  //   slug          stable string identity. Save data, share codes and the
+  //                 solution contract all key off this, NEVER off array
+  //                 position or a numeric id — otherwise inserting or
+  //                 reordering a level silently corrupts every saved best.
+  //   blocked       cells no wire may route through (components soldered to
+  //                 the board). This is what forces real routing decisions.
+  //   ticksPerCell  integer ticks a spark spends on each cell of its path, so
+  //                 its position is an exact function of the tick counter and
+  //                 its cycle length is an integer.
+  // A tutorial arc, each board teaching exactly one thing. Every hazard here was
+  // chosen by measurement, not taste: boards are scored on `detour` (wire cells
+  // beyond the straight-line minimum, so routing is a real decision) and `holds`
+  // (ticks spent waiting, so timing is a real decision). The previous set scored
+  // zero on both — every wire ran straight down its own column past sparks it
+  // could always out-schedule.
+  //
+  // holds is a band, not a maximum. Tuning found placements scoring 56 holds;
+  // that is a wire sitting idle for nine seconds, which is not a hard level but
+  // a boring one.
   const LEVELS = [
     {
-      id: 1, name: "Breadboard", cols: 6, rows: 6,
+      // Teaches: drawing is free, current is slow, waiting is how you survive.
+      // One lesson only — no routing choice exists, both gaps are forced.
+      slug: "breadboard", name: "Breadboard", cols: 5, rows: 5,
+      terminals: [
+        { color: "#ff5d6c", a:[0,0], b:[0,4] },
+        { color: "#54e6a6", a:[4,0], b:[4,4] },
+      ],
+      blocked: [[1,2],[2,2],[3,2]],
+      obstacles: [
+        { type:'gate', cell:[0,1], periodTicks:10, onTicks:5, phaseTicks:0 },
+      ]
+    },
+    {
+      // Teaches: components force detours, and a gated funnel has to be timed.
+      slug: "circuit-board", name: "Circuit Board", cols: 6, rows: 6,
       terminals: [
         { color: "#ff5d6c", a:[0,0], b:[0,5] },
         { color: "#ffd75a", a:[2,0], b:[2,5] },
         { color: "#54e6a6", a:[5,0], b:[5,5] },
       ],
+      blocked: [[1,3],[2,3],[4,3]],
       obstacles: [
-        { cellsPerSecond: 2.2, path: loopPath([[0,2],[5,2]]) },
+        { ticksPerCell: 2, path: loopPath([[0,1],[5,1]]) },
+        { type:'gate', cell:[3,2], periodTicks:8, onTicks:4, phaseTicks:2 },
       ]
     },
     {
-      id: 2, name: "Circuit Board", cols: 7, rows: 7,
+      // Teaches: wires nest. Three pairs share the top edge, so each route has
+      // to fit inside the next one out, and getting that order wrong strands a
+      // wire with nowhere left to go.
+      slug: "mainframe", name: "Mainframe", cols: 7, rows: 7,
       terminals: [
-        { color: "#ff5d6c", a:[0,0], b:[0,6] },
-        { color: "#ffd75a", a:[2,0], b:[2,6] },
-        { color: "#7ab8ff", a:[4,0], b:[4,6] },
-        { color: "#54e6a6", a:[6,0], b:[6,6] },
+        { color: "#ff5d6c", a:[0,0], b:[6,0] },
+        { color: "#ffd75a", a:[1,0], b:[5,0] },
+        { color: "#7ab8ff", a:[2,0], b:[4,0] },
+        { color: "#c98bff", a:[0,6], b:[6,6] },
       ],
+      blocked: [[3,4]],
       obstacles: [
-        { cellsPerSecond: 2.6, path: loopPath([[0,2],[6,2]]) },
-        { cellsPerSecond: 1.8, path: loopPath([[0,4],[6,4]]) },
-      ]
-    },
-    {
-      id: 3, name: "Mainframe", cols: 8, rows: 8,
-      terminals: [
-        { color: "#ff5d6c", a:[0,0], b:[0,7] },
-        { color: "#ffd75a", a:[2,0], b:[2,7] },
-        { color: "#7ab8ff", a:[4,0], b:[4,7] },
-        { color: "#c98bff", a:[5,0], b:[5,7] },
-        { color: "#54e6a6", a:[7,0], b:[7,7] },
-      ],
-      obstacles: [
-        { cellsPerSecond: 3.0, path: loopPath([[0,2],[7,2]]) },
-        { cellsPerSecond: 2.2, path: loopPath([[0,4],[7,4]]) },
-        { cellsPerSecond: 2.6, path: loopPath([[0,6],[7,6]]) },
+        { ticksPerCell: 2, path: loopPath([[0,3],[6,3]]) },
+        { type:'gate', cell:[1,2], periodTicks:12, onTicks:5, phaseTicks:2 },
       ]
     },
   ];
@@ -612,46 +654,148 @@
     return `${y}-${m}-${day}`;
   }
   const DAILY_PALETTE = ["#ff5d6c","#ffd75a","#7ab8ff","#c98bff","#54e6a6"];
-  function generateDailyLevel(dateStr){
-    const rand = mulberry32(hashStr('wired-daily-' + dateStr));
-    const cols = 7, rows = 7, nColors = 4, nObstacles = 2;
-    const availableCols = Array.from({length:cols}, (_,i)=>i);
-    const chosenCols = [];
-    for(let i=0; i<nColors; i++){
-      chosenCols.push(availableCols.splice(Math.floor(rand()*availableCols.length), 1)[0]);
+
+  // Generate-and-verify, not generate-and-hope. The old generator only
+  // randomised inside a shape that was solvable by construction — parallel
+  // columns — which is precisely the shape that measured zero routing pressure
+  // and zero timing pressure. Safe, and pointless.
+  //
+  // Now the generator proposes boards and the solver is the judge: a candidate
+  // ships only if it routes, if the routing search actually finished, and if it
+  // scores real pressure inside a target band. Everything is driven from one
+  // seeded PRNG, so every player still gets a byte-identical board for the day.
+  const DAILY_BAND = { parMin: 22, parMax: 46, holdsMin: 2, holdsMax: 9 };
+
+  function randomDailyBoard(rand, dateStr){
+    const cols = 6, rows = 6;
+    const nPairs = 3;
+    // Terminals top and bottom, with an order-preserving shift: keeping the
+    // left-to-right order means the pairs can always be routed without
+    // crossing, while the shift means they can rarely go straight down.
+    const topCols = [];
+    const pool = Array.from({length:cols}, (_,i)=>i);
+    for(let i=0;i<nPairs;i++) topCols.push(pool.splice(Math.floor(rand()*pool.length),1)[0]);
+    topCols.sort((a,b)=>a-b);
+    const shift = 1 + Math.floor(rand()*2);
+    const botCols = topCols.map(c=>Math.min(cols-1, c+shift));
+    // A shift that collides two wires onto one pad is not a board.
+    if(new Set(botCols).size !== botCols.length) return null;
+
+    const terminals = topCols.map((c,i)=>({
+      color: DAILY_PALETTE[i % DAILY_PALETTE.length],
+      a:[c,0], b:[botCols[i], rows-1]
+    }));
+
+    // A partial wall somewhere in the middle, so routes have to funnel.
+    const wallRow = 2 + Math.floor(rand()*(rows-4));
+    const blocked = [];
+    for(let c=0;c<cols;c++){
+      if(rand() < 0.5) continue;
+      if(terminals.some(t=>(t.a[0]===c && t.a[1]===wallRow) || (t.b[0]===c && t.b[1]===wallRow))) continue;
+      blocked.push([c, wallRow]);
     }
-    chosenCols.sort((a,b)=>a-b);
-    const terminals = chosenCols.map((c,i)=>({ color: DAILY_PALETTE[i % DAILY_PALETTE.length], a:[c,0], b:[c,rows-1] }));
-    const availableRows = Array.from({length:rows-2}, (_,i)=>i+1); // never the terminal rows
-    const obstacles = [];
-    for(let i=0; i<nObstacles; i++){
-      const row = availableRows.splice(Math.floor(rand()*availableRows.length), 1)[0];
-      const speed = Math.round((1.8 + rand()*1.4) * 10) / 10;
-      obstacles.push({ cellsPerSecond: speed, path: loopPath([[0,row],[cols-1,row]]) });
-    }
-    return { id: 'daily-' + dateStr, name: 'Daily Challenge', cols, rows, terminals, obstacles, isDaily:true, dateStr };
+    if(!blocked.length || blocked.length >= cols - 1) return null;
+
+    const patrolRow = wallRow === 1 ? rows-2 : 1;
+    const obstacles = [{ ticksPerCell: 2 + Math.floor(rand()*2),
+                         path: loopPath([[0,patrolRow],[cols-1,patrolRow]]) }];
+
+    return { slug:'daily-' + dateStr, name:'Daily Challenge', cols, rows,
+             terminals, blocked, obstacles, isDaily:true, dateStr };
   }
-  function getDailyStreak(){ return parseInt(localStorage.getItem('wired-v2-daily-streak') || '0', 10); }
+
+  function measurePressure(lv, sol){
+    const straight = lv.terminals.reduce((s,t)=>
+      s + Math.abs(t.a[0]-t.b[0]) + Math.abs(t.a[1]-t.b[1]) + 1, 0);
+    return {
+      detour: sol.totalCells - straight,
+      holds: sol.par - sol.totalCells - (lv.terminals.length - 1)
+    };
+  }
+
+  const dailyCache = new Map();
+  function generateDailyLevel(dateStr){
+    if(dailyCache.has(dateStr)) return dailyCache.get(dateStr);
+    const rand = mulberry32(hashStr('wired-daily-v3-' + dateStr));
+    let chosen = null;
+
+    outer:
+    for(let attempt=0; attempt<50 && !chosen; attempt++){
+      const board = randomDailyBoard(rand, dateStr);
+      if(!board) continue;
+      const routing = routeSolve(board, { budget: 120000 });
+      // Reject 'unknown' as firmly as 'impossible': shipping a board we could
+      // not finish checking is exactly the thing the budget exists to prevent.
+      if(routing.status !== 'solved' || !routing.exhaustive) continue;
+
+      // Place the gate on cells the solved routes really use — a gate anywhere
+      // else cannot create a decision, only decoration.
+      const cells = [];
+      routing.paths.forEach(p=>p.forEach(c=>{
+        if(terminalCellOf(board, c)) return;
+        if(!cells.some(x=>x[0]===c[0] && x[1]===c[1])) cells.push(c);
+      }));
+      for(let g=0; g<12 && cells.length; g++){
+        const cell = cells[Math.floor(rand()*cells.length)];
+        const periodTicks = 8 + Math.floor(rand()*7);
+        const onTicks = 3 + Math.floor(rand()*(Math.max(1, periodTicks-5)));
+        const cand = Object.assign({}, board, {
+          obstacles: board.obstacles.concat([{
+            type:'gate', cell, periodTicks, onTicks,
+            phaseTicks: Math.floor(rand()*periodTicks)
+          }])
+        });
+        const sol = solveLevel(cand);
+        if(sol.status !== 'solved') continue;
+        const p = measurePressure(cand, sol);
+        if(p.detour <= 0 && p.holds <= 0) continue;
+        if(p.holds < DAILY_BAND.holdsMin || p.holds > DAILY_BAND.holdsMax) continue;
+        if(sol.par < DAILY_BAND.parMin || sol.par > DAILY_BAND.parMax) continue;
+        chosen = cand;
+        break outer;
+      }
+    }
+
+    // Never leave the player without a daily. This fallback is a known-good
+    // hand-authored shape re-phased by the date, so it is still the same board
+    // for everybody — it is just not a freshly generated one.
+    if(!chosen){
+      const base = LEVELS[1];
+      chosen = Object.assign({}, base, {
+        slug: 'daily-' + dateStr, name: 'Daily Challenge', isDaily: true, dateStr,
+        obstacles: base.obstacles.map(o=>isGate(o)
+          ? Object.assign({}, o, { phaseTicks: hashStr(dateStr) % o.periodTicks })
+          : o)
+      });
+    }
+    dailyCache.set(dateStr, chosen);
+    return chosen;
+  }
+
+  function terminalCellOf(lv, cell){
+    return lv.terminals.some(t=>
+      (t.a[0]===cell[0] && t.a[1]===cell[1]) || (t.b[0]===cell[0] && t.b[1]===cell[1]));
+  }
+  function getDailyStreak(){ return parseInt(localStorage.getItem(STORE_PREFIX + 'daily-streak') || '0', 10); }
   function recordDailyPlay(dateStr){
-    const last = localStorage.getItem('wired-v2-daily-lastDate');
+    const last = localStorage.getItem(STORE_PREFIX + 'daily-lastDate');
     if(last === dateStr) return; // already counted today
     const y = new Date(); y.setDate(y.getDate()-1);
     const streak = (last === localDateString(y)) ? getDailyStreak()+1 : 1;
-    localStorage.setItem('wired-v2-daily-lastDate', dateStr);
-    localStorage.setItem('wired-v2-daily-streak', String(streak));
+    localStorage.setItem(STORE_PREFIX + 'daily-lastDate', dateStr);
+    localStorage.setItem(STORE_PREFIX + 'daily-streak', String(streak));
   }
 
   // Resolves a shared challenge link's level id back to a real level object.
   // Daily-challenge ids are date-stamped, so a link opened after its date has
   // passed can't be honored — that day's board no longer regenerates identically
   // for direct comparison, so the challenge is treated as expired.
-  function resolveChallengeLevel(challengeId){
-    if(challengeId.indexOf('daily-') === 0){
-      const dateStr = challengeId.slice('daily-'.length);
+  function resolveChallengeLevel(challengeSlug){
+    if(challengeSlug.indexOf('daily-') === 0){
+      const dateStr = challengeSlug.slice('daily-'.length);
       return dateStr === localDateString() ? generateDailyLevel(dateStr) : null;
     }
-    const id = parseInt(challengeId, 10);
-    return LEVELS.find(lv=>lv.id===id) || null;
+    return LEVELS.find(lv=>lv.slug===challengeSlug) || null;
   }
 
   // ---------- Medals ----------
@@ -660,41 +804,106 @@
   // scoring or the leaderboard-fairness rules. The daily challenge always
   // generates at Circuit Board's grid/color/spark count, so it borrows that
   // level's thresholds rather than needing its own.
-  const MEDAL_THRESHOLDS = {
-    1: { gold:6,  silver:10, bronze:16 },
-    2: { gold:9,  silver:15, bronze:24 },
-    3: { gold:12, silver:20, bronze:32 },
+  // ---------- Solution contract ----------
+  // Par per shipped level, in ticks. These are COMMITTED values, not computed at
+  // boot, and that is the point: the test suite re-derives par from the solver
+  // and asserts it still equals the number here. Retune a level or change a rule
+  // and this breaks loudly, so updating it is a decision rather than a surprise.
+  // Regenerate with `node solve.js`.
+  const PAR_CONTRACT = {
+    "breadboard":    14,
+    "circuit-board": 28,
+    "mainframe":     34,
   };
+
+  // Medals are anchored to par instead of guessed: gold means you matched a
+  // schedule we can prove is achievable (we replay it through the real engine),
+  // not that you beat a number somebody felt was about right.
   const MEDAL_ICON = { gold:'🥇', silver:'🥈', bronze:'🥉' };
-  function getMedalThresholds(lv){ return lv.isDaily ? MEDAL_THRESHOLDS[2] : MEDAL_THRESHOLDS[lv.id]; }
-  function medalForScore(lv, score){
+  const parCache = new Map();
+  function parFor(lv){
+    if(PAR_CONTRACT[lv.slug] !== undefined) return PAR_CONTRACT[lv.slug];
+    if(parCache.has(lv.slug)) return parCache.get(lv.slug);
+    let par = null;
+    try{
+      const sol = solveLevel(lv);
+      if(sol.status === 'solved') par = sol.par;
+    } catch(e){ par = null; }   // an unsolvable board simply has no medals
+    parCache.set(lv.slug, par);
+    return par;
+  }
+  function getMedalThresholds(lv){
+    const par = parFor(lv);
+    if(par === null) return null;
+    return { gold: par, silver: Math.ceil(par*1.25), bronze: Math.ceil(par*1.6) };
+  }
+  function medalForScore(lv, scoreTicks){
     const t = getMedalThresholds(lv);
-    if(!t || score===null) return null;
-    if(score <= t.gold) return 'gold';
-    if(score <= t.silver) return 'silver';
-    if(score <= t.bronze) return 'bronze';
+    if(!t || scoreTicks===null) return null;
+    if(scoreTicks <= t.gold) return 'gold';
+    if(scoreTicks <= t.silver) return 'silver';
+    if(scoreTicks <= t.bronze) return 'bronze';
     return null;
   }
 
-  // ---------- Persistent storage (bumped key prefix — scoring rules changed) ----------
-  function bestKey(lv){ return 'wired-v2-best-' + lv.id; }
+  // ---------- Persistent storage ----------
+  // v3: scores are integer TICKS, not float seconds, and every per-level key is
+  // suffixed with the level's SLUG rather than its position in the array. Keying
+  // save data by ordinal position is how inserting or reordering a level quietly
+  // corrupts somebody's bests — anything that outlives the current arrangement
+  // keys off identity. v2 data was written under different scoring rules and is
+  // deliberately not migrated; it's simply ignored.
+  const STORE_PREFIX = 'wired-v3-';
+
+  // Slug alone is not enough. Keying by slug survives REORDERING a level, which
+  // is the usual trap, but not REDESIGNING one under the same name — and that
+  // really happened here: rebuilding Circuit Board left the old board's best
+  // time displayed on a board that shares nothing with it but its name.
+  //
+  // So the key carries a fingerprint of everything that defines the puzzle.
+  // Change the board and old scores stop applying automatically; move the level
+  // in the list, rename the file, add a hundred more levels, and they survive.
+  // Cached because updateHud() asks for the best score every single frame.
+  const fingerprintCache = new Map();
+  function levelFingerprint(lv){
+    if(fingerprintCache.has(lv.slug)) return fingerprintCache.get(lv.slug);
+    const shape = JSON.stringify([
+      lv.cols, lv.rows,
+      lv.terminals.map(t=>[t.color, t.a, t.b]),
+      lv.blocked || [],
+      lv.obstacles.map(o=>isGate(o)
+        ? ['g', o.cell, o.periodTicks, o.onTicks, o.phaseTicks || 0]
+        : ['p', o.ticksPerCell, o.path])
+    ]);
+    const fp = (hashStr(shape) >>> 0).toString(36);
+    fingerprintCache.set(lv.slug, fp);
+    return fp;
+  }
+  function levelKey(lv){ return lv.slug + '-' + levelFingerprint(lv); }
+  function bestKey(lv){ return STORE_PREFIX + 'best-' + levelKey(lv); }
   function getBest(lv){
     const v = localStorage.getItem(bestKey(lv));
-    return v ? parseFloat(v) : null;
+    if(v === null) return null;
+    const n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
   }
-  function setBestIfBetter(lv, score){
+  function setBestIfBetter(lv, scoreTicks){
     const cur = getBest(lv);
-    if(cur === null || score < cur){
-      localStorage.setItem(bestKey(lv), score.toFixed(1));
+    if(cur === null || scoreTicks < cur){
+      localStorage.setItem(bestKey(lv), String(scoreTicks));
       return true;
     }
     return false;
   }
 
   // Tracks whether a level has EVER been cleared with zero shorts.
-  function cleanClearKey(lv){ return 'wired-v2-clean-' + lv.id; }
+  function cleanClearKey(lv){ return STORE_PREFIX + 'clean-' + levelKey(lv); }
   function hasCleanClear(lv){ return localStorage.getItem(cleanClearKey(lv)) === '1'; }
   function markCleanClear(lv){ localStorage.setItem(cleanClearKey(lv), '1'); }
+
+  // Ticks are the stored unit; seconds are purely a display concern.
+  function ticksToSeconds(t){ return t / TICK_HZ; }
+  function fmtTicks(t){ return ticksToSeconds(t).toFixed(1) + 's'; }
 
   // ---------- Lifetime stats (for the Settings > Stats section) ----------
   function bumpCounter(key){
@@ -728,8 +937,8 @@
       tokens:{ '--accent':'#ffd75a', '--bg-pattern':'#2a1f0d', '--grid-line':'#33270f' }, badge:'⚡ ZERO SHORTS' },
   ];
   const ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tokens)))];
-  function getEquippedSkinId(){ return localStorage.getItem('wired-v2-skin') || 'default'; }
-  function setEquippedSkinId(id){ localStorage.setItem('wired-v2-skin', id); }
+  function getEquippedSkinId(){ return localStorage.getItem(STORE_PREFIX + 'skin') || 'default'; }
+  function setEquippedSkinId(id){ localStorage.setItem(STORE_PREFIX + 'skin', id); }
   function applySkin(){
     const skin = SKINS.find(s=>s.id===getEquippedSkinId() && s.unlocked()) || SKINS[0];
     const root = document.documentElement.style;
@@ -780,10 +989,15 @@
   const playerNameInput = document.getElementById('playerNameInput');
 
   const SETTINGS_DEFAULTS = {colorblind:false, reduceMotion:false, muted:false, playerName:''};
-  const SETTINGS_KEY = 'wired-v2-settings';
+  const SETTINGS_KEY = STORE_PREFIX + 'settings';
+  // Scores from v2 are deliberately dropped (different scoring rules), but
+  // settings are carried across: silently resetting somebody's colorblind or
+  // reduce-motion preference because the SCORING changed would be a real
+  // accessibility regression for no reason.
   function loadSettings(){
     try{
-      return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+      const raw = localStorage.getItem(SETTINGS_KEY) || localStorage.getItem('wired-v2-settings') || '{}';
+      return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(raw));
     } catch(e){
       return Object.assign({}, SETTINGS_DEFAULTS);
     }
@@ -796,8 +1010,8 @@
     const params = new URLSearchParams(location.search);
     if(!params.has('challenge')) return;
     const lv = resolveChallengeLevel(params.get('challenge'));
-    const score = parseFloat(params.get('score'));
-    if(lv && !isNaN(score)){
+    const score = parseInt(params.get('t'), 10);
+    if(lv && !isNaN(score) && score > 0){
       pendingChallenge = { level: lv, score, name: (params.get('name')||'').slice(0,20) };
     }
   })();
@@ -849,7 +1063,7 @@
       banner.innerHTML = `
         <div class="info">
           <div class="name">🎯 Challenge from ${cName}</div>
-          <div class="meta">Beat <b>${pendingChallenge.score.toFixed(1)}s</b> on <b>${escapeHtml(pendingChallenge.level.name)}</b></div>
+          <div class="meta">Beat <b>${fmtTicks(pendingChallenge.score)}</b> on <b>${escapeHtml(pendingChallenge.level.name)}</b></div>
         </div>
         <div style="display:flex; gap:8px;">
           <button class="acceptBtn">Accept</button>
@@ -866,14 +1080,14 @@
     const dailyBest = getBest(dailyLevel);
     const dailyMedal = medalForScore(dailyLevel, dailyBest);
     const streak = getDailyStreak();
-    const playedToday = localStorage.getItem('wired-v2-daily-lastDate') === todayStr;
+    const playedToday = localStorage.getItem(STORE_PREFIX + 'daily-lastDate') === todayStr;
     const dailyCard = document.createElement('div');
     dailyCard.className = 'levelCard dailyCard';
     dailyCard.innerHTML = `
       <div class="info">
         <div class="name">⚡ Daily Challenge <span class="dailyDate">${todayStr}</span></div>
         <div class="meta">Same board for everyone today · ${dailyLevel.cols}×${dailyLevel.rows} grid · ${dailyLevel.terminals.length} colors<br>
-        ${playedToday ? `Today's score: <b>${dailyBest!==null?dailyBest.toFixed(1)+'s':'—'}</b>${dailyMedal?' '+MEDAL_ICON[dailyMedal]:''}` : 'Not played yet today'} &nbsp;·&nbsp; Streak: <b>${streak} day${streak===1?'':'s'}</b></div>
+        ${playedToday ? `Today's score: <b>${dailyBest!==null?fmtTicks(dailyBest):'—'}</b>${dailyMedal?' '+MEDAL_ICON[dailyMedal]:''}` : 'Not played yet today'} &nbsp;·&nbsp; Streak: <b>${streak} day${streak===1?'':'s'}</b></div>
       </div>
       <button class="playBtn">${playedToday ? 'Play Again' : 'Play'}</button>
     `;
@@ -890,7 +1104,7 @@
         <div class="info">
           <div class="name">${lv.name}</div>
           <div class="meta">${lv.cols}×${lv.rows} grid · ${lv.terminals.length} colors · ${lv.obstacles.length} spark${lv.obstacles.length===1?'':'s'}<br>
-          Best score: <b>${best!==null ? best.toFixed(1)+'s' : '—'}</b>${medal?' '+MEDAL_ICON[medal]:''}${t?` &nbsp;·&nbsp; Gold at <b>${t.gold}s</b>`:''}</div>
+          Best score: <b>${best!==null ? fmtTicks(best) : '—'}</b>${medal?' '+MEDAL_ICON[medal]:''}${t?` &nbsp;·&nbsp; Gold at <b>${fmtTicks(t.gold)}</b>`:''}</div>
         </div>
         <button class="playBtn">Play</button>
       `;
@@ -910,8 +1124,8 @@
 
   function renderStats(){
     const rows = [
-      { label:'Levels Cleared', value: getCounter('wired-v2-stats-plays') },
-      { label:'Total Shorts', value: getCounter('wired-v2-stats-zaps') },
+      { label:'Levels Solved', value: getCounter(STORE_PREFIX + 'stats-plays') },
+      { label:'Total Shorts', value: getCounter(STORE_PREFIX + 'stats-zaps') },
       { label:'Daily Streak', value: getDailyStreak() },
       { label:'Medals Earned', value: `${medalsEarnedCount()}/${LEVELS.length}` },
     ];
@@ -939,9 +1153,9 @@
     settingsScreen.classList.add('hidden');
     playScreen.classList.remove('hidden');
 
-    if(pendingChallenge && pendingChallenge.level.id === level.id){
+    if(pendingChallenge && pendingChallenge.level.slug === level.slug){
       const cName = pendingChallenge.name ? escapeHtml(pendingChallenge.name) : 'Someone';
-      challengeTargetBar.innerHTML = `🎯 Beat ${cName}'s ${pendingChallenge.score.toFixed(1)}s`;
+      challengeTargetBar.innerHTML = `🎯 Beat ${cName}'s ${fmtTicks(pendingChallenge.score)}`;
       challengeTargetBar.classList.remove('hidden');
     } else {
       challengeTargetBar.classList.add('hidden');
@@ -955,15 +1169,33 @@
   const MIN_CELL = 32, MAX_CELL = 64;
   let CELL = MAX_CELL;
   let level = LEVELS[0];
-  let wires = {};            // colorIndex -> {cells:[[c,r],...], locked:bool}
+
+  // Each wire keeps two paths:
+  //   intent  the route the player has drawn. Editing it is FREE and instant —
+  //           planning is a puzzle activity, not a dexterity one.
+  //   cells   how far the current has actually flowed along that route. This is
+  //           the physical wire: it's what sparks can short, and it's what
+  //           counts for winning.
+  // Every tick the ACTIVE wire takes exactly one step to reconcile cells toward
+  // intent, so a route costs one tick per cell no matter how fast you drew it.
+  // That is what stops a fast drag from finishing a wire inside a single frame.
+  let wires = {};            // colorIndex -> {cells:[[c,r],...], intent:[[c,r],...], locked:bool}
   let activeColor = null;    // colorIndex currently being built — persists across pointer-up so taps can continue it
   let dragging = false;      // true only while the pointer/finger is physically down
-  let startTime = null;
-  let elapsed = 0;
-  let running = false;
   let won = false;
   let zapCount = 0;
-  let previewUntil = 0;      // timestamp; while now < previewUntil, obstacles run but board is locked from input
+  let previewUntil = 0;      // timestamp; while now < previewUntil, the board is locked from input
+
+  // ---------- The clock ----------
+  // tickCount is the ONLY thing the simulation reads. It starts at 0 on the
+  // player's first action and advances at a fixed rate while a run is live, so
+  // the spark phase at the start of a run is identical for everybody, every
+  // time — which is the whole basis for comparing two scores on one board.
+  let tickCount = 0;
+  let running = false;
+  let tickAccum = 0;         // leftover ms between fixed-timestep ticks
+  let lastFrameMs = null;
+  let pendingSwitchTicks = 0; // re-seating the probe onto another color costs a tick
 
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
@@ -1009,15 +1241,17 @@
     if(screen === 'play') resizeCanvasForLevel();
   });
 
-  function currentScore(){ return elapsed + zapCount * ZAP_PENALTY; }
+  function currentScore(){ return tickCount + zapCount * ZAP_PENALTY_TICKS; }
 
   function resetPuzzle(){
     wires = {};
-    level.terminals.forEach((t,i)=>{ wires[i] = { cells: [], locked:false }; });
+    level.terminals.forEach((t,i)=>{ wires[i] = { cells: [], intent: [], locked:false }; });
     activeColor = null;
     dragging = false;
-    startTime = null;
-    elapsed = 0;
+    tickCount = 0;
+    tickAccum = 0;
+    lastFrameMs = null;
+    pendingSwitchTicks = 0;
     running = false;
     won = false;
     zapCount = 0;
@@ -1026,15 +1260,24 @@
     updateHud();
   }
 
+  // The run clock starts on the player's first real action, not on level entry,
+  // so studying a frozen board costs nothing.
+  function startRunIfIdle(){
+    if(!running && !won){
+      running = true;
+      tickAccum = 0;
+      lastFrameMs = null;
+    }
+  }
+
   function updateHud(){
-    const score = currentScore();
-    timerEl.textContent = elapsed.toFixed(1) + 's';
+    timerEl.textContent = fmtTicks(tickCount);
     timerEl.className = 'value ' + (won ? 'win' : (running ? 'running' : ''));
     zapCountEl.textContent = zapCount;
     zapCountEl.className = 'value ' + (zapCount>0 ? 'hasZaps' : '');
-    scoreValEl.textContent = score.toFixed(1) + 's';
+    scoreValEl.textContent = fmtTicks(currentScore());
     const best = getBest(level);
-    bestValEl.textContent = best!==null ? best.toFixed(1)+'s' : '—';
+    bestValEl.textContent = best!==null ? fmtTicks(best) : '—';
   }
 
   // ---------- Geometry helpers ----------
@@ -1053,6 +1296,18 @@
     }
     return null;
   }
+  function isBlocked(cell){
+    const b = level.blocked;
+    if(!b || !b.length) return false;
+    for(let i=0;i<b.length;i++){ if(sameCell(b[i], cell)) return true; }
+    return false;
+  }
+  function inBounds(cell){
+    return cell[0]>=0 && cell[1]>=0 && cell[0]<level.cols && cell[1]<level.rows;
+  }
+  // Only ENERGIZED cells occupy space. Another color's intent is just a drawing
+  // and never blocks planning — whichever wire's current actually arrives first
+  // is the one that owns the cell.
   function occupiedBy(cell, excludeIdx){
     for(const key in wires){
       const i = parseInt(key,10);
@@ -1062,15 +1317,22 @@
     }
     return null;
   }
-  function ownPathIndexAt(cell){
+  // Grabbing a cell on a wire's own drawn route trims the route back to there.
+  function ownIntentIndexAt(cell){
     for(const key in wires){
       const i = parseInt(key,10);
       const w = wires[i];
       if(w.locked) continue;
-      const pos = w.cells.findIndex(c=>sameCell(c,cell));
+      const pos = w.intent.findIndex(c=>sameCell(c,cell));
       if(pos !== -1) return {idx:i, pos};
     }
     return null;
+  }
+  function commonPrefixLen(a, b){
+    const n = Math.min(a.length, b.length);
+    let k = 0;
+    while(k < n && sameCell(a[k], b[k])) k++;
+    return k;
   }
 
   // ---------- Sound (synthesized via Web Audio API — no asset files, keeps
@@ -1154,59 +1416,80 @@
   // - tapping any other terminal (re)starts that color fresh
   // - tapping any other cell extends whichever color is currently active,
   //   so a sequence of taps (no held drag) can build a path one step at a time
+  // Only one wire carries current at a time, so moving the probe to another
+  // color costs a tick. That's what makes "which color do I run first, and how
+  // far do I get before I have to leave it exposed" an actual decision.
+  function setActiveColor(idx){
+    if(activeColor === idx) return;
+    if(activeColor !== null && running) pendingSwitchTicks = 1;
+    activeColor = idx;
+  }
+
   function onPointerDown(cell){
-    const own = ownPathIndexAt(cell);
+    if(isBlocked(cell)) return;
+
+    const own = ownIntentIndexAt(cell);
     if(own){
-      wires[own.idx].cells = wires[own.idx].cells.slice(0, own.pos+1);
-      activeColor = own.idx;
+      wires[own.idx].intent = wires[own.idx].intent.slice(0, own.pos+1);
+      setActiveColor(own.idx);
       dragging = true;
+      startRunIfIdle();
       return;
     }
 
     const term = terminalAt(cell);
 
+    // Tapping the far terminal of the color we're already routing closes the
+    // route. Must be checked before the generic terminal case below, or the tap
+    // would wipe the path just drawn and restart from that end instead.
     if(term && term.idx === activeColor){
       const w = wires[activeColor];
-      if(w && !w.locked && w.cells.length && !sameCell(w.cells[0], cell)){
+      if(w && !w.locked && w.intent.length && !sameCell(w.intent[0], cell)){
         dragging = true;
-        extendDraw(cell);
+        planTo(cell);
         return;
       }
     }
 
     if(term){
-      wires[term.idx] = { cells:[cell], locked:false };
-      activeColor = term.idx;
+      // Re-routing from a terminal only rewrites the PLAN. Whatever current has
+      // already flowed retracts a cell per tick, so committing down a wrong path
+      // costs real time to undo — same as it cost to lay.
+      wires[term.idx].intent = [cell];
+      setActiveColor(term.idx);
       dragging = true;
       sfx.click();
-      if(!running && !won){
-        running = true;
-        startTime = performance.now();
-      }
+      startRunIfIdle();
       return;
     }
-    if(activeColor !== null && wires[activeColor] && !wires[activeColor].locked && wires[activeColor].cells.length){
+
+    if(activeColor !== null && wires[activeColor] && !wires[activeColor].locked && wires[activeColor].intent.length){
       dragging = true;
-      extendDraw(cell);
+      planTo(cell);
     }
   }
 
+  // Extends the PLAN toward the reported cell. Drawing is free and instant —
+  // this never moves the current, only the route it will follow.
+  //
   // Fast real mouse drags (and coarse touch input) don't fire a move event for
-  // every cell crossed — the pointer can jump several cells between events.
-  // So we walk single unit steps from the last drawn cell toward the reported
-  // cell instead of requiring exact adjacency, applying the normal rules at
-  // each step and stopping early if a step is invalid.
-  function extendDraw(cell){
+  // every cell crossed — the pointer can jump several cells between events. So
+  // we walk single unit steps from the last planned cell toward the reported
+  // one instead of requiring exact adjacency, applying the normal rules at each
+  // step and stopping early if a step is invalid.
+  function planTo(cell){
     if(activeColor===null) return;
+    const w = wires[activeColor];
+    if(!w || w.locked || !w.intent.length) return;
+
     let guard = 0;
-    while(guard++ < 64){
-      const w = wires[activeColor];
-      if(!w || w.locked || !w.cells.length) return;
-      const last = w.cells[w.cells.length-1];
+    while(guard++ < 256){
+      const last = w.intent[w.intent.length-1];
       if(sameCell(last, cell)) return;
 
-      if(w.cells.length>1 && sameCell(w.cells[w.cells.length-2], cell)){
-        w.cells.pop();
+      // Dragging back over the previous cell un-draws the last planned step.
+      if(w.intent.length>1 && sameCell(w.intent[w.intent.length-2], cell)){
+        w.intent.pop();
         continue;
       }
 
@@ -1220,35 +1503,122 @@
           : [last[0], last[1]+Math.sign(dRow)];
       }
 
-      if(w.cells.length>1 && sameCell(w.cells[w.cells.length-2], step)){
-        w.cells.pop();
+      if(w.intent.length>1 && sameCell(w.intent[w.intent.length-2], step)){
+        w.intent.pop();
         continue;
       }
 
-      const term = level.terminals[activeColor];
-      const isOwnOtherEnd =
-        (sameCell(term.a, w.cells[0]) && sameCell(term.b, step)) ||
-        (sameCell(term.b, w.cells[0]) && sameCell(term.a, step));
+      if(!inBounds(step) || isBlocked(step)) return;
 
+      // A finished wire is physically in the way; an unfinished one isn't yet.
       const occ = occupiedBy(step, activeColor);
-      if(occ !== null){
-        const occWire = wires[occ];
-        if(occWire.locked) return; // can't cross a finished wire — stop here
-        wires[occ] = { cells:[], locked:false };
-      }
+      if(occ !== null && wires[occ].locked) return;
 
-      if(w.cells.some(c=>sameCell(c,step))) return;
+      if(w.intent.some(c=>sameCell(c,step))) return; // no self-crossing
 
-      w.cells.push(step);
+      w.intent.push(step);
 
-      if(isOwnOtherEnd){
-        w.locked = true;
-        activeColor = null;
-        sfx.lock();
-        checkWin();
+      // Reaching our own far terminal completes the ROUTE. The wire isn't done
+      // until the current actually gets there.
+      const term = level.terminals[activeColor];
+      if((sameCell(term.a, w.intent[0]) && sameCell(term.b, step)) ||
+         (sameCell(term.b, w.intent[0]) && sameCell(term.a, step))) return;
+    }
+  }
+
+  // When a wire finishes, hand the current to the next color that already has
+  // somewhere to go. Without this, drawing five routes runs exactly one of them
+  // and then stops dead, which reads as the game ignoring four of your inputs.
+  // Order of play is still a real decision — it's just made when you draw the
+  // routes rather than demanded again every time one completes, and tapping any
+  // color still overrides the queue mid-run.
+  function advanceToNextPlanned(){
+    const n = level.terminals.length;
+    for(let i=0;i<n;i++){
+      const w = wires[i];
+      if(!w || w.locked) continue;
+      if(w.intent.length > w.cells.length || w.cells.length > commonPrefixLen(w.cells, w.intent)){
+        activeColor = i;
         return;
       }
     }
+    activeColor = null;
+  }
+
+  // One tick of physics: the active wire takes exactly ONE step reconciling its
+  // energized cells toward its planned route. The return value is also the
+  // solver's move alphabet.
+  function propagateActiveWire(){
+    if(pendingSwitchTicks > 0){ pendingSwitchTicks--; return 'switch'; }
+    if(activeColor === null) return 'wait';
+    const w = wires[activeColor];
+    if(!w || w.locked) return 'wait';
+
+    const k = commonPrefixLen(w.cells, w.intent);
+
+    // Current has flowed somewhere the plan no longer goes — pull it back.
+    if(w.cells.length > k){
+      w.cells.pop();
+      return 'retract';
+    }
+
+    if(w.intent.length > w.cells.length){
+      const next = w.intent[w.cells.length];
+
+      // Current will not flow into a contact that is live RIGHT NOW — it waits
+      // at the edge instead. Two reasons this is the correct rule rather than a
+      // kindness:
+      //
+      //  1. It removes the deaths players can't reasonably avoid. Without it, a
+      //     route drawn through a gate rebuilds into that gate, shorts, rebuilds,
+      //     and shorts again — a real run measured 7 shorts and a 30.5s score
+      //     against a 5.7s par, with the only defence being to constantly trim
+      //     the route by hand. The skill it tested was fiddliness.
+      //  2. It makes the engine agree with the solver. wireRun() already assumes
+      //     no one advances into a hot cell, so par was computed against a rule
+      //     the engine didn't enforce.
+      //
+      // The real risk is untouched: a spark arriving on a wire you have ALREADY
+      // energized still shorts it. Managing how much wire you leave exposed is
+      // still the whole game.
+      if(cellIsHot(next, tickCount)) return 'wait';
+
+      // Re-validate against the board as it is NOW, not as it was when drawn:
+      // another wire may have finished across this cell in the meantime.
+      if(!inBounds(next) || isBlocked(next)){ w.intent.length = w.cells.length; return 'wait'; }
+      const occ = occupiedBy(next, activeColor);
+      if(occ !== null){
+        if(wires[occ].locked){ w.intent.length = w.cells.length; return 'wait'; }
+        // Current arriving where another unfinished wire sits burns that one out.
+        wires[occ] = { cells:[], intent:[], locked:false };
+      }
+      if(w.cells.some(c=>sameCell(c,next))){ w.intent.length = w.cells.length; return 'wait'; }
+
+      w.cells.push(next);
+
+      const term = level.terminals[activeColor];
+      if(w.cells.length > 1 &&
+         ((sameCell(term.a, w.cells[0]) && sameCell(term.b, next)) ||
+          (sameCell(term.b, w.cells[0]) && sameCell(term.a, next)))){
+        w.locked = true;
+        w.intent = w.cells.slice();
+        activeColor = null;
+        sfx.lock();
+        advanceToNextPlanned();
+      }
+      return 'extend';
+    }
+    return 'wait';
+  }
+
+  // One whole tick of the world. This is the single place the simulation
+  // advances, and it reads nothing but the tick counter — so replaying the same
+  // actions from tick 0 always produces the same run.
+  function stepTick(){
+    tickCount++;
+    propagateActiveWire();
+    checkZaps(tickCount);   // a wire that locked this tick is already safe
+    checkWin();
   }
 
   function endPointer(){
@@ -1265,7 +1635,7 @@
     if(!dragging) return;
     const [px,py] = pointerPos(e);
     const c = cellAt(px,py);
-    if(c) extendDraw(c);
+    if(c) planTo(c);
   });
   window.addEventListener('mouseup', endPointer);
 
@@ -1281,14 +1651,15 @@
     if(!dragging) return;
     const [px,py] = pointerPos(e);
     const c = cellAt(px,py);
-    if(c) extendDraw(c);
+    if(c) planTo(c);
   }, {passive:false});
   canvas.addEventListener('touchend', endPointer);
 
   // ---------- Keyboard input (WASD / arrows) ----------
-  // Cycles activeColor with Tab/Shift+Tab, then reuses extendDraw for
-  // single-step movement so keyboard play follows the exact same
-  // adjacency/occupancy/lock rules as a drag — no duplicated logic.
+  // Cycles activeColor with Tab/Shift+Tab, then reuses planTo for single-step
+  // movement so keyboard play follows the exact same adjacency/occupancy/lock
+  // rules as a drag — no duplicated logic. Like a drag, this edits the plan;
+  // the current still advances one cell per tick.
   function cycleActiveColor(dir){
     const n = level.terminals.length;
     if(!n) return;
@@ -1296,17 +1667,23 @@
     for(let step=1; step<=n; step++){
       const idx = ((start + dir*step) % n + n) % n;
       if(wires[idx].locked) continue;
-      activeColor = idx;
-      if(wires[idx].cells.length === 0){
-        wires[idx] = { cells:[level.terminals[idx].a], locked:false };
+      setActiveColor(idx);
+      if(wires[idx].intent.length === 0){
+        wires[idx].intent = [level.terminals[idx].a];
         sfx.click();
       }
-      if(!running && !won){
-        running = true;
-        startTime = performance.now();
-      }
+      startRunIfIdle();
       return;
     }
+  }
+
+  // The keyboard cursor is the end of the drawn ROUTE, not the end of the
+  // energized wire — so you can keep planning ahead while the current catches up.
+  function planHead(){
+    if(activeColor === null) return null;
+    const w = wires[activeColor];
+    if(!w || !w.intent.length) return null;
+    return w.intent[w.intent.length-1];
   }
 
   function keyboardStep(dc, dr){
@@ -1315,18 +1692,18 @@
       if(activeColor === null) return;
     }
     const w = wires[activeColor];
-    if(!w || w.locked || !w.cells.length) return;
-    const head = w.cells[w.cells.length-1];
+    if(!w || w.locked || !w.intent.length) return;
+    const head = planHead();
     const target = [head[0]+dc, head[1]+dr];
-    if(target[0]<0 || target[1]<0 || target[0]>=level.cols || target[1]>=level.rows) return;
-    extendDraw(target);
+    if(!inBounds(target)) return;
+    planTo(target);
   }
 
   function keyboardBack(){
     if(activeColor === null) return;
     const w = wires[activeColor];
-    if(!w || w.locked || w.cells.length<2) return;
-    extendDraw(w.cells[w.cells.length-2]);
+    if(!w || w.locked || w.intent.length<2) return;
+    planTo(w.intent[w.intent.length-2]);
   }
 
   window.addEventListener('keydown', e=>{
@@ -1359,13 +1736,14 @@
   });
 
   function checkWin(){
+    if(won) return;
     const allLocked = level.terminals.every((_,i)=>wires[i].locked);
     if(allLocked){
       won = true;
       running = false;
       sfx.win();
       haptic([40,30,40]);
-      bumpCounter('wired-v2-stats-plays');
+      bumpCounter(STORE_PREFIX + 'stats-plays');
       if(level.isDaily) recordDailyPlay(level.dateStr);
       const score = currentScore();
       const improved = setBestIfBetter(level, score);
@@ -1380,13 +1758,14 @@
       } else if(t){
         const next = medal === 'silver' ? t.gold : (medal === 'bronze' ? t.silver : t.bronze);
         const nextName = medal === 'silver' ? 'gold' : (medal === 'bronze' ? 'silver' : 'bronze');
-        earnLine = `Beat ${next.toFixed(1)}s for ${nextName}.`;
+        earnLine = `Beat ${fmtTicks(next)} for ${nextName}.`;
       }
       applySkin(); // a fresh clear/clean-run may just have unlocked a cosmetic
 
-      winScoreEl.textContent = score.toFixed(1)+'s' + (medal ? ' ' + MEDAL_ICON[medal] : '');
-      winBreakdownEl.textContent = `${elapsed.toFixed(1)}s time + ${zapCount}×${ZAP_PENALTY}s penalty`;
-      winBestLineEl.textContent = improved ? 'New personal best!' : ('Best: ' + getBest(level).toFixed(1) + 's');
+      winScoreEl.textContent = fmtTicks(score) + (medal ? ' ' + MEDAL_ICON[medal] : '');
+      winBreakdownEl.textContent =
+        `${fmtTicks(tickCount)} time + ${zapCount}×${fmtTicks(ZAP_PENALTY_TICKS)} penalty`;
+      winBestLineEl.textContent = improved ? 'New personal best!' : ('Best: ' + fmtTicks(getBest(level)));
       winEarnLineEl.textContent = earnLine;
       winModal.classList.add('show');
       updateHud();
@@ -1402,44 +1781,71 @@
   //     produces no movement for that beat.
   //   • gate  — never moves; a fixed cell that energizes on a timed cycle.
   function isGate(ob){ return ob.type === 'gate'; }
-  function gateIsLive(ob, tSec){
-    const phase = ((tSec / ob.periodSec) + (ob.phase || 0)) % 1;
-    return phase < (ob.duty || 0.5);
+  // Gates cycle on integer tick counts, so "is it live" is exact rather than a
+  // float comparison that could land differently on two machines.
+  function gateIsLive(ob, tick){
+    const period = ob.periodTicks;
+    return ((tick + (ob.phaseTicks || 0)) % period) < ob.onTicks;
   }
-  function obstacleCellNow(ob, tSec){
+  // THE authoritative hazard position: the discrete cell a spark occupies at a
+  // given tick. Collision and the on-board danger highlight both read this, so
+  // what the player is told is dangerous is exactly what is dangerous.
+  function obstacleCellAt(ob, tick){
     if(isGate(ob)) return ob.cell;
     const n = ob.path.length;
-    const pos = (tSec * ob.cellsPerSecond) % n;
-    const i = Math.floor(pos);
-    return ob.path[i];
+    return ob.path[Math.floor(tick / ob.ticksPerCell) % n];
   }
-  function obstacleInterpNow(ob, tSec){
+  // Purely cosmetic sub-tick position. A spark SITS on its cell for most of the
+  // window and then lunges to the next one, rather than gliding smoothly across
+  // the boundary — so the moving core never appears to be somewhere the rules
+  // say it isn't. This is the mismatch that used to make shorts feel unfair.
+  function hopEase(f){
+    const sit = 0.65;
+    if(f <= sit) return 0;
+    const t = (f - sit) / (1 - sit);
+    return t*t*(3 - 2*t);
+  }
+  function obstacleRenderPos(ob, tick, frac){
     if(isGate(ob)) return ob.cell;
     const n = ob.path.length;
-    const pos = (tSec * ob.cellsPerSecond) % n;
-    const i0 = Math.floor(pos), i1 = (i0+1)%n;
-    const f = pos - i0;
-    const a = ob.path[i0], b = ob.path[i1];
-    return [ a[0] + (b[0]-a[0])*f, a[1] + (b[1]-a[1])*f ];
+    const tpc = ob.ticksPerCell;
+    const idx = Math.floor(tick / tpc);
+    const within = ((tick % tpc) + frac) / tpc;   // 0..1 through this cell's window
+    const a = ob.path[idx % n], b = ob.path[(idx+1) % n];
+    const e = hopEase(within);
+    return [ a[0] + (b[0]-a[0])*e, a[1] + (b[1]-a[1])*e ];
   }
   // A gate only threatens wires while it's energized; a patrol always does.
-  function obstacleIsDangerous(ob, tSec){
-    return isGate(ob) ? gateIsLive(ob, tSec) : true;
+  function obstacleIsDangerous(ob, tick){
+    return isGate(ob) ? gateIsLive(ob, tick) : true;
   }
 
-  function checkZaps(tSec){
+  // Is this exact cell energized by some hazard on this tick? Same lookup the
+  // danger highlight and the collision check use, so all three agree by
+  // construction rather than by being kept in sync.
+  function cellIsHot(cell, tick){
+    for(let i=0;i<level.obstacles.length;i++){
+      const ob = level.obstacles[i];
+      if(!obstacleIsDangerous(ob, tick)) continue;
+      if(sameCell(obstacleCellAt(ob, tick), cell)) return true;
+    }
+    return false;
+  }
+
+  function checkZaps(tick){
     if(won) return;
     level.obstacles.forEach(ob=>{
-      if(!obstacleIsDangerous(ob, tSec)) return;
-      const cell = obstacleCellNow(ob, tSec);
+      if(!obstacleIsDangerous(ob, tick)) return;
+      const cell = obstacleCellAt(ob, tick);
       for(const key in wires){
         const w = wires[key];
         if(w.locked || w.cells.length===0) continue;
         if(w.cells.some(c=>sameCell(c,cell))){
-          wires[key] = { cells:[], locked:false };
-          if(parseInt(key,10)===activeColor) activeColor = null;
+          // The plan survives a short — only the current is lost. Re-running a
+          // route you already drew shouldn't mean drawing it again.
+          w.cells = [];
           zapCount++;
-          bumpCounter('wired-v2-stats-zaps');
+          bumpCounter(STORE_PREFIX + 'stats-zaps');
           flashZap();
           sfx.zap();
           haptic(30);
@@ -1517,11 +1923,15 @@
     return v || fallback;
   }
 
-  function draw(tSec){
+  // tick  = the integer the simulation is on (authoritative)
+  // frac  = 0..1 progress toward the next tick, used ONLY for cosmetic easing
+  function draw(tick, frac){
+    const tAnim = tick + frac;
     const boardW = level.cols*CELL, boardH = level.rows*CELL;
     const traceColor = cssVar('--grid-line', '#1b2740');
     const boardBg = cssVar('--board-bg', '#080c14');
     const sparkColor = cssVar('--spark', '#fff2b8');
+    const panelBorder = cssVar('--panel-border', '#24344a');
 
     // Board substrate — a darker panel than the page so the play field reads
     // as a physical board sitting on the desk, not just more page background.
@@ -1550,6 +1960,37 @@
     // the board keeps its proportions whether it's rendered at 32px/cell on
     // a phone or 64px/cell on desktop.
     const dotR = CELL*0.25, lockedW = CELL*0.219, unlockedW = CELL*0.156;
+
+    // Blocked cells — components soldered to the board. Drawn as a raised chip
+    // with a notch and lead pins so they read as physically in the way, rather
+    // than as a hole or a UI overlay.
+    (level.blocked || []).forEach(cell=>{
+      const x = cell[0]*CELL, y = cell[1]*CELL;
+      const inset = CELL*0.14, size = CELL - inset*2;
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x+inset, y+inset+CELL*0.04, size, size);
+      ctx.fillStyle = '#1a2030';
+      ctx.strokeStyle = panelBorder;
+      ctx.lineWidth = Math.max(1, CELL*0.028);
+      ctx.beginPath();
+      ctx.rect(x+inset, y+inset, size, size);
+      ctx.fill();
+      ctx.stroke();
+      // Pin-1 notch, so the chip has an orientation and doesn't read as a button.
+      ctx.fillStyle = panelBorder;
+      ctx.beginPath();
+      ctx.arc(x+inset+size*0.22, y+inset+size*0.22, Math.max(1, CELL*0.05), 0, Math.PI*2);
+      ctx.fill();
+      // Lead pins down both sides.
+      const pinW = Math.max(1, CELL*0.05), pinL = inset*0.75;
+      for(let p=0;p<3;p++){
+        const py2 = y + inset + size*(0.22 + p*0.28);
+        ctx.fillRect(x+inset-pinL, py2, pinL, pinW);
+        ctx.fillRect(x+inset+size,  py2, pinL, pinW);
+      }
+      ctx.restore();
+    });
 
     // Faint always-visible patrol tracks, so the hazard's route is readable
     // without having to watch it travel first. Drawn as an etched channel —
@@ -1583,22 +2024,45 @@
     level.terminals.forEach((t,i)=>{
       const w = wires[i];
       const { style, color: drawColor } = styleFor(t.color);
+      const strokeAlong = (cells)=>{
+        ctx.beginPath();
+        cells.forEach((c,idx)=>{
+          const x = c[0]*CELL+CELL/2, y = c[1]*CELL+CELL/2;
+          if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+      };
+
+      // The planned route the current hasn't reached yet: a thin dotted guide.
+      // Deliberately much quieter than the live wire, because it's a drawing —
+      // it can't be shorted and it doesn't win the level.
+      if(!w.locked && w.intent.length>1){
+        const pending = w.intent.slice(Math.max(0, w.cells.length-1));
+        if(pending.length>1){
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = drawColor;
+          ctx.globalAlpha = 0.34;
+          ctx.lineWidth = Math.max(1.5, CELL*0.06);
+          ctx.setLineDash([CELL*0.06, CELL*0.13]);
+          strokeAlong(pending);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
 
       // Wires render in two passes: a wide, low-alpha glow underneath and the
-      // patterned wire on top, so a live wire reads as carrying current.
+      // patterned wire on top, so a live wire reads as carrying current. An
+      // unfinished wire that ISN'T the active one is dimmed, because it's
+      // stalled — nothing flows into it until you come back to it.
       if(w.cells.length>1){
-        const tracePath = ()=>{
-          ctx.beginPath();
-          w.cells.forEach((c,idx)=>{
-            const x = c[0]*CELL+CELL/2, y = c[1]*CELL+CELL/2;
-            if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-          });
-        };
+        const stalled = !w.locked && activeColor !== i;
+        const tracePath = ()=>strokeAlong(w.cells);
         ctx.save();
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = drawColor;
-        ctx.globalAlpha = w.locked ? 0.28 : 0.18;
+        ctx.globalAlpha = w.locked ? 0.28 : (stalled ? 0.10 : 0.18);
         ctx.lineWidth = (w.locked ? lockedW : unlockedW) * 2.1;
         tracePath();
         ctx.stroke();
@@ -1610,7 +2074,7 @@
         ctx.lineCap = style.cap;
         ctx.lineJoin = 'round';
         ctx.setLineDash(style.dash[w.locked ? 'locked':'unlocked'].map(d=>d*(CELL/64)));
-        ctx.globalAlpha = w.locked ? 1 : 0.9;
+        ctx.globalAlpha = w.locked ? 1 : (stalled ? 0.55 : 0.9);
         tracePath();
         ctx.stroke();
         ctx.restore();
@@ -1654,34 +2118,107 @@
     // is currently being built (mouse/touch drag head, or the keyboard cursor —
     // both just mean "the last cell in that wire's path"), so it's always
     // obvious at a glance what's live and where the next move will land.
-    if(activeColor !== null && wires[activeColor] && !wires[activeColor].locked && wires[activeColor].cells.length){
+    if(activeColor !== null && wires[activeColor] && !wires[activeColor].locked){
       const w = wires[activeColor];
-      const head = w.cells[w.cells.length-1];
-      const t = level.terminals[activeColor];
-      const x = head[0]*CELL+CELL/2, y = head[1]*CELL+CELL/2;
-      const pulse = settings.reduceMotion ? 0.8 : (0.55 + 0.45*Math.sin(tSec*6));
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(x,y,dotR*1.375,0,Math.PI*2);
-      ctx.lineWidth = Math.max(2, CELL*0.047);
-      ctx.strokeStyle = t.color;
-      ctx.globalAlpha = pulse;
-      ctx.shadowColor = t.color;
-      ctx.shadowBlur = CELL*0.19;
-      ctx.stroke();
-      ctx.restore();
+      // The ring marks where the CURRENT has actually reached — that's the cell
+      // a spark can hurt, and the point the next tick moves from.
+      const head = w.cells.length ? w.cells[w.cells.length-1]
+                 : (w.intent.length ? w.intent[0] : null);
+      if(head){
+        const t = level.terminals[activeColor];
+        const x = head[0]*CELL+CELL/2, y = head[1]*CELL+CELL/2;
+        const pulse = settings.reduceMotion ? 0.8 : (0.55 + 0.45*Math.sin(tAnim*(Math.PI*2/TICK_HZ)*1.5));
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x,y,dotR*1.375,0,Math.PI*2);
+        ctx.lineWidth = Math.max(2, CELL*0.047);
+        ctx.strokeStyle = t.color;
+        ctx.globalAlpha = pulse;
+        ctx.shadowColor = t.color;
+        ctx.shadowBlur = CELL*0.19;
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
+    // Gate hardware, drawn whether or not it's energized. A gate needs a stable
+    // identity on the board: without this it appears only while live and looks
+    // exactly like a spark passing through, so there's no way to tell "this will
+    // switch off in a moment" from "this is leaving on its own".
     level.obstacles.forEach(ob=>{
-      const [ic,ir] = obstacleInterpNow(ob, tSec);
+      if(!isGate(ob)) return;
+      const live = gateIsLive(ob, tick);
+      const cx = ob.cell[0]*CELL + CELL/2, cy = ob.cell[1]*CELL + CELL/2;
+      const gap = CELL*0.13, ew = CELL*0.10, eh = CELL*0.34;
+      ctx.save();
+      // Two electrodes facing each other across a spark gap.
+      ctx.fillStyle = live ? sparkColor : panelBorder;
+      ctx.globalAlpha = live ? 0.95 : 0.75;
+      ctx.fillRect(cx - gap - ew, cy - eh/2, ew, eh);
+      ctx.fillRect(cx + gap,      cy - eh/2, ew, eh);
+      if(live){
+        // Arc across the gap, so "energized" reads instantly and not just as
+        // a colour change.
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(1.5, CELL*0.035);
+        ctx.shadowColor = sparkColor;
+        ctx.shadowBlur = CELL*0.4;
+        ctx.beginPath();
+        ctx.moveTo(cx - gap, cy);
+        ctx.lineTo(cx - gap*0.3, cy - CELL*0.07);
+        ctx.lineTo(cx + gap*0.3, cy + CELL*0.07);
+        ctx.lineTo(cx + gap, cy);
+        ctx.stroke();
+      } else {
+        // A dormant gate still shows how long it has left, so waiting for it is
+        // a decision rather than a guess.
+        const period = ob.periodTicks;
+        const phase = (tick + (ob.phaseTicks || 0)) % period;
+        const untilLive = period - phase;
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = sparkColor;
+        ctx.font = `bold ${Math.round(CELL*0.2)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(untilLive), cx, cy + CELL*0.3);
+      }
+      ctx.restore();
+    });
+
+    // The danger cell is drawn FIRST and drawn as a whole cell, because it is
+    // the rule: this exact square is what shorts a wire this tick. The moving
+    // core below it is decoration. Any player reading the highlight is reading
+    // the actual hitbox.
+    level.obstacles.forEach(ob=>{
+      if(!obstacleIsDangerous(ob, tick)) return;
+      const cell = obstacleCellAt(ob, tick);
+      const x = cell[0]*CELL, y = cell[1]*CELL;
+      const breathe = settings.reduceMotion ? 0.16 : 0.13 + 0.05*Math.sin(tAnim*0.9);
+      ctx.save();
+      ctx.globalAlpha = breathe;
+      ctx.fillStyle = sparkColor;
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.globalAlpha = Math.min(1, breathe*3.2);
+      ctx.strokeStyle = sparkColor;
+      ctx.lineWidth = Math.max(1, CELL*0.03);
+      ctx.strokeRect(x+ctx.lineWidth/2, y+ctx.lineWidth/2, CELL-ctx.lineWidth, CELL-ctx.lineWidth);
+      ctx.restore();
+    });
+
+    level.obstacles.forEach(ob=>{
+      const [ic,ir] = obstacleRenderPos(ob, tick, frac);
       const x = ic*CELL+CELL/2, y = ir*CELL+CELL/2;
       const coreR = CELL*0.16;
+      const live = obstacleIsDangerous(ob, tick);
 
-      // A short trail sampled from where the spark just was, so its direction
-      // of travel is obvious at a glance rather than needing a second look.
-      if(!settings.reduceMotion){
+      // A short trail sampled from slightly earlier, so direction of travel is
+      // obvious at a glance rather than needing a second look.
+      if(!settings.reduceMotion && live){
         for(let s=1; s<=5; s++){
-          const [tc,tr] = obstacleInterpNow(ob, tSec - s*0.045);
+          const back = frac - s*0.14;
+          const bt = tick + Math.floor(back);
+          const bf = back - Math.floor(back);
+          const [tc,tr] = obstacleRenderPos(ob, bt, bf);
           const tx = tc*CELL+CELL/2, ty = tr*CELL+CELL/2;
           ctx.save();
           ctx.globalAlpha = 0.30 * (1 - s/6);
@@ -1692,6 +2229,10 @@
           ctx.restore();
         }
       }
+
+      // A dormant hazard has already been drawn by the gate-hardware pass above;
+      // drawing a second cold marker on top of it just muddies the cell.
+      if(!live) return;
 
       // Outer danger halo + hot white core.
       ctx.save();
@@ -1727,22 +2268,26 @@
       ctx.fillRect(0,0,boardW,boardH);
       level.obstacles.forEach(ob=>{
         for(let s=1; s<=3; s++){
-          const [fc,fr] = obstacleInterpNow(ob, tSec + s);
-          const x = fc*CELL+CELL/2, y = fr*CELL+CELL/2;
+          const future = tick + s*TICK_HZ;
+          if(!obstacleIsDangerous(ob, future)) continue;
+          // Cell-aligned, because the future position is an exact cell — drawing
+          // it as a floating circle would imply a precision the rules don't have.
+          const cell = obstacleCellAt(ob, future);
+          const x = cell[0]*CELL, y = cell[1]*CELL;
+          const cx = x+CELL/2, cy = y+CELL/2;
+          const pad = CELL*0.12;
           ctx.globalAlpha = 0.85 - s*0.18;
-          ctx.beginPath();
-          ctx.arc(x, y, CELL*0.20, 0, Math.PI*2);
           ctx.strokeStyle = sparkColor;
           ctx.lineWidth = Math.max(1.5, CELL*0.035);
           ctx.setLineDash([CELL*0.09, CELL*0.06]);
-          ctx.stroke();
+          ctx.strokeRect(x+pad, y+pad, CELL-pad*2, CELL-pad*2);
           ctx.setLineDash([]);
           ctx.globalAlpha = 0.95 - s*0.18;
           ctx.fillStyle = sparkColor;
           ctx.font = `bold ${Math.round(CELL*0.22)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(s+'s', x, y);
+          ctx.fillText(s+'s', cx, cy);
         }
       });
       ctx.restore();
@@ -1750,21 +2295,34 @@
   }
 
   // ---------- Main loop ----------
+  // Wall-clock time decides only WHEN a tick fires, never what it does. Ticks
+  // are consumed at a fixed rate from an accumulator, so a 144Hz monitor, a
+  // 30fps phone and a headless test all simulate the identical run — frame rate
+  // cannot buy or cost a player a single tick.
+  //
   // Wrapped in try/catch so a single bad frame can't permanently freeze/blank
   // the board — worst case we drop a frame's update and keep going.
-  let obstacleClock0 = performance.now();
   function tick(now){
     try{
       if(screen === 'play'){
-        const tSec = (now - obstacleClock0)/1000;
+        if(lastFrameMs === null) lastFrameMs = now;
+        let dt = now - lastFrameMs;
+        lastFrameMs = now;
+        if(!(dt >= 0)) dt = 0;
+        if(dt > MAX_FRAME_MS) dt = MAX_FRAME_MS; // don't spiral catching up after a tab-away
+
         if(running && !won){
-          elapsed = (now - startTime)/1000;
-        }
-        if(performance.now() >= previewUntil){
-          checkZaps(tSec);
+          tickAccum += dt;
+          while(tickAccum >= MS_PER_TICK){
+            tickAccum -= MS_PER_TICK;
+            stepTick();
+            if(won){ tickAccum = 0; break; }
+          }
         }
         updateHud();
-        draw(tSec);
+        draw(tickCount, running && !won ? (tickAccum / MS_PER_TICK) : 0);
+      } else {
+        lastFrameMs = null;
       }
     } catch(err){
       console.error('Wired: frame error', err);
@@ -1788,15 +2346,18 @@
   function shareText(){
     const score = currentScore();
     const best = getBest(level);
-    return `⚡ Wired — ${level.name}\nScore ${score.toFixed(1)}s (best ${best!==null?best.toFixed(1):score.toFixed(1)}s), ${zapCount} short${zapCount===1?'':'s'}.`;
+    return `⚡ Wired — ${level.name}\nScore ${fmtTicks(score)} (best ${fmtTicks(best!==null?best:score)}), ${zapCount} short${zapCount===1?'':'s'}.`;
   }
   // Encodes level + score in the URL itself — no backend needed — so opening
   // the link can greet the recipient with a specific score to beat.
   function challengeUrl(){
     const base = location.href.split('?')[0].split('#')[0];
     const params = new URLSearchParams();
-    params.set('challenge', String(level.id));
-    params.set('score', currentScore().toFixed(1));
+    params.set('challenge', level.slug);
+    // Deliberately a different param name than v1's float-seconds `score`: an
+    // old link's "12.4" must not be silently read as 12 ticks and shown as a
+    // 2.0s target nobody could have set.
+    params.set('t', String(currentScore()));
     if(settings.playerName) params.set('name', settings.playerName);
     return base + '?' + params.toString();
   }
@@ -1838,11 +2399,744 @@
     window.addEventListener('keydown', finish);
   }
 
+  // ============================================================================
+  // SOLVERS
+  // ============================================================================
+  // Two questions, two searches, and they are NOT equally trustworthy — the
+  // difference is deliberate and is recorded in what each one returns.
+  //
+  //   routeSolve()     Can this board be wired at all? Exhaustive within a node
+  //                    budget. If the budget runs out it returns 'unknown', never
+  //                    a guess, because "I couldn't tell" and "impossible" are
+  //                    different answers and only one is safe to publish a level on.
+  //
+  //   solveLevel()     How fast can it be done? Returns a schedule that is
+  //                    PROVEN ACHIEVABLE (we replay it through the real engine)
+  //                    but not proven minimal — see the note on solveLevel.
+  //
+  // Neither reimplements the rules of play. Par is verified by replaying it
+  // through the same stepTick() a player drives, so if a solver's idea of the
+  // rules ever drifts from the engine's, the contract test fails immediately
+  // instead of shipping a par nobody can hit.
+
+  const ROUTE_BUDGET = 400000;   // search nodes before we admit we don't know
+
+  // ---------- Solver A — routing ----------
+  // A Numberlink-style search: connect every pair with non-crossing paths that
+  // avoid components. Branch-and-bound on total wire length, so the first
+  // complete answer is refined toward the minimum rather than merely accepted.
+  function routeSolve(lv, opts){
+    const budget = (opts && opts.budget) || ROUTE_BUDGET;
+    const cols = lv.cols, rows = lv.rows, n = cols*rows;
+    const at = (c,r)=>r*cols+c;
+    const FREE = -1, BLOCK = -2;
+
+    const occ = new Int16Array(n).fill(FREE);
+    (lv.blocked||[]).forEach(c=>{ occ[at(c[0],c[1])] = BLOCK; });
+
+    const pairs = lv.terminals.map((t,i)=>({
+      i, a:t.a, b:t.b,
+      d: Math.abs(t.a[0]-t.b[0]) + Math.abs(t.a[1]-t.b[1])
+    }));
+    // Endpoints belong to their own pair from the start, so no route can be
+    // drawn through somebody else's solder pad.
+    pairs.forEach(p=>{ occ[at(p.a[0],p.a[1])] = p.i; occ[at(p.b[0],p.b[1])] = p.i; });
+
+    // Longest pair first: the constrained choices happen near the root, where
+    // failing costs one branch instead of a whole subtree.
+    const order = pairs.slice().sort((x,y)=>y.d-x.d);
+
+    // Cells still unavoidably needed from position k onward, for the bound.
+    const lb = new Int32Array(order.length+1);
+    for(let k=order.length-1;k>=0;k--) lb[k] = lb[k+1] + order[k].d + 1;
+
+    let nodes = 0, budgetHit = false;
+    let bestCost = Infinity, bestPaths = null;
+    const chosen = new Array(order.length).fill(null);
+
+    // Every not-yet-routed pair must still have SOME free corridor between its
+    // endpoints. This is the prune that does the real work: it kills a branch the
+    // moment a route seals another pair off, instead of after exploring it.
+    // Hoisted: this runs at nearly every node, and reallocating two typed arrays
+    // per call cost more than the search it was pruning.
+    const seen = new Uint8Array(n);
+    const queue = new Int32Array(n);
+
+    function stillConnectable(k){
+      for(let j=k;j<order.length;j++){
+        const p = order[j];
+        const start = at(p.a[0],p.a[1]), goal = at(p.b[0],p.b[1]);
+        seen.fill(0);
+        let head = 0, tail = 0;
+        queue[tail++] = start; seen[start] = 1;
+        let reached = false;
+        while(head < tail && !reached){
+          const cell = queue[head++];
+          const cx = cell % cols, cy = (cell - cx) / cols;
+          const nb = [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]];
+          for(let q=0;q<4;q++){
+            const nx = nb[q][0], ny = nb[q][1];
+            if(nx<0||ny<0||nx>=cols||ny>=rows) continue;
+            const ni = at(nx,ny);
+            if(seen[ni]) continue;
+            if(ni === goal){ reached = true; break; }
+            if(occ[ni] !== FREE) continue;
+            seen[ni] = 1;
+            queue[tail++] = ni;
+          }
+        }
+        if(!reached) return false;
+      }
+      return true;
+    }
+
+    // Can `from` still reach `goal` through free cells? A path that walls itself
+    // into a pocket is the single most common way this search wastes time, and
+    // manhattan distance cannot see it coming.
+    function reachable(fromIdx, goalIdx){
+      seen.fill(0);
+      let head = 0, tail = 0;
+      queue[tail++] = fromIdx; seen[fromIdx] = 1;
+      while(head < tail){
+        const cell = queue[head++];
+        const cx = cell % cols, cy = (cell - cx) / cols;
+        const nb = [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]];
+        for(let q=0;q<4;q++){
+          const nx = nb[q][0], ny = nb[q][1];
+          if(nx<0||ny<0||nx>=cols||ny>=rows) continue;
+          const ni = at(nx,ny);
+          if(ni === goalIdx) return true;
+          if(seen[ni] || occ[ni] !== FREE) continue;
+          seen[ni] = 1;
+          queue[tail++] = ni;
+        }
+      }
+      return false;
+    }
+
+    function place(k, cost){
+      if(budgetHit) return;
+      if(k === order.length){
+        if(cost < bestCost){ bestCost = cost; bestPaths = chosen.map(p=>p.slice()); }
+        return;
+      }
+      if(cost + lb[k] >= bestCost) return;
+      const p = order[k];
+      walk(k, p, p.a, [p.a], cost);
+    }
+
+    function walk(k, p, cur, path, costBefore){
+      if(++nodes > budget){ budgetHit = true; return; }
+      if(budgetHit) return;
+
+      const goal = p.b;
+      const remain = Math.abs(cur[0]-goal[0]) + Math.abs(cur[1]-goal[1]);
+      if(costBefore + path.length + remain + lb[k+1] >= bestCost) return;
+      if(remain > 1 && !reachable(at(cur[0],cur[1]), at(goal[0],goal[1]))) return;
+
+      // Try steps that close the gap first, so a short solution lands early and
+      // tightens the bound for everything after it.
+      const steps = [[cur[0]+Math.sign(goal[0]-cur[0]), cur[1]],
+                     [cur[0], cur[1]+Math.sign(goal[1]-cur[1])],
+                     [cur[0]+1,cur[1]],[cur[0]-1,cur[1]],[cur[0],cur[1]+1],[cur[0],cur[1]-1]];
+      const tried = new Set();
+
+      for(let s=0;s<steps.length;s++){
+        const nx = steps[s][0], ny = steps[s][1];
+        if(nx===cur[0] && ny===cur[1]) continue;
+        if(nx<0||ny<0||nx>=cols||ny>=rows) continue;
+        const ni = at(nx,ny);
+        if(tried.has(ni)) continue;
+        tried.add(ni);
+
+        if(nx===goal[0] && ny===goal[1]){
+          // Every cell of `path` is already marked by the enclosing walk frames,
+          // and both endpoints were marked at setup. Re-marking here and then
+          // clearing was a real bug: it freed the current path's own cells while
+          // still inside it, so later steps at this level could route straight
+          // back through the path and recurse without bound.
+          path.push([nx,ny]);
+          chosen[k] = path.slice();
+          if(stillConnectable(k+1)) place(k+1, costBefore + path.length);
+          chosen[k] = null;
+          path.pop();
+          continue;
+        }
+
+        if(occ[ni] !== FREE) continue;
+        occ[ni] = p.i;
+        path.push([nx,ny]);
+        walk(k, p, [nx,ny], path, costBefore);
+        path.pop();
+        occ[ni] = FREE;
+        if(budgetHit) return;
+      }
+    }
+
+    // Iterative deepening on TOTAL wire length rather than one open-ended
+    // branch-and-bound pass. With bestCost starting at Infinity the search
+    // wanders down enormous serpentine paths for the first pair before it ever
+    // reaches the second, and never gets a bound worth pruning with. Starting at
+    // the theoretical minimum and widening keeps the bound tight from the first
+    // node, and makes the first complete answer found already optimal.
+    //
+    // Every path from a to b has length congruent to manhattan+1 mod 2, so the
+    // achievable totals step by 2 — odd intermediate limits cannot be hit.
+    const floorCost = lb[0];
+    const maxSlack = (opts && opts.maxSlack !== undefined) ? opts.maxSlack : (cols*rows);
+    for(let limit = floorCost; limit <= floorCost + maxSlack; limit += 2){
+      bestCost = limit + 1;          // prune anything that would exceed `limit`
+      bestPaths = null;
+      place(0, 0);
+      if(bestPaths || budgetHit) break;
+    }
+
+    // Honesty rule: a search that ran out of road reports that it ran out of
+    // road. Only an exhausted search may say "impossible".
+    if(bestPaths){
+      const byPair = [];
+      order.forEach((p,k)=>{ byPair[p.i] = bestPaths[k]; });
+      return { status:'solved', paths: byPair, totalCells: bestCost, nodes, exhaustive: !budgetHit };
+    }
+    return { status: budgetHit ? 'unknown' : 'impossible', nodes, exhaustive: !budgetHit };
+  }
+
+  // ---------- Hazard timing helpers ----------
+  function gcd(a,b){ while(b){ const t = a % b; a = b; b = t; } return a; }
+  function lcm(a,b){ return a / gcd(a,b) * b; }
+  // The whole hazard system repeats on this many ticks, which is what keeps the
+  // schedule search finite: only tick-modulo-period can matter.
+  function hazardPeriod(lv){
+    let p = 1;
+    lv.obstacles.forEach(ob=>{
+      const c = isGate(ob) ? ob.periodTicks : ob.path.length * ob.ticksPerCell;
+      if(c > 0) p = lcm(p, c);
+    });
+    return p;
+  }
+  function dangerAt(lv, tick){
+    const out = [];
+    lv.obstacles.forEach(ob=>{
+      if(!obstacleIsDangerous(ob, tick)) return;
+      out.push(obstacleCellAt(ob, tick));
+    });
+    return out;
+  }
+
+  // ---------- Solver B — scheduling ----------
+  // With routes fixed, the remaining question is purely "when". Each tick the
+  // live wire either advances a cell or holds (holding is free — you just draw
+  // the route shorter and extend it again), and moving the probe to another
+  // color costs a tick.
+  //
+  // IMPORTANT, and the reason par is called achievable rather than optimal:
+  // this searches schedules that build each wire CONTIGUOUSLY. Interleaving —
+  // parking a half-built wire to run another while a spark clears — is legal in
+  // the game and occasionally faster, so a player CAN beat par. That direction
+  // is the safe one: par always comes with a witness we replay through the real
+  // engine, so gold is always attainable. A par that was too low would make gold
+  // impossible, and this construction cannot produce one.
+
+  // Minimum ticks for one wire, started at absolute tick t0, to go from nothing
+  // to locked without its live prefix ever sharing a cell with a hazard.
+  // Returns {ticks, holds:[...]} or null.
+  function wireRun(lv, route, t0, cap){
+    const L = route.length;
+    let reach = new Uint8Array(L+1); reach[0] = 1;
+    // pred[d][p] = the progress at the previous tick that reached progress p at
+    // tick d. Recorded rather than re-derived: walking forward and advancing
+    // whenever it looks possible can wander onto a branch that dies out later.
+    const pred = [];
+
+    for(let d=1; d<=cap; d++){
+      const T = t0 + d;
+      const danger = dangerAt(lv, T);
+      // Lowest index along this route that a hazard is sitting on. A live prefix
+      // is safe exactly while it stops short of that index.
+      let firstHot = L;
+      for(let h=0; h<danger.length; h++){
+        for(let r=0; r<firstHot; r++){
+          if(sameCell(route[r], danger[h])){ firstHot = r; break; }
+        }
+      }
+
+      const next = new Uint8Array(L+1);
+      const back = new Int16Array(L+1).fill(-1);
+      let finishedFrom = -1;
+
+      for(let p=0;p<L;p++){
+        if(!reach[p]) continue;
+        // Advancing onto the final cell completes and locks the wire, which is
+        // safe no matter where the hazards are this tick.
+        if(p+1 === L){ if(finishedFrom < 0) finishedFrom = p; }
+        else if(p+1 <= firstHot && !next[p+1]){ next[p+1] = 1; back[p+1] = p; }
+        if(p <= firstHot && !next[p]){ next[p] = 1; back[p] = p; }
+      }
+      pred.push(back);
+
+      if(finishedFrom >= 0){
+        const trace = new Array(d).fill('H');
+        trace[d-1] = 'A';
+        let p = finishedFrom;
+        for(let i=d-2;i>=0;i--){
+          const from = pred[i][p];
+          trace[i] = (from === p) ? 'H' : 'A';
+          p = from;
+        }
+        return { ticks:d, trace };
+      }
+
+      reach = next;
+      let alive = false;
+      for(let p=0;p<=L;p++) if(reach[p]){ alive = true; break; }
+      if(!alive) return null;
+    }
+    return null;
+  }
+
+  // Orders the wires and threads the per-wire runs together, minimising the
+  // total. Dijkstra over (set of finished wires, tick mod hazard period).
+  function scheduleSolve(lv, routes, opts){
+    const k = routes.length;
+    const period = hazardPeriod(lv);
+    const capPerWire = (opts && opts.capPerWire) || (period * 2 + 80);
+    const full = (1<<k) - 1;
+
+    const bestAt = new Map();               // mask,phase -> min absolute tick
+    const cameFrom = new Map();
+    const keyOf = (mask, phase)=>mask * period + phase;
+
+    const startKey = keyOf(0, 0);
+    bestAt.set(startKey, 0);
+    let frontier = [{ mask:0, phase:0, t:0 }];
+    let answer = null;
+
+    while(frontier.length){
+      frontier.sort((a,b)=>a.t-b.t);
+      const node = frontier.shift();
+      const nk = keyOf(node.mask, node.phase);
+      if(bestAt.get(nk) < node.t) continue;
+      if(node.mask === full){ answer = node; break; }
+
+      for(let i=0;i<k;i++){
+        if(node.mask & (1<<i)) continue;
+        // Selecting the very first wire is free; every later handoff costs a tick.
+        const switchCost = node.mask === 0 ? 0 : 1;
+        const t0 = node.t + switchCost;
+        const run = wireRun(lv, routes[i], t0, capPerWire);
+        if(!run) continue;
+        const t1 = t0 + run.ticks;
+        const mask2 = node.mask | (1<<i);
+        const phase2 = t1 % period;
+        const k2 = keyOf(mask2, phase2);
+        if(!bestAt.has(k2) || bestAt.get(k2) > t1){
+          bestAt.set(k2, t1);
+          cameFrom.set(k2, { prev:nk, wire:i, switchCost, trace:run.trace, t:t1 });
+          frontier.push({ mask:mask2, phase:phase2, t:t1 });
+        }
+      }
+    }
+
+    if(!answer) return null;
+
+    // Walk the chain back out into a flat, one-entry-per-tick action list.
+    const chain = [];
+    let cur = keyOf(answer.mask, answer.phase);
+    while(cameFrom.has(cur)){
+      const rec = cameFrom.get(cur);
+      chain.unshift(rec);
+      cur = rec.prev;
+    }
+    const actions = [];
+    chain.forEach((rec, n)=>{
+      if(n === 0) actions.push('F' + rec.wire);   // free first selection, not a tick
+      else actions.push('S' + rec.wire);          // costs one tick
+      rec.trace.forEach(a=>actions.push(a));
+    });
+    const par = actions.filter(a=>a[0] !== 'F').length;
+    return { par, actions, order: chain.map(c=>c.wire) };
+  }
+
+  // Full pipeline: prove it routes, then find a schedule for it.
+  function solveLevel(lv, opts){
+    const routing = routeSolve(lv, opts);
+    if(routing.status !== 'solved') return { status: routing.status, routing };
+    const sched = scheduleSolve(lv, routing.paths, opts);
+    if(!sched) return { status:'unschedulable', routing };
+    return {
+      status: 'solved',
+      paths: routing.paths,
+      totalCells: routing.totalCells,
+      routingExhaustive: routing.exhaustive,
+      par: sched.par,
+      actions: sched.actions,
+      order: sched.order
+    };
+  }
+
+  // Replays a solution through the REAL engine — the same stepTick() a player
+  // drives. This is what binds the solvers to the game: if either search's model
+  // of the rules drifts, this stops matching and the contract test fails.
+  function replaySolution(lv, sol){
+    const savedLevel = level;
+    level = lv;
+    resetPuzzle();
+    running = true;
+    let illegal = null;
+    sol.actions.forEach(act=>{
+      const kind = act[0];
+      if(kind === 'F' || kind === 'S'){
+        const i = parseInt(act.slice(1), 10);
+        setActiveColor(i);
+        if(kind === 'F') activeColor = i;       // free: no tick is spent
+        else stepTick();
+        return;
+      }
+      const w = wires[activeColor];
+      const route = sol.paths[activeColor];
+      if(!w || !route){ illegal = 'no active wire at ' + act; return; }
+      w.intent = kind === 'A' ? route.slice(0, w.cells.length + 1)
+                              : route.slice(0, w.cells.length);
+      stepTick();
+    });
+    const out = { won, ticks: tickCount, zaps: zapCount, illegal };
+    level = savedLevel;
+    resetPuzzle();
+    return out;
+  }
+
+  // ---------- Self test ----------
+  // Assertions live next to the code they cover and return plain data, touching
+  // no DOM, so the same definition runs headless (node test.js, which evaluates
+  // this script against a stub DOM) and in a browser at index.html?test=1.
+  //
+  // Scenarios build their own throwaway levels rather than asserting against the
+  // shipped ones. A test pinned to "Breadboard's spark is at [0,2] on tick 3"
+  // fails the moment that level is retuned, while the engine is perfectly fine —
+  // and that noise is what teaches people to ignore a red suite.
+  function selfTest(){
+    const results = [];
+    const ok = (name, cond, detail)=>results.push({name, pass: !!cond, detail: detail || ''});
+
+    const savedLevel = level;
+    const runTicks = (n)=>{ for(let i=0;i<n;i++) stepTick(); };
+    const load = (lv)=>{ level = lv; resetPuzzle(); };
+
+    const plainLevel = ()=>({
+      slug:'test-plain', name:'Test Plain', cols:4, rows:4,
+      terminals:[{ color:'#ff5d6c', a:[0,0], b:[0,3] }],
+      blocked:[], obstacles:[]
+    });
+
+    try{
+      // --- Current costs a tick per cell, and drawing costs nothing ---------
+      load(plainLevel());
+      onPointerDown([0,0]);
+      planTo([0,3]);
+      ok('drawing a route lays no current', wires[0].cells.length === 0,
+         'cells=' + wires[0].cells.length);
+      ok('drawing a route plans 4 cells', wires[0].intent.length === 4,
+         'intent=' + wires[0].intent.length);
+      ok('clock has not advanced from drawing alone', tickCount === 0, 'tick=' + tickCount);
+      runTicks(3);
+      ok('3 ticks energize exactly 3 cells', wires[0].cells.length === 3,
+         'cells=' + wires[0].cells.length);
+      ok('wire is not finished early', wires[0].locked === false);
+      runTicks(1);
+      ok('4th tick completes the wire', wires[0].locked === true);
+      ok('completing the last wire wins', won === true);
+      ok('a 4-cell wire scores 4 ticks', tickCount === 4, 'tick=' + tickCount);
+
+      // --- The exploit this whole model exists to kill -----------------------
+      // A synchronous burst of pointer input, zero frames elapsed. This is the
+      // exact shape that used to finish a 5-wire board in 0.0s.
+      load({ slug:'test-burst', name:'Burst', cols:6, rows:6,
+        terminals:[
+          { color:'#ff5d6c', a:[0,0], b:[0,5] },
+          { color:'#ffd75a', a:[2,0], b:[2,5] },
+          { color:'#54e6a6', a:[5,0], b:[5,5] },
+        ], blocked:[], obstacles:[] });
+      [0,2,5].forEach(c=>{ onPointerDown([c,0]); planTo([c,5]); endPointer(); });
+      ok('a synchronous input burst wins nothing', won === false);
+      ok('a synchronous input burst costs 0 ticks', tickCount === 0, 'tick=' + tickCount);
+      ok('a synchronous input burst energizes nothing',
+         [0,1,2].every(i=>wires[i].cells.length === 0));
+
+      // --- Determinism: same actions from tick 0, same run ------------------
+      const scripted = ()=>{
+        load({ slug:'test-det', name:'Det', cols:5, rows:5,
+          terminals:[{ color:'#ff5d6c', a:[0,0], b:[4,0] }],
+          blocked:[],
+          obstacles:[{ ticksPerCell:2, path: loopPath([[0,2],[4,2]]) }] });
+        onPointerDown([0,0]); planTo([4,0]);
+        runTicks(40);
+        return JSON.stringify({ t:tickCount, z:zapCount, w:wires[0].cells, won });
+      };
+      const runA = scripted(), runB = scripted();
+      ok('identical actions produce an identical run', runA === runB);
+
+      // --- Spark position is a pure function of the tick counter -------------
+      const ob = { ticksPerCell:3, path: loopPath([[0,1],[4,1]]) };
+      const cycle = ob.path.length * ob.ticksPerCell;
+      let periodic = true;
+      for(let t=0;t<cycle;t++){
+        if(!sameCell(obstacleCellAt(ob,t), obstacleCellAt(ob,t+cycle))) periodic = false;
+      }
+      ok('spark position repeats exactly on its cycle', periodic, 'cycle=' + cycle);
+      ok('spark position never depends on wall-clock time',
+         sameCell(obstacleCellAt(ob, 7), ob.path[Math.floor(7/3) % ob.path.length]));
+
+      // --- A spark shorts what it touches, and only what it touches ----------
+      // Two halves of one claim, neither pinned to a hard-coded tick: a route
+      // that stays out of the patrol lane is never shorted, and a route that
+      // crosses it is. The crossing case SEARCHES for the short rather than
+      // asserting it lands on a particular tick, so retiming the spark can't
+      // fail this test while the engine is fine.
+      const laneLevel = (termCol)=>({
+        slug:'test-lane', name:'Lane', cols:5, rows:5,
+        terminals:[{ color:'#ff5d6c', a:[termCol,0], b:[termCol,4] }],
+        blocked:[],
+        // Patrols only columns 0..2 of row 2, so column 4 is genuinely out of reach.
+        obstacles:[{ ticksPerCell:1, path: loopPath([[0,2],[2,2]]) }]
+      });
+
+      load(laneLevel(4));
+      onPointerDown([4,0]); planTo([4,4]);
+      runTicks(30);
+      ok('a route clear of every patrol is never shorted', zapCount === 0, 'zaps=' + zapCount);
+      ok('a route clear of every patrol completes', won === true);
+
+      load(laneLevel(0));
+      onPointerDown([0,0]); planTo([0,4]);
+      let zapAt = -1, routeAfterZap = -1;
+      for(let i=0; i<40 && zapAt < 0; i++){
+        const before = zapCount;
+        stepTick();
+        if(zapCount > before){ zapAt = tickCount; routeAfterZap = wires[0].intent.length; }
+      }
+      ok('a route crossing a patrol lane gets shorted', zapAt > 0, 'tick=' + zapAt);
+      ok('a short clears the current', wires[0].cells.length === 0,
+         'cells=' + wires[0].cells.length);
+      ok('a short leaves the drawn route intact', routeAfterZap === 5,
+         'route=' + routeAfterZap);
+
+      // --- Current waits at a live contact instead of dying on it ------------
+      // Regression for a measured failure: a route drawn through a gate used to
+      // rebuild into it and short over and over (7 shorts, 30.5s against a 5.7s
+      // par). The wire must now hold at the edge and cross when the gate clears.
+      load({ slug:'test-gate', name:'Gate', cols:3, rows:3,
+        terminals:[{ color:'#ff5d6c', a:[0,0], b:[0,2] }],
+        blocked:[],
+        obstacles:[{ type:'gate', cell:[0,1], periodTicks:6, onTicks:3, phaseTicks:0 }] });
+      onPointerDown([0,0]); planTo([0,2]);
+      runTicks(30);
+      ok('a route through a gate completes', wires[0].locked === true);
+      ok('waiting out a gate costs no shorts', zapCount === 0, 'zaps=' + zapCount);
+      ok('crossing a gate takes longer than the wire is long', tickCount >= 3,
+         'ticks=' + tickCount);
+
+      // --- Components block routing -----------------------------------------
+      load({ slug:'test-block', name:'Block', cols:3, rows:3,
+        terminals:[{ color:'#ff5d6c', a:[0,0], b:[0,2] }],
+        blocked:[[0,1]], obstacles:[] });
+      onPointerDown([0,0]);
+      planTo([0,2]);
+      ok('a route cannot be drawn through a component', wires[0].intent.length === 1,
+         'intent=' + wires[0].intent.length);
+      runTicks(10);
+      ok('a blocked route never completes', wires[0].locked === false && won === false);
+
+      // --- A finished wire is a wall ----------------------------------------
+      load({ slug:'test-cross', name:'Cross', cols:3, rows:3,
+        terminals:[
+          { color:'#ff5d6c', a:[0,1], b:[2,1] },
+          { color:'#ffd75a', a:[1,0], b:[1,2] },
+        ], blocked:[], obstacles:[] });
+      onPointerDown([0,1]); planTo([2,1]);
+      runTicks(3);
+      ok('first wire finished across the middle', wires[0].locked === true);
+      onPointerDown([1,0]); planTo([1,2]);
+      ok('a route cannot be drawn through a finished wire', wires[1].intent.length === 1,
+         'intent=' + wires[1].intent.length);
+
+      // --- Save keys are tied to identity, not array position ----------------
+      ok('best-score keys are slug-based, not index-based',
+         bestKey(LEVELS[LEVELS.length-1]).indexOf('mainframe') !== -1,
+         bestKey(LEVELS[LEVELS.length-1]));
+      ok('reordering levels cannot collide two levels onto one key',
+         new Set(LEVELS.map(lv=>bestKey(lv))).size === LEVELS.length);
+      // Redesigning a level under the same slug must retire its old scores —
+      // otherwise a best time from a board that no longer exists keeps showing.
+      (function(){
+        const base = LEVELS[0];
+        const moved = Object.assign({}, base, {
+          blocked: (base.blocked||[]).concat([[base.cols-1, base.rows-1]])
+        });
+        fingerprintCache.delete(base.slug);   // same slug, different board
+        const movedKey = bestKey(moved);
+        fingerprintCache.delete(base.slug);
+        const baseKey = bestKey(base);
+        ok('changing a board retires its old best score', movedKey !== baseKey,
+           baseKey + ' vs ' + movedKey);
+      })();
+
+      // --- Solver: routing correctness on boards with a known answer --------
+      // A corridor with the only through-route blocked off is unroutable, and
+      // the solver must say so having actually EXHAUSTED the search — reporting
+      // 'impossible' off a truncated search would be the dangerous failure.
+      const sealed = routeSolve({
+        slug:'t-sealed', cols:3, rows:3,
+        terminals:[{ color:'#ff5d6c', a:[0,0], b:[2,2] }],
+        blocked:[[1,0],[0,1],[1,1],[2,1],[1,2]], obstacles:[]
+      });
+      ok('a sealed-off pair is reported unroutable', sealed.status === 'impossible', sealed.status);
+      ok('that verdict came from an exhausted search', sealed.exhaustive === true);
+
+      // A component in the direct line forces a detour, and the solver should
+      // find the shortest one rather than the first one.
+      const detour = routeSolve({
+        slug:'t-detour', cols:3, rows:3,
+        terminals:[{ color:'#ff5d6c', a:[0,0], b:[0,2] }],
+        blocked:[[0,1]], obstacles:[]
+      });
+      ok('a blocked direct line is routed around', detour.status === 'solved', detour.status);
+      ok('the detour found is the shortest one', detour.status==='solved' && detour.totalCells === 5,
+         'cells=' + (detour.totalCells));
+      ok('no route passes through a component',
+         detour.status==='solved' &&
+         detour.paths[0].every(c=>!(c[0]===0 && c[1]===1)));
+
+      // A budget of almost nothing must produce 'unknown', never 'impossible'.
+      const starved = routeSolve(LEVELS[LEVELS.length-1], { budget: 5 });
+      ok('a starved search says unknown rather than impossible',
+         starved.status !== 'impossible', starved.status);
+
+      // --- Solution contract -------------------------------------------------
+      // Par is re-derived from the solver and checked against the committed
+      // number, then the schedule is replayed through the real engine. Two
+      // independent things have to agree, so a rule change cannot quietly move
+      // par without failing here.
+      LEVELS.forEach(lv=>{
+        const sol = solveLevel(lv);
+        ok(lv.slug + ': solves', sol.status === 'solved', sol.status);
+        if(sol.status !== 'solved') return;
+        ok(lv.slug + ': par matches the committed contract',
+           sol.par === PAR_CONTRACT[lv.slug],
+           'solver=' + sol.par + ' contract=' + PAR_CONTRACT[lv.slug]);
+        const replay = replaySolution(lv, sol);
+        ok(lv.slug + ': par replays to a win in the real engine', replay.won === true);
+        ok(lv.slug + ': replay takes exactly par ticks', replay.ticks === sol.par,
+           'ticks=' + replay.ticks + ' par=' + sol.par);
+        ok(lv.slug + ': replay makes no illegal move', !replay.illegal, replay.illegal || '');
+        ok(lv.slug + ': par is achievable without a single short', replay.zaps === 0,
+           'zaps=' + replay.zaps);
+        // Gold must be reachable. A par below the true optimum would make it
+        // impossible, which is the one direction that must never happen.
+        const th = getMedalThresholds(lv);
+        ok(lv.slug + ': gold is attainable at par', th && th.gold >= sol.par,
+           'gold=' + (th && th.gold) + ' par=' + sol.par);
+
+        // Difficulty is measured, not asserted by the designer.
+        //   detour = wire cells beyond the straight-line minimum, so routing
+        //            around something is genuinely required.
+        //   holds  = ticks spent waiting, so the hazards constrain the run.
+        // A level scoring zero on BOTH is a straight-line race with no decisions
+        // in it — which is exactly what the whole previous level set turned out
+        // to be, and is the thing most worth never shipping again.
+        const straight = lv.terminals.reduce((s,t)=>
+          s + Math.abs(t.a[0]-t.b[0]) + Math.abs(t.a[1]-t.b[1]) + 1, 0);
+        const detour = sol.totalCells - straight;
+        const holds = sol.par - sol.totalCells - (lv.terminals.length - 1);
+        ok(lv.slug + ': has routing or timing pressure', detour > 0 || holds > 0,
+           'detour=' + detour + ' holds=' + holds);
+        // Waiting is a decision up to a point and a staring contest past it.
+        ok(lv.slug + ': waiting stays within a playable band', holds <= 12,
+           'holds=' + holds);
+      });
+
+      // --- The daily is generated AND verified -------------------------------
+      // Fixed dates, so this is a stable check rather than a different puzzle
+      // every time the suite runs. The old generator could never fail here
+      // because it only randomised inside a shape that was safe by construction;
+      // the point of this one is that it proposes boards it might have to reject.
+      ['2026-01-15','2026-06-30','2026-12-25','2027-03-08'].forEach(dateStr=>{
+        const daily = generateDailyLevel(dateStr);
+        const sol = solveLevel(daily);
+        ok('daily ' + dateStr + ': solves', sol.status === 'solved', sol.status);
+        if(sol.status !== 'solved') return;
+        const replay = replaySolution(daily, sol);
+        ok('daily ' + dateStr + ': par replays to a win', replay.won && replay.ticks === sol.par,
+           'won=' + replay.won + ' ticks=' + replay.ticks + ' par=' + sol.par);
+        const p = measurePressure(daily, sol);
+        ok('daily ' + dateStr + ': is not a straight-line race',
+           p.detour > 0 || p.holds > 0, 'detour=' + p.detour + ' holds=' + p.holds);
+        ok('daily ' + dateStr + ': waiting stays playable', p.holds <= DAILY_BAND.holdsMax,
+           'holds=' + p.holds);
+      });
+      ok('the same date always generates the same board',
+         JSON.stringify(generateDailyLevel('2026-06-30')) ===
+         JSON.stringify(generateDailyLevel('2026-06-30')));
+
+      // --- Shipped level data is well-formed --------------------------------
+      LEVELS.forEach(lv=>{
+        const inB = (c)=>c[0]>=0 && c[1]>=0 && c[0]<lv.cols && c[1]<lv.rows;
+        const blockedHas = (c)=>(lv.blocked||[]).some(b=>b[0]===c[0] && b[1]===c[1]);
+        ok(lv.slug + ': terminals are on the board',
+           lv.terminals.every(t=>inB(t.a) && inB(t.b)));
+        ok(lv.slug + ': no terminal sits on a component',
+           lv.terminals.every(t=>!blockedHas(t.a) && !blockedHas(t.b)));
+        ok(lv.slug + ': spark paths stay on the board',
+           lv.obstacles.every(o=>!o.path || o.path.every(inB)));
+        ok(lv.slug + ': spark speeds are whole ticks per cell',
+           lv.obstacles.every(o=>o.type==='gate' ||
+             (Number.isInteger(o.ticksPerCell) && o.ticksPerCell >= 1)));
+        ok(lv.slug + ': has a stable slug', typeof lv.slug === 'string' && lv.slug.length > 0);
+      });
+    } catch(err){
+      results.push({ name:'selfTest threw', pass:false, detail: String(err && err.stack || err) });
+    } finally {
+      level = savedLevel;
+      resetPuzzle();
+    }
+
+    const failed = results.filter(r=>!r.pass);
+    return { total: results.length, passed: results.length - failed.length,
+             failed: failed.length, results };
+  }
+  window.__wiredSelfTest = selfTest;
+
+  // Authoring surface. Not debug scaffolding — solve.js uses this to compute par
+  // for new levels, and the in-game editor will use the same functions, so a
+  // level's par comes from the same code whichever way it was authored.
+  window.__wiredDev = { solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ,
+                        generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT };
+
   // ---------- Boot ----------
   level = LEVELS[0];
   resizeCanvasForLevel();
   applySettings();
   applySkin();
+
+  // index.html?test=1 runs the same selfTest() the node runner calls. Needs to
+  // be served over HTTP — browsers strip the query string from file:// URLs.
+  if(new URLSearchParams(location.search).has('test')){
+    const r = selfTest();
+    document.getElementById('introScreen').classList.add('hidden');
+    document.body.innerHTML =
+      `<div style="font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:24px;max-width:900px;margin:0 auto;">
+        <h1 style="font-size:20px;margin:0 0 4px;">Wired — self test</h1>
+        <div style="color:${r.failed ? '#ff5d6c' : '#45e0a8'};font-size:15px;margin-bottom:16px;">
+          ${r.passed}/${r.total} passed${r.failed ? ` · ${r.failed} FAILED` : ''}
+        </div>
+        ${r.results.map(x=>
+          `<div style="padding:3px 0;color:${x.pass ? '#8b9ab3' : '#ff5d6c'};">
+            ${x.pass ? 'ok  ' : 'FAIL'} ${escapeHtml(x.name)}
+            ${x.detail ? `<span style="opacity:.7"> — ${escapeHtml(x.detail)}</span>` : ''}
+          </div>`).join('')}
+      </div>`;
+    return;
+  }
+
   showMenu();
   playIntro();
 
