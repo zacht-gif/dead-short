@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Wired — a real-time circuit puzzle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Wired — a circuit routing puzzle</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#0a0e17">
@@ -67,6 +67,14 @@
   #app{
     display:flex; flex-direction:column; align-items:center;
     min-height:100%; padding:16px 12px 40px;
+  }
+  /* On a 320px-wide phone a 7-column board lands at 41px per cell with the
+     normal gutters, under the 44px touch-target guideline. Giving the board
+     nearly the full width buys it back. computeCellSize() has to use the same
+     breakpoint and the same reserved width, or the board gets sized for one
+     layout while the page renders the other. */
+  @media (max-width:399px){
+    #app{ padding-left:6px; padding-right:6px; }
   }
   .screen{ width:100%; max-width:640px; position:relative; }
   .hidden{ display:none !important; }
@@ -427,7 +435,7 @@
   <div id="introFlash"></div>
   <div id="introWordmark">
     <h1><span class="bolt" id="introBolt">⚡</span> <span id="introTitle">Wired</span></h1>
-    <div class="subtitle" id="introTagline">Connect every pair. Dodge the current. Race the clock.</div>
+    <div class="subtitle" id="introTagline">Route every pair. Time the current. Nothing is random.</div>
   </div>
   <div id="introSkipHint">tap to skip</div>
 </div>
@@ -439,7 +447,7 @@
     <button id="settingsBtn" aria-label="Settings">⚙</button>
     <header>
       <h1><span class="bolt">⚡</span> Wired</h1>
-      <div class="subtitle">Connect every pair. Dodge the current. Race the clock.</div>
+      <div class="subtitle">Route every pair. Time the current. Nothing is random.</div>
       <div id="menuBadge" class="hidden"></div>
     </header>
     <div id="menuList"></div>
@@ -615,7 +623,7 @@
     </div>
 
     <div id="settingsCredits">
-      v2.0 · Wired grew out of an earlier puzzle, Cut &amp; Fill.<br>
+      <span id="creditsVersion"></span> · Wired grew out of an earlier puzzle, Cut &amp; Fill.<br>
       © 2026 Zach Thornsbury. All rights reserved.<br>
       No trackers, no ads, no network calls — this game never phones home.
     </div>
@@ -662,6 +670,15 @@
   // the penalty for a short — is a pure function of that integer, so a run is
   // exactly reproducible and a solver can search it. Wall-clock time only ever
   // decides WHEN a tick fires; it never decides what a tick does.
+  // Bump on every release. build.js checks this against sw.js's CACHE_NAME and
+  // refuses to package a mismatch — a stale service worker cache is invisible
+  // until players report playing a version you thought you'd replaced.
+  const GAME_VERSION = '2.0.0';
+
+  // Where shared links should point. Leave empty to use whatever URL the game
+  // is being served from; see challengeUrl() for why that isn't always right.
+  const CANONICAL_URL = '';
+
   const TICK_HZ = 6;                       // ticks per second
   const MS_PER_TICK = 1000 / TICK_HZ;
   const MAX_FRAME_MS = 250;                // clamp after a tab-away so we don't
@@ -1320,6 +1337,20 @@
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // Says what's actually on the board. The old line counted every hazard as a
+  // "spark", so a level whose only obstacle was a gate advertised a spark that
+  // wasn't there, and components never got mentioned at all.
+  function describeHazards(lv){
+    const parts = [`${lv.terminals.length} pair${lv.terminals.length===1?'':'s'}`];
+    const patrols = lv.obstacles.filter(o=>!isGate(o)).length;
+    const gates = lv.obstacles.filter(isGate).length;
+    const chips = (lv.blocked || []).length;
+    if(chips)   parts.push(`${chips} component${chips===1?'':'s'}`);
+    if(patrols) parts.push(`${patrols} spark${patrols===1?'':'s'}`);
+    if(gates)   parts.push(`${gates} gate${gates===1?'':'s'}`);
+    return parts.join(' · ');
+  }
+
   function renderMenu(){
     menuList.innerHTML = '';
 
@@ -1355,7 +1386,7 @@
     dailyCard.innerHTML = `
       <div class="info">
         <div class="name">⚡ Daily Challenge <span class="dailyDate">${todayStr}</span></div>
-        <div class="meta">Same board for everyone today · ${dailyLevel.cols}×${dailyLevel.rows} grid · ${dailyLevel.terminals.length} colors<br>
+        <div class="meta">Same board for everyone today · ${dailyLevel.cols}×${dailyLevel.rows} · ${describeHazards(dailyLevel)}<br>
         ${playedToday ? `Today's score: <b>${dailyBest!==null?fmtTicks(dailyBest):'—'}</b>${dailyMedal?' '+MEDAL_ICON[dailyMedal]:''}` : 'Not played yet today'} &nbsp;·&nbsp; Streak: <b>${streak} day${streak===1?'':'s'}</b></div>
       </div>
       <button class="playBtn">${playedToday ? 'Play Again' : 'Play'}</button>
@@ -1372,7 +1403,7 @@
       card.innerHTML = `
         <div class="info">
           <div class="name">${lv.name}</div>
-          <div class="meta">${lv.cols}×${lv.rows} grid · ${lv.terminals.length} colors · ${lv.obstacles.length} spark${lv.obstacles.length===1?'':'s'}<br>
+          <div class="meta">${lv.cols}×${lv.rows} · ${describeHazards(lv)}<br>
           Best score: <b>${best!==null ? fmtTicks(best) : '—'}</b>${medal?' '+MEDAL_ICON[medal]:''}${t?` &nbsp;·&nbsp; Gold at <b>${fmtTicks(t.gold)}</b>`:''}</div>
         </div>
         <button class="playBtn">Play</button>
@@ -1428,7 +1459,11 @@
 
   function renderStats(){
     const rows = [
-      { label:'Levels Solved', value: getCounter(STORE_PREFIX + 'stats-plays') },
+      // Distinct levels beaten, not total wins. The counter behind the old
+      // "Levels Cleared" went up every time you finished anything, so replaying
+      // one level ten times read as ten levels cleared.
+      { label:'Levels Solved', value: `${LEVELS.filter(lv=>getBest(lv)!==null).length}/${LEVELS.length}` },
+      { label:'Boards Wired', value: getCounter(STORE_PREFIX + 'stats-plays') },
       { label:'Total Shorts', value: getCounter(STORE_PREFIX + 'stats-zaps') },
       { label:'Daily Streak', value: getDailyStreak() },
       { label:'Medals Earned', value: `${medalsEarnedCount()}/${LEVELS.length}` },
@@ -1533,7 +1568,10 @@
     // sized for one layout while the page is actually rendering the other.
     const isLandscapeCompact = window.matchMedia('(orientation: landscape) and (max-height: 560px) and (max-width: 900px)').matches;
     const reservedForSidebar = isLandscapeCompact ? 200 : 0;
-    const availableW = Math.min(window.innerWidth - 32 - reservedForSidebar, 640);
+    // Matches the max-width:399px rule above: narrow phones give the board
+    // almost the whole width so cells stay at a usable size.
+    const gutters = window.innerWidth < 400 ? 12 : 32;
+    const availableW = Math.min(window.innerWidth - gutters - reservedForSidebar, 640);
     const availableH = isLandscapeCompact ? (window.innerHeight - 90) : Infinity;
     const bySize = Math.min(availableW / cols, availableH / rows);
     return Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor(bySize)));
@@ -1845,13 +1883,19 @@
   // Order of play is still a real decision — it's just made when you draw the
   // routes rather than demanded again every time one completes, and tapping any
   // color still overrides the queue mid-run.
+  // Goes through setActiveColor so the automatic handoff costs the same tick a
+  // manual one does. It used to assign activeColor directly, which made the
+  // handoff free — the engine and the scheduler were then playing by different
+  // rules, and a real run came in two ticks UNDER a par that is supposed to be
+  // hard to reach. The contract test missed it because replaySolution issues
+  // explicit switch actions, which did charge.
   function advanceToNextPlanned(){
     const n = level.terminals.length;
     for(let i=0;i<n;i++){
       const w = wires[i];
       if(!w || w.locked) continue;
       if(w.intent.length > w.cells.length || w.cells.length > commonPrefixLen(w.cells, w.intent)){
-        activeColor = i;
+        setActiveColor(i);
         return;
       }
     }
@@ -1915,9 +1959,11 @@
           (sameCell(term.b, w.cells[0]) && sameCell(term.a, next)))){
         w.locked = true;
         w.intent = w.cells.slice();
-        activeColor = null;
         justLocked = true;
         sfx.lock();
+        // activeColor deliberately still points at the wire that just finished,
+        // so setActiveColor inside advanceToNextPlanned sees a real handoff and
+        // charges for it. Nulling it first is what made the handoff free.
         advanceToNextPlanned();
       }
       return 'extend';
@@ -2130,8 +2176,16 @@
 
       const medal = medalForScore(level, score);
       const t = getMedalThresholds(level);
-      if(medal === 'gold'){
-        earnLine = 'Gold — nothing left to shave here.';
+      const parTicks = parFor(level);
+      if(parTicks !== null && score < parTicks){
+        // Par is a schedule we can prove is reachable, not a proven minimum —
+        // it only considers building each wire in one go, while the game also
+        // lets you park a half-built wire and come back. Somebody who finds a
+        // better interleaving deserves to be told, not shown a line claiming
+        // there was nothing left to shave.
+        earnLine = 'Under par — you found a better order than the solver did.';
+      } else if(medal === 'gold'){
+        earnLine = 'Gold — you matched par exactly.';
       } else if(t){
         const next = medal === 'silver' ? t.gold : (medal === 'bronze' ? t.silver : t.bronze);
         const nextName = medal === 'silver' ? 'gold' : (medal === 'bronze' ? 'silver' : 'bronze');
@@ -2746,7 +2800,16 @@
   // Encodes level + score in the URL itself — no backend needed — so opening
   // the link can greet the recipient with a specific score to beat.
   function challengeUrl(){
-    const base = location.href.split('?')[0].split('#')[0];
+    // On itch.io the game runs in an iframe served from html-classic.itch.zone,
+    // so location.href is an internal URL that is ugly to share and changes with
+    // every upload. Set CANONICAL_URL to a page you control that serves this
+    // file directly — GitHub Pages, say — and links keep working.
+    //
+    // Worth knowing before setting this to an itch.io PAGE url: itch does not
+    // forward query strings into the embedded game, so a challenge link pointing
+    // at the store page will open the game without the challenge. The share
+    // sheet always includes the readable result too, which survives either way.
+    const base = CANONICAL_URL || location.href.split('?')[0].split('#')[0];
     const params = new URLSearchParams();
     // A custom board can't be looked up by name, so the link carries the board.
     if(level.isCustom && level.code) params.set('board', level.code);
@@ -4252,6 +4315,34 @@
         }
       })();
 
+      // --- Ordinary play obeys the same rules par was computed under ----------
+      // The contract test replays an explicit action list, which charges for
+      // every switch. Normal play instead hands off automatically when a wire
+      // finishes — and that path used to be FREE, so a real run came in under
+      // par. Par is meant to be the best a schedule can do, so beating it by
+      // simply drawing every route and waiting is a rules mismatch, not skill.
+      LEVELS.forEach(lv=>{
+        const sol = solveLevel(lv);
+        if(sol.status !== 'solved') return;
+        load(lv);
+        // Draw the solver's own routes, then let the game run itself.
+        sol.paths.forEach(route=>{
+          onPointerDown(route[0]);
+          route.slice(1).forEach(c=>planTo(c));
+        });
+        // Stop AT the win. Ticking a fixed number past it keeps incrementing the
+        // clock, which inflates the score into the hundreds and hides whatever
+        // the real finishing score was.
+        let guard = 0;
+        while(!won && guard++ < 900) stepTick();
+        const finalScore = currentScore();
+        ok(lv.slug + ': drawing every route up front still finishes', won === true,
+           'ticks=' + tickCount + ' zaps=' + zapCount);
+        if(!won) return;
+        ok(lv.slug + ': ordinary play never beats par', finalScore >= sol.par,
+           'score=' + finalScore + ' par=' + sol.par);
+      });
+
       // --- Progression is keyed by identity, not position ---------------------
       ok('every level except the last has a next one',
          LEVELS.slice(0,-1).every(lv=>nextLevelAfter(lv) !== null));
@@ -4449,6 +4540,25 @@
          JSON.stringify(generateDailyLevel('2026-06-30')) ===
          JSON.stringify(generateDailyLevel('2026-06-30')));
 
+      // --- Touch targets stay usable on real phones --------------------------
+      // Pure arithmetic against the same formula the game uses, so this catches
+      // a regression from adding a wider level or changing the gutters without
+      // needing a device. 44px is the usual minimum; the board is dragged rather
+      // than tapped, but it's the bar worth holding.
+      (function(){
+        const widest = Math.max.apply(null, LEVELS.map(lv=>lv.cols));
+        const cellAt = (w)=>{
+          const gutters = w < 400 ? 12 : 32;
+          return Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor(Math.min(w - gutters, 640) / widest)));
+        };
+        [320, 360, 375, 390, 414].forEach(w=>{
+          ok('cells stay >=44px at ' + w + 'px wide on a ' + widest + '-column board',
+             cellAt(w) >= 44, cellAt(w) + 'px');
+        });
+        ok('the widest shipped board still fits the editor cap', widest <= EDITOR_MAX + 1,
+           widest + ' cols');
+      })();
+
       // --- Shipped level data is well-formed --------------------------------
       LEVELS.forEach(lv=>{
         const inB = (c)=>c[0]>=0 && c[1]>=0 && c[0]<lv.cols && c[1]<lv.rows;
@@ -4485,6 +4595,7 @@
                         trapMeasure, measurePressure };
 
   // ---------- Boot ----------
+  document.getElementById('creditsVersion').textContent = 'v' + GAME_VERSION;
   level = LEVELS[0];
   resizeCanvasForLevel();
   applySettings();

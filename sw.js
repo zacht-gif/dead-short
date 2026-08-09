@@ -1,7 +1,10 @@
-// Minimal cache-first service worker for offline play. Bump CACHE_NAME on any
-// future update to index.html/manifest/icon so clients pick up the new files
-// instead of serving a stale cache forever.
-const CACHE_NAME = 'wired-v1';
+// Cache-first service worker for offline play.
+//
+// CACHE_NAME must be bumped on every release, or returning players keep being
+// served the old build from cache forever. build.js checks that this version
+// matches the one in index.html and refuses to package a mismatch, because
+// "forgot to bump the cache" is invisible until players report a stale game.
+const CACHE_NAME = 'wired-v2.0.0';
 const CACHE_FILES = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -21,6 +24,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only same-origin GETs are cacheable here; anything else is passed straight
+  // through rather than being answered from a cache that can't hold it.
+  if (event.request.method !== 'GET') return;
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
