@@ -16,6 +16,10 @@ Plays in any modern browser. Installable as a PWA and fully playable offline.
 | `sw.js` | Cache-first service worker for offline play |
 | `icon.svg` | App icon (hand-authored vector) |
 | `LICENSE` | All rights reserved — see below |
+| `build.js` | Packages `dist/wired-<version>.zip` for upload |
+| `test.js` / `harness.js` | Headless runner for the in-page test suite |
+| `solve.js` | Proves every level routes and verifies its par |
+| `store/` | itch.io cover art and page copy (drafts) |
 
 ## The zero-dependency rule
 
@@ -42,6 +46,24 @@ self-host the asset and record its license here before merging.
 Emoji used in the UI (⚡ 🥇 🎯) render from the *player's* system font and are never redistributed, so
 they carry no obligation in-game. Store artwork is different — see the note in `LICENSE` and the launch
 plan before building a cover around a system emoji glyph.
+
+## Building for release
+
+```bash
+node build.js
+```
+
+Writes `dist/wired-<version>.zip` with `index.html` at the **root** — itch.io requires that, or the
+upload plays as a file listing instead of a game. Only runtime files ship.
+
+The build refuses to package if any of these fail, because each one is invisible until a player hits
+it:
+
+- the test suite doesn't pass, or any level stops solving;
+- `sw.js`'s `CACHE_NAME` doesn't match `GAME_VERSION` (a stale cache serves returning players the old
+  build forever);
+- `index.html` stops being self-contained (external script, stylesheet, `@import`, or an http URL);
+- debug scaffolding is left behind.
 
 ## Running it
 

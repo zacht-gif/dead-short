@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="630" height="500" viewBox="0 0 630 500" role="img" aria-label="Wired — a circuit routing puzzle">
+  <title>Wired — a circuit routing puzzle</title>
+  <!--
+    itch.io cover art, 630x500. Every mark here is original vector geometry:
+    no system emoji glyph is used as artwork, because Segoe UI Emoji and Apple
+    Color Emoji are licensed fonts whose EULAs don't clearly permit that. The
+    bolt is drawn as a polygon, the wires are paths, the pads are circles.
+    Text uses a generic sans stack, so export it to PNG with the fonts you
+    intend to ship or convert the wordmark to outlines first.
+  -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#101725"/>
+      <stop offset="100%" stop-color="#070a11"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="50%" cy="42%" r="78%">
+      <stop offset="55%"  stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.65"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softglow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="pads" width="42" height="42" patternUnits="userSpaceOnUse">
+      <circle cx="0" cy="0" r="1.6" fill="#1b2740"/>
+      <circle cx="42" cy="0" r="1.6" fill="#1b2740"/>
+      <circle cx="0" cy="42" r="1.6" fill="#1b2740"/>
+      <circle cx="42" cy="42" r="1.6" fill="#1b2740"/>
+    </pattern>
+  </defs>
+
+  <rect width="630" height="500" fill="url(#sky)"/>
+  <g stroke="#16324a" stroke-opacity="0.5" stroke-width="1">
+    <path d="M-40 120 L200 -40 M-40 300 L340 -40 M-40 480 L480 -40 M120 520 L630 40 M320 520 L630 190 M500 520 L630 400"/>
+  </g>
+  <rect width="630" height="500" fill="url(#pads)" opacity="0.85"/>
+
+  <!-- The board: three pairs routed around two components, nested so none can
+       cross another. This is the actual shape of the game, not decoration. -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- component footprints -->
+    <g fill="#1a2030" stroke="#2b3d57" stroke-width="2">
+      <rect x="292" y="214" width="46" height="46" rx="4"/>
+      <rect x="292" y="282" width="46" height="46" rx="4"/>
+    </g>
+    <g fill="#2b3d57">
+      <circle cx="301" cy="223" r="3"/><circle cx="301" cy="291" r="3"/>
+    </g>
+
+    <!-- patrol rail -->
+    <path d="M118 400 H512" stroke="#000" stroke-opacity="0.5" stroke-width="17"/>
+    <path d="M118 400 H512" stroke="#fff2b8" stroke-opacity="0.18" stroke-width="3"/>
+    <circle cx="386" cy="400" r="9" fill="#fff2b8" filter="url(#softglow)"/>
+    <circle cx="386" cy="400" r="4" fill="#fff"/>
+
+    <!-- inner pair: short hop across the top -->
+    <path d="M246 168 H384" stroke="#7ab8ff" stroke-opacity="0.22" stroke-width="18"/>
+    <path d="M246 168 H384" stroke="#7ab8ff" stroke-width="8" stroke-dasharray="1 13"/>
+
+    <!-- middle pair: dips under the inner one -->
+    <path d="M178 168 V236 H452 V168" stroke="#ffd75a" stroke-opacity="0.20" stroke-width="18"/>
+    <path d="M178 168 V236 H452 V168" stroke="#ffd75a" stroke-width="8" stroke-dasharray="12 11"/>
+
+    <!-- outer pair: still filling, so it stops short and the rest is planned -->
+    <path d="M110 168 V304 H272" stroke="#ff5d6c" stroke-opacity="0.22" stroke-width="20"/>
+    <path d="M110 168 V304 H272" stroke="#ff5d6c" stroke-width="9" stroke-dasharray="15 11"/>
+    <path d="M272 304 H358 V348 H520 V168" stroke="#ff5d6c" stroke-opacity="0.42" stroke-width="4" stroke-dasharray="5 11"/>
+  </g>
+
+  <!-- Solder pads, each carrying its own shape so colour is never the only cue —
+       the same redundancy the game itself ships. -->
+  <g>
+    <g>
+      <circle cx="110" cy="168" r="17" fill="#ff5d6c"/><circle cx="110" cy="168" r="17" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="2"/>
+      <polygon points="110,159 118,174 102,174" fill="#0a0e17"/>
+    </g>
+    <g>
+      <circle cx="520" cy="168" r="17" fill="#ff5d6c"/><circle cx="520" cy="168" r="17" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="2"/>
+      <polygon points="520,159 528,174 512,174" fill="#0a0e17"/>
+    </g>
+    <g>
+      <circle cx="178" cy="168" r="17" fill="#ffd75a"/><circle cx="178" cy="168" r="17" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="2"/>
+      <rect x="171" y="161" width="14" height="14" fill="#0a0e17"/>
+    </g>
+    <g>
+      <circle cx="452" cy="168" r="17" fill="#ffd75a"/><circle cx="452" cy="168" r="17" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="2"/>
+      <rect x="445" y="161" width="14" height="14" fill="#0a0e17"/>
+    </g>
+    <g>
+      <circle cx="246" cy="168" r="17" fill="#7ab8ff"/><circle cx="246" cy="168" r="17" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="2"/>
+      <polygon points="246,158 255,168 246,178 237,168" fill="#0a0e17"/>
+    </g>
+    <g>
+      <circle cx="384" cy="168" r="17" fill="#7ab8ff"/><circle cx="384" cy="168" r="17" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="2"/>
+      <polygon points="384,158 393,168 384,178 375,168" fill="#0a0e17"/>
+    </g>
+  </g>
+
+  <rect width="630" height="500" fill="url(#vignette)"/>
+
+  <!-- Wordmark. The bolt is original polygon geometry, deliberately not an
+       emoji glyph lifted out of a licensed system font. -->
+  <g transform="translate(315 62)" text-anchor="middle">
+    <polygon points="-192,-28 -160,-28 -175,-5 -156,-5 -190,35 -181,3 -200,3"
+             fill="#f5b942" filter="url(#glow)"/>
+    <text x="26" y="14" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif"
+          font-size="62" font-weight="700" letter-spacing="7" fill="#eef3fb">WIRED</text>
+  </g>
+  <text x="315" y="452" text-anchor="middle"
+        font-family="Segoe UI, Helvetica Neue, Arial, sans-serif"
+        font-size="17" letter-spacing="1.4" fill="#9fb0c9">
+    Route every pair. Time the current.
+  </text>
+  <text x="315" y="478" text-anchor="middle"
+        font-family="Segoe UI, Helvetica Neue, Arial, sans-serif"
+        font-size="17" font-weight="600" letter-spacing="1.4" fill="#f5b942">
+    Nothing is random.
+  </text>
+</svg>
