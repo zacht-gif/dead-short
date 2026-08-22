@@ -1,0 +1,11 @@
+# Build output from tools/build.ps1 — the zip is reproducible, so it does not
+# belong in git.
+dist/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor/harness scratch
+.claude/

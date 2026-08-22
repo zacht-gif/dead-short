@@ -2,10 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<!-- No maximum-scale/user-scalable=no: locking zoom is a WCAG 1.4.4 failure, iOS
+     ignores it anyway, and the board doesn't need it — #boardWrap sets
+     touch-action:none, so pinch and double-tap never reach the canvas.
+     viewport-fit=cover lets the safe-area-inset padding below do its job. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wired — a real-time circuit puzzle</title>
+<meta name="description" content="Connect every pair. Dodge the current. Race the clock. A circuit-wiring puzzle where nothing is random.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- iOS reads none of manifest.json — the home-screen icon and standalone
+     behaviour come from these four tags or not at all. -->
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wired">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0e17">
 <style>
   :root{
@@ -36,10 +48,17 @@
     /* Effects */
     --glow:          rgba(245,185,66,.55);
     --shadow:        rgba(0,0,0,.45);
+
+    /* Minimum comfortable touch target. Every interactive control below is
+       sized against this rather than against its own text. */
+    --tap-min:       44px;
   }
   *{box-sizing:border-box;}
   html,body{
     margin:0; padding:0; height:100%;
+    /* Kills the 300ms double-tap-zoom delay on taps outside the board. The
+       board itself is covered by #boardWrap's touch-action:none. */
+    touch-action:manipulation;
     color:var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     overflow-x:hidden;
@@ -64,9 +83,14 @@
     from{ background-position:0 0, 0 0, 0 0; }
     to{ background-position:220px 220px, -220px 220px, 0 0; }
   }
+  /* Installed as a PWA the page owns the whole screen, notch included, so the
+     insets are added to the padding rather than assumed to be zero. They
+     resolve to 0px in a normal browser tab, so one rule covers both. */
   #app{
     display:flex; flex-direction:column; align-items:center;
-    min-height:100%; padding:16px 12px 40px;
+    min-height:100%;
+    padding:calc(16px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+            calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
   }
   .screen{ width:100%; max-width:640px; position:relative; }
   .hidden{ display:none !important; }
@@ -76,7 +100,8 @@
   #settingsBtn{
     position:absolute; top:0; right:0;
     background:var(--panel); border:1px solid var(--panel-border); color:var(--text-dim);
-    border-radius:8px; width:36px; height:36px; font-size:16px; line-height:1; cursor:pointer;
+    border-radius:8px; width:var(--tap-min); height:var(--tap-min);
+    font-size:18px; line-height:1; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
   #settingsBtn:hover{ color:var(--text); border-color:var(--accent-2); }
@@ -92,11 +117,12 @@
   .toggleRow{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     padding:10px 0; border-top:1px solid var(--panel-border);
+    min-height:var(--tap-min); cursor:pointer;
   }
   .toggleRow:first-child{ border-top:none; }
   .toggleRow .toggleLabel{ color:var(--text); font-size:13px; font-weight:600; }
   .toggleRow .toggleDesc{ color:var(--text-dim); font-size:12px; margin-top:2px; }
-  .toggleRow input[type="checkbox"]{ width:18px; height:18px; flex:none; accent-color:var(--accent); }
+  .toggleRow input[type="checkbox"]{ width:24px; height:24px; flex:none; accent-color:var(--accent); cursor:pointer; }
   .textInput{
     font-family:inherit; font-size:13px; width:100%; max-width:220px;
     background:var(--bg); color:var(--text); border:1px solid var(--panel-border);
@@ -113,7 +139,7 @@
   .skinRow .skinName{ color:var(--text); font-size:13px; font-weight:600; }
   .skinRow .skinFlavor{ color:var(--text-dim); font-size:12px; margin-top:2px; }
   .skinRow .skinCond{ color:var(--text-dim); font-size:11px; margin-top:2px; font-style:italic; }
-  .skinRow .skinBtn{ font-size:12px; padding:7px 12px; white-space:nowrap; }
+  .skinRow .skinBtn{ font-size:12px; padding:7px 12px; white-space:nowrap; min-height:var(--tap-min); }
   .skinRow .skinBtn.equipped{ background:var(--good); color:#07231a; border-color:var(--good); }
   .statsGrid{
     display:grid; grid-template-columns:1fr 1fr; gap:10px;
@@ -151,6 +177,8 @@
     background:var(--accent); color:var(--accent-ink); border:none; border-radius:8px;
     font-weight:700; font-size:14px; padding:10px 18px; cursor:pointer; white-space:nowrap;
     box-shadow:0 0 16px var(--glow);
+    min-height:var(--tap-min);
+    display:inline-flex; align-items:center; justify-content:center;
   }
   .levelCard .playBtn:hover{ filter:brightness(1.08); }
   .dailyCard{ border-color:var(--accent); background:linear-gradient(135deg, var(--panel), color-mix(in srgb, var(--accent) 10%, var(--panel))); }
@@ -181,6 +209,8 @@
   #menuBtn{
     background:var(--panel); color:var(--text); border:1px solid var(--panel-border);
     border-radius:8px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer;
+    min-height:var(--tap-min);
+    display:inline-flex; align-items:center; justify-content:center;
   }
   #playLevelName{ font-size:16px; font-weight:700; }
   #playLevelName .bolt{ color:var(--accent); margin-right:4px; }
@@ -205,6 +235,10 @@
   }
   #boardWrap{
     position:relative;
+    /* Shrink to the canvas. Without this the wrap is a full-width block and the
+       board hugs its left edge, leaving the panel visibly off-axis from the HUD
+       above it on any screen wider than the board. */
+    width:max-content;
     touch-action:none;
     border-radius:12px;
     overflow:hidden;
@@ -224,6 +258,9 @@
     background:var(--panel); color:var(--text);
     border:1px solid var(--panel-border); border-radius:8px;
     padding:9px 14px; cursor:pointer;
+    /* The box, not the label, is what a finger has to hit. */
+    min-height:var(--tap-min);
+    display:inline-flex; align-items:center; justify-content:center;
   }
   button:hover{ border-color:var(--accent-2); }
   button.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:0 0 14px var(--glow); }
@@ -315,7 +352,9 @@
   #introScreen.reduced #introTagline{ animation:introFadeIn .4s ease-out .2s forwards; }
 
   #introSkipHint{
-    position:absolute; bottom:22px; right:24px; font-size:11px; color:var(--text-dim); opacity:0;
+    position:absolute; font-size:11px; color:var(--text-dim); opacity:0;
+    bottom:calc(22px + env(safe-area-inset-bottom));
+    right:calc(24px + env(safe-area-inset-right));
   }
   #introScreen.playing #introSkipHint{ animation:introFadeIn .4s ease-out 1s forwards; }
   #introScreen.reduced #introSkipHint{ animation:introFadeIn .4s ease-out .3s forwards; }
@@ -454,27 +493,27 @@
 
     <div class="settingsSection">
       <h3>Accessibility</h3>
-      <div class="toggleRow">
+      <label class="toggleRow" for="colorblindToggle">
         <div>
           <div class="toggleLabel">Colorblind Mode</div>
           <div class="toggleDesc">Recolors and reshapes wire pairs so every color reads by more than hue alone.</div>
         </div>
         <input type="checkbox" id="colorblindToggle">
-      </div>
-      <div class="toggleRow">
+      </label>
+      <label class="toggleRow" for="reduceMotionToggle">
         <div>
           <div class="toggleLabel">Reduce Motion</div>
           <div class="toggleDesc">Softens the spark's pulsing glow and turns off the title screen's intro animation.</div>
         </div>
         <input type="checkbox" id="reduceMotionToggle">
-      </div>
-      <div class="toggleRow">
+      </label>
+      <label class="toggleRow" for="muteToggle">
         <div>
           <div class="toggleLabel">Mute Sound</div>
           <div class="toggleDesc">Turns off all game sound effects.</div>
         </div>
         <input type="checkbox" id="muteToggle">
-      </div>
+      </label>
     </div>
 
     <div class="settingsSection">
@@ -520,6 +559,21 @@
   // ---------- Tunables ----------
   const ZAP_PENALTY = 3;       // seconds added to score per short
   const TRACE_MS = 2500;       // how long a Trace overlay stays up
+
+  // ---------- Storage ----------
+  // localStorage does not merely return null when storage is unavailable — it
+  // throws on access (Safari private browsing, enterprise policy, some embedded
+  // webviews, a user who blocked site data). The game reads it during boot via
+  // applySkin() and renderMenu(), so an unguarded read takes the whole page
+  // down before the first frame. Everything goes through this wrapper instead:
+  // a locked-down browser loses saved bests, not the game.
+  // `backing` is a variable rather than a direct reference so selfTest() can
+  // swap in a throwing stub and prove the guard actually holds.
+  let backing = (function(){ try{ return window.localStorage; } catch(e){ return null; } })();
+  const store = {
+    get(k){ try{ return backing ? backing.getItem(k) : null; } catch(e){ return null; } },
+    set(k,v){ try{ if(backing) backing.setItem(k, v); } catch(e){} },
+  };
 
   // ---------- Level definitions ----------
   // Every color pair runs straight down its own column, so no two wires can ever
@@ -631,14 +685,14 @@
     }
     return { id: 'daily-' + dateStr, name: 'Daily Challenge', cols, rows, terminals, obstacles, isDaily:true, dateStr };
   }
-  function getDailyStreak(){ return parseInt(localStorage.getItem('wired-v2-daily-streak') || '0', 10); }
+  function getDailyStreak(){ return parseInt(store.get('wired-v2-daily-streak') || '0', 10); }
   function recordDailyPlay(dateStr){
-    const last = localStorage.getItem('wired-v2-daily-lastDate');
+    const last = store.get('wired-v2-daily-lastDate');
     if(last === dateStr) return; // already counted today
     const y = new Date(); y.setDate(y.getDate()-1);
     const streak = (last === localDateString(y)) ? getDailyStreak()+1 : 1;
-    localStorage.setItem('wired-v2-daily-lastDate', dateStr);
-    localStorage.setItem('wired-v2-daily-streak', String(streak));
+    store.set('wired-v2-daily-lastDate', dateStr);
+    store.set('wired-v2-daily-streak', String(streak));
   }
 
   // Resolves a shared challenge link's level id back to a real level object.
@@ -679,13 +733,13 @@
   // ---------- Persistent storage (bumped key prefix — scoring rules changed) ----------
   function bestKey(lv){ return 'wired-v2-best-' + lv.id; }
   function getBest(lv){
-    const v = localStorage.getItem(bestKey(lv));
+    const v = store.get(bestKey(lv));
     return v ? parseFloat(v) : null;
   }
   function setBestIfBetter(lv, score){
     const cur = getBest(lv);
     if(cur === null || score < cur){
-      localStorage.setItem(bestKey(lv), score.toFixed(1));
+      store.set(bestKey(lv), score.toFixed(1));
       return true;
     }
     return false;
@@ -693,14 +747,14 @@
 
   // Tracks whether a level has EVER been cleared with zero shorts.
   function cleanClearKey(lv){ return 'wired-v2-clean-' + lv.id; }
-  function hasCleanClear(lv){ return localStorage.getItem(cleanClearKey(lv)) === '1'; }
-  function markCleanClear(lv){ localStorage.setItem(cleanClearKey(lv), '1'); }
+  function hasCleanClear(lv){ return store.get(cleanClearKey(lv)) === '1'; }
+  function markCleanClear(lv){ store.set(cleanClearKey(lv), '1'); }
 
   // ---------- Lifetime stats (for the Settings > Stats section) ----------
   function bumpCounter(key){
-    localStorage.setItem(key, String((parseInt(localStorage.getItem(key)||'0',10)) + 1));
+    store.set(key, String((parseInt(store.get(key)||'0',10)) + 1));
   }
-  function getCounter(key){ return parseInt(localStorage.getItem(key)||'0',10); }
+  function getCounter(key){ return parseInt(store.get(key)||'0',10); }
   function medalsEarnedCount(){
     return LEVELS.filter(lv => medalForScore(lv, getBest(lv)) !== null).length;
   }
@@ -728,8 +782,8 @@
       tokens:{ '--accent':'#ffd75a', '--bg-pattern':'#2a1f0d', '--grid-line':'#33270f' }, badge:'⚡ ZERO SHORTS' },
   ];
   const ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tokens)))];
-  function getEquippedSkinId(){ return localStorage.getItem('wired-v2-skin') || 'default'; }
-  function setEquippedSkinId(id){ localStorage.setItem('wired-v2-skin', id); }
+  function getEquippedSkinId(){ return store.get('wired-v2-skin') || 'default'; }
+  function setEquippedSkinId(id){ store.set('wired-v2-skin', id); }
   function applySkin(){
     const skin = SKINS.find(s=>s.id===getEquippedSkinId() && s.unlocked()) || SKINS[0];
     const root = document.documentElement.style;
@@ -783,7 +837,7 @@
   const SETTINGS_KEY = 'wired-v2-settings';
   function loadSettings(){
     try{
-      return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+      return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(store.get(SETTINGS_KEY) || '{}'));
     } catch(e){
       return Object.assign({}, SETTINGS_DEFAULTS);
     }
@@ -803,7 +857,7 @@
   })();
 
   function saveSettings(){
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    store.set(SETTINGS_KEY, JSON.stringify(settings));
   }
   function applySettings(){
     document.body.classList.toggle('reduce-motion', settings.reduceMotion);
@@ -866,7 +920,7 @@
     const dailyBest = getBest(dailyLevel);
     const dailyMedal = medalForScore(dailyLevel, dailyBest);
     const streak = getDailyStreak();
-    const playedToday = localStorage.getItem('wired-v2-daily-lastDate') === todayStr;
+    const playedToday = store.get('wired-v2-daily-lastDate') === todayStr;
     const dailyCard = document.createElement('div');
     dailyCard.className = 'levelCard dailyCard';
     dailyCard.innerHTML = `
@@ -1838,6 +1892,225 @@
     window.addEventListener('keydown', finish);
   }
 
+  // ---------- Self test ----------
+  // The assertions live here, next to the code they cover, and run in two
+  // places from this one definition:
+  //
+  //   index.html?test=1      in the browser, rendered over the page
+  //   node tools/test.mjs    headless, exits non-zero on any failure
+  //
+  // Everything below is pure: no rendering, no timing, no network, so both runs
+  // agree. Checks that borrow module state (level, elapsed, zapCount, backing)
+  // restore it in a finally block, so running the suite can't corrupt a session.
+  function selfTest(){
+    const results = [];
+    function check(name, fn){
+      try{
+        results.push({ name, pass:true, detail: fn() || '' });
+      } catch(e){
+        results.push({ name, pass:false, detail: (e && e.message) || String(e) });
+      }
+    }
+    function assert(cond, msg){ if(!cond) throw new Error(msg || 'assertion failed'); }
+
+    // --- The determinism promise -------------------------------------------
+    // "Nothing here is random" is the game's whole pitch and the reason scores
+    // are comparable at all, so it gets asserted rather than assumed.
+    check('daily challenge is identical for a given date', ()=>{
+      const a = generateDailyLevel('2026-08-22');
+      const b = generateDailyLevel('2026-08-22');
+      assert(JSON.stringify(a) === JSON.stringify(b), 'two calls for one date disagreed');
+      return a.terminals.length + ' pairs, ' + a.obstacles.length + ' sparks';
+    });
+
+    check('daily challenge changes from day to day', ()=>{
+      const dates = ['2026-08-20','2026-08-21','2026-08-22','2026-08-23','2026-08-24'];
+      const seen = new Set(dates.map(d=>{
+        const lv = generateDailyLevel(d);
+        return JSON.stringify([lv.terminals, lv.obstacles]);
+      }));
+      assert(seen.size === dates.length,
+             'only ' + seen.size + ' distinct boards across ' + dates.length + ' days');
+      return seen.size + ' distinct boards across ' + dates.length + ' days';
+    });
+
+    // --- The solvability invariant -----------------------------------------
+    // Levels are solvable by construction, not by search: every pair runs down
+    // its own column, so no wire can block another. Nothing enforced that
+    // before this check, and a hand-edited level could quietly break it.
+    check('every level pairs its terminals in a single column', ()=>{
+      for(const lv of LEVELS){
+        const cols = new Set();
+        for(const t of lv.terminals){
+          assert(t.a[0] === t.b[0], lv.name + ': a pair spans two columns');
+          assert(t.a[0] >= 0 && t.a[0] < lv.cols, lv.name + ': column off the board');
+          assert(t.a[1] >= 0 && t.a[1] < lv.rows, lv.name + ': row off the board');
+          assert(t.b[1] >= 0 && t.b[1] < lv.rows, lv.name + ': row off the board');
+          cols.add(t.a[0]);
+        }
+        assert(cols.size === lv.terminals.length, lv.name + ': two pairs share a column');
+      }
+      return LEVELS.length + ' levels';
+    });
+
+    check('generated dailies hold the same invariant', ()=>{
+      const dates = ['2026-01-01','2026-06-15','2026-08-22','2026-12-31'];
+      for(const d of dates){
+        const lv = generateDailyLevel(d);
+        const cols = new Set();
+        for(const t of lv.terminals){
+          assert(t.a[0] === t.b[0], d + ': a pair spans two columns');
+          assert(t.a[1] === 0 && t.b[1] === lv.rows-1, d + ': a pair does not span the board');
+          cols.add(t.a[0]);
+        }
+        assert(cols.size === lv.terminals.length, d + ': two pairs share a column');
+      }
+      return 'checked ' + dates.length + ' dates';
+    });
+
+    check('daily sparks never patrol a terminal row', ()=>{
+      const dates = ['2026-01-01','2026-06-15','2026-08-22','2026-12-31'];
+      for(const d of dates){
+        const lv = generateDailyLevel(d);
+        for(const o of lv.obstacles){
+          for(const cell of o.path){
+            assert(cell[1] !== 0 && cell[1] !== lv.rows-1, d + ': a spark sits on a terminal row');
+            assert(cell[0] >= 0 && cell[0] < lv.cols, d + ': a spark runs off the board');
+          }
+        }
+      }
+      return 'checked ' + dates.length + ' dates';
+    });
+
+    check('level ids are unique', ()=>{
+      const ids = LEVELS.map(lv=>lv.id);
+      assert(new Set(ids).size === ids.length, 'duplicate level id');
+      return ids.join(', ');
+    });
+
+    check('a spark path is contiguous and returns to its start', ()=>{
+      const path = loopPath([[0,2],[5,2]]);
+      assert(path[0][0] === 0 && path[0][1] === 2, 'does not start at the first waypoint');
+      assert(path.some(c=>c[0] === 5), 'never reaches the far waypoint');
+      assert(path[path.length-1][0] === path[0][0] && path[path.length-1][1] === path[0][1],
+             'does not come back to its start');
+      for(let i=1;i<path.length;i++){
+        const step = Math.abs(path[i][0]-path[i-1][0]) + Math.abs(path[i][1]-path[i-1][1]);
+        assert(step === 1, 'jumps ' + step + ' cells at index ' + i);
+      }
+      return path.length + ' cells, one cell per step';
+    });
+
+    // --- Scoring and sharing ------------------------------------------------
+    check('score is elapsed time plus a penalty per short', ()=>{
+      const wasElapsed = elapsed, wasZaps = zapCount;
+      try{
+        elapsed = 12.5; zapCount = 0;
+        assert(currentScore() === 12.5, 'a clean run scored ' + currentScore());
+        zapCount = 3;
+        assert(currentScore() === 12.5 + 3*ZAP_PENALTY, 'three shorts scored ' + currentScore());
+      } finally { elapsed = wasElapsed; zapCount = wasZaps; }
+      return ZAP_PENALTY + 's per short';
+    });
+
+    check('a challenge link round-trips its level and score', ()=>{
+      const wasLevel = level, wasElapsed = elapsed, wasZaps = zapCount;
+      try{
+        level = LEVELS[1]; elapsed = 9.4; zapCount = 2;
+        const url = challengeUrl();
+        assert(url.indexOf('?') === url.lastIndexOf('?'), 'link carries two query strings');
+        const params = new URLSearchParams(url.slice(url.indexOf('?')));
+        const back = resolveChallengeLevel(params.get('challenge'));
+        assert(back && back.id === LEVELS[1].id, 'the level did not survive the round trip');
+        assert(parseFloat(params.get('score')) === currentScore(),
+               'the score did not survive the round trip');
+        return 'level ' + back.id + ' at ' + params.get('score') + 's';
+      } finally { level = wasLevel; elapsed = wasElapsed; zapCount = wasZaps; }
+    });
+
+    check('a stale daily challenge link resolves to nothing', ()=>{
+      assert(resolveChallengeLevel('daily-2020-01-01') === null, 'an old daily still resolved');
+      assert(resolveChallengeLevel('9999') === null, 'an unknown level id still resolved');
+      return 'both rejected';
+    });
+
+    check('medal thresholds run gold through bronze', ()=>{
+      for(const lv of LEVELS){
+        const t = getMedalThresholds(lv);
+        assert(t, lv.name + ' has no thresholds');
+        assert(t.gold < t.silver && t.silver < t.bronze, lv.name + ': thresholds out of order');
+        assert(medalForScore(lv, t.gold) === 'gold', lv.name + ': gold cutoff');
+        assert(medalForScore(lv, t.silver) === 'silver', lv.name + ': silver cutoff');
+        assert(medalForScore(lv, t.bronze) === 'bronze', lv.name + ': bronze cutoff');
+        assert(medalForScore(lv, t.bronze + 0.1) === null, lv.name + ': awarded past bronze');
+      }
+      assert(getMedalThresholds({isDaily:true}) === MEDAL_THRESHOLDS[2],
+             'the daily should borrow Circuit Board thresholds');
+      return LEVELS.length + ' levels plus the daily';
+    });
+
+    // --- Degrading without storage -----------------------------------------
+    // localStorage throws on access when site data is blocked, and the game
+    // reads it during boot. This proves the wrapper turns that into a lost
+    // high score rather than a blank page.
+    check('blocked storage degrades instead of throwing', ()=>{
+      const wasBacking = backing;
+      try{
+        backing = {
+          getItem(){ throw new Error('storage denied'); },
+          setItem(){ throw new Error('storage denied'); },
+        };
+        assert(getBest(LEVELS[0]) === null, 'getBest should fall back to null');
+        assert(getEquippedSkinId() === 'default', 'skin should fall back to default');
+        assert(getDailyStreak() === 0, 'streak should fall back to 0');
+        assert(getCounter('wired-v2-probe') === 0, 'counter should fall back to 0');
+        assert(hasCleanClear(LEVELS[0]) === false, 'clean-clear should fall back to false');
+        assert(JSON.stringify(loadSettings()) === JSON.stringify(SETTINGS_DEFAULTS),
+               'settings should fall back to defaults');
+        // Writes must be swallowed, not thrown.
+        bumpCounter('wired-v2-probe');
+        setBestIfBetter(LEVELS[0], 5);
+        markCleanClear(LEVELS[0]);
+        saveSettings();
+      } finally { backing = wasBacking; }
+      return 'reads fall back, writes are dropped';
+    });
+
+    check('cosmetic skins never touch anything that affects a score', ()=>{
+      // Skins are sold as purely visual. Every token one sets must be a CSS
+      // custom property, never a tunable the simulation reads.
+      for(const key of ALL_SKIN_TOKEN_KEYS){
+        assert(key.indexOf('--') === 0, 'skin token "' + key + '" is not a CSS variable');
+      }
+      return ALL_SKIN_TOKEN_KEYS.length + ' tokens, all CSS variables';
+    });
+
+    return results;
+  }
+
+  // Paints the suite over the page for index.html?test=1. tools/test.mjs
+  // ignores this and reads the returned array instead.
+  function renderSelfTest(results){
+    const fails = results.filter(r=>!r.pass).length;
+    const rows = results.map(r =>
+      '<div style="padding:8px 0;border-top:1px solid var(--panel-border)">' +
+        '<span style="color:' + (r.pass ? 'var(--good)' : 'var(--danger)') + ';font-weight:700">' +
+          (r.pass ? 'PASS' : 'FAIL') +
+        '</span> ' + escapeHtml(r.name) +
+        (r.detail ? '<div style="color:var(--text-dim);font-size:12px;margin:2px 0 0 46px">' +
+                    escapeHtml(String(r.detail)) + '</div>' : '') +
+      '</div>').join('');
+    document.body.innerHTML =
+      '<div style="max-width:720px;margin:40px auto;padding:0 16px">' +
+        '<h1 style="font-size:20px;margin:0 0 4px">Wired &mdash; self test</h1>' +
+        '<div style="font-weight:700;margin-bottom:14px;color:' +
+          (fails ? 'var(--danger)' : 'var(--good)') + '">' +
+          (fails ? ('FAIL &mdash; ' + fails + ' of ' + results.length + ' checks')
+                 : ('PASS &mdash; all ' + results.length + ' checks')) +
+        '</div>' + rows +
+      '</div>';
+  }
+
   // ---------- Boot ----------
   level = LEVELS[0];
   resizeCanvasForLevel();
@@ -1846,12 +2119,24 @@
   showMenu();
   playIntro();
 
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
-    });
+  // The whole script is an IIFE, so without this line nothing inside it is
+  // reachable from tools/test.mjs, which evaluates this file and then calls
+  // globalThis.selfTest() for machine-readable results.
+  globalThis.selfTest = selfTest;
+
+  if(/[?&]test=1/.test(location.search || '')){
+    // Test mode deliberately skips the render loop and the service worker:
+    // a worker registered from a test run would go on caching and serving the
+    // page afterwards, which is not what anyone asked for by adding ?test=1.
+    renderSelfTest(selfTest());
+  } else {
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+      });
+    }
+    requestAnimationFrame(tick);
   }
-  requestAnimationFrame(tick);
 })();
 </script>
 </body>

@@ -1,15 +1,37 @@
 {
+  "id": "/wired/",
   "name": "Wired — a real-time circuit puzzle",
   "short_name": "Wired",
   "description": "Connect every pair. Dodge the current. Race the clock.",
+  "lang": "en",
+  "categories": ["games", "puzzle"],
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#0a0e17",
   "theme_color": "#0a0e17",
   "orientation": "any",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/wide-menu.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Level select, with the daily challenge at the top"
+    },
+    {
+      "src": "screenshots/narrow-play.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Wiring a board while a spark patrols its track"
+    }
   ]
 }
