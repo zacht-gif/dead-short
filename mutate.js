@@ -31,6 +31,7 @@ const { execFileSync } = require('child_process');
 
 const ROOT = __dirname;
 const LIST = process.argv.includes('--list');
+const VERBOSE = process.argv.includes('--verbose');
 const filter = process.argv.slice(2).find(a => !a.startsWith('--'));
 
 // Files a mutation may touch. Snapshotted whole and restored verbatim.
@@ -233,11 +234,12 @@ function main() {
         const r = sh(process.execPath, ['build.js']);
         caught = r.code !== 0;
         right = caught && r.out.includes(mut.expect);
-        detail = (r.out.match(/BUILD FAILED: (.*)/) || [, ''])[1].trim().slice(0, 52);
-        if (caught && !right) {
-          const line = r.out.split('\n').find(l => /FAILED|FAIL/.test(l)) || '';
-          detail = 'caught by something else: ' + line.trim().slice(0, 40);
-        }
+        // Prefer the failing assertion's own name over the generic "the test
+        // suite did not pass", so `expect` can name the test that should own
+        // this defect rather than settling for "something went red".
+        const failLine = (r.out.match(/^\s*FAIL\s+(.*)$/m) || [, ''])[1].trim();
+        const buildLine = (r.out.match(/BUILD FAILED: (.*)/) || [, ''])[1].trim();
+        detail = (failLine || buildLine).slice(0, 64);
       } catch (e) {
         // A mutation that could not be applied proves nothing in either
         // direction. Reporting it as a survivor claims the safety net has a
@@ -248,6 +250,7 @@ function main() {
         restore(snap);
       }
       results.push({ ...mut, caught, right, detail, error });
+      if (VERBOSE && detail) console.log('    -> ' + detail);
       console.log(error ? 'ERROR (did not apply)'
                 : caught ? (right ? 'caught' : 'caught (wrong gate)')
                 : 'SURVIVED');
