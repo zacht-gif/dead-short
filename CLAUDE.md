@@ -11,29 +11,35 @@ deliberately the things the README does *not* say.
 
 ---
 
-## The branch, before anything else
+## The branch question, resolved 2026-09-15
 
-**`main` is the default branch on GitHub and it is not where the work is.**
+**`main` is now the game.** A clone, a fresh machine and GitHub's web view all land on
+the real thing. If you are reading this expecting a warning about being on the
+wrong branch, that is over.
 
-| | |
-|---|---|
-| `main` | `ffa4856` — 90 KB `index.html`, PNG `icons/`, `screenshots/`, `tools/build.ps1`, `tools/make-icons.mjs`, `tools/make-screenshots.mjs`, `ITCH-IO-PAGE.md` |
-| `tick-model-and-routing` | `88d5cef` — 205 KB `index.html`, `build.js`, `store/`, `solve.js`, `test.js`, `harness.js`. **The real game** |
+What happened, because the shape of it is worth keeping. `main` and
+`tick-model-and-routing` **diverged at the initial commit** (`f784491`) - not one
+behind the other, but two independent packaging efforts from the same start, 1
+commit against 5. A normal merge would have been a large conflict resolution
+producing nothing the branch did not already have, because the branch *replaced*
+main's toolchain rather than extending it.
 
-The two **diverged at the initial commit** (`f784491`), so this is not a branch
-that is merely behind — it is two independent packaging efforts from the same
-starting point, 5 commits against 1. The branch carries the tick model, the
-solvers, the level set and the editor; `main` carries an icon-and-screenshot
-toolchain the branch replaced with a single hand-authored `icon.svg`.
+So the two histories were joined with `-s ours` (`a180189`): the tree is exactly
+the branch, and `main` became an ancestor instead of a dead end, which let `main`
+fast-forward onto the real game with no force-push and nothing discarded. The old
+lineage is reachable through that merge and through the **`archive/packaging-v1`**
+tag.
 
-Nothing is *broken* by this — I checked, and the branch's `manifest.json` and
-`sw.js` reference only files that exist on the branch. The cost is subtler: a
-clone, a fresh machine, or GitHub's own web view all land on `main` and see a
-game missing everything. Anyone starting here from scratch starts on the wrong
-one.
+Before resolving it, everything on `main` worth keeping was carried across:
+`make-icons.mjs` and the PNG `icons/` were ported (the branch had gone SVG-only,
+which is not reliably honoured for install prompts), and its coordinate-driven
+`tools/make-screenshots.mjs` was superseded by `shots.mjs`. Its `screenshots/`
+were **not** carried across and should never be: they are of a three-level
+version of the game with a different scoring model, and publishing them would
+have misrepresented the product.
 
-Resolve it by deciding which packaging approach wins and merging, or by
-retargeting the default branch — not by copying files between the two.
+`tick-model-and-routing` still exists and is identical to `main`. It can be
+deleted whenever - it is fully merged, so nothing is lost either way.
 
 ## Private, proprietary, and not published
 
@@ -104,12 +110,29 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `tick-model-and-routing`, verified 2026-09-13: **310/310 assertions pass**,
-and all ten shipped levels plus that day's daily solve and replay clean with
-routing proven minimal on every one. v2.0.0. The build produces
-`dist/wired-2.0.0.zip`.
+On `main`, verified 2026-09-15: **319/319 assertions pass**, all ten shipped
+levels plus that day's daily solve and replay with routing proven minimal, and
+**13/13 mutations caught** by `node mutate.js`. v2.0.0, `dist/wired-2.0.0.zip`.
 
-The open work is not code. In order: decide the branch question above, then
-walk the pre-publish checklist in `store/itch-page.md` — principally the
-`CANONICAL_URL` decision and the note about the name. Screenshots and a cover
-pass are the last thing between this and a store page.
+The store assets are done and are **generated, not hand-captured**: `node shots.mjs`
+rebuilds all six from the real game, byte-reproducibly. Every in-game position
+comes from a solver-proven solution replayed partway, except the board-sealed one,
+which needs a deliberate mistake and shares its route with the suite (`SEAL_DEMO`).
+
+**What is actually left is the two judgement calls, not code:**
+
+1. **`CANONICAL_URL` is still `''`** (`index.html`). itch does not forward query
+   strings into an embedded game, so challenge links only deep-link if this points
+   at a page serving `index.html` directly. Decide, or accept the limitation.
+2. **The name.** Wired is a Conde Nast trademark. A browser puzzle game is a
+   different category and the word describes the mechanic, but it is much cheaper
+   to change before the page has traction than after.
+
+Then the cover's finishing pass (`store/README.md`) and the upload settings already
+written out in `store/itch-page.md`.
+
+Two things deliberately not done. The manifest has **no `screenshots` field**: those
+ship inside the zip and would multiply the download for an install-prompt nicety,
+while the store screenshots are uploaded to itch and ship nothing. And a **GIF**
+would sell the mechanic better than any still - cut-and-fill's `tools/gif.mjs`
+runs on the same CDP plumbing as `chrome.mjs`, so that is a port rather than a build.
