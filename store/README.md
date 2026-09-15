@@ -50,11 +50,8 @@ flag list in `chrome.mjs` buys, and why the looping animations are pinned to t=0
 | `02-menu` | All ten levels, the daily with its streak, per-level gold. Height is measured, so an eleventh level lengthens the shot instead of being cropped out |
 | `03-settings` | The accessibility options, which are a selling point rather than a footnote |
 | `04-editor` | The differentiator: a board loaded through the real paste-a-code path, with the green *Verified solvable. Par 3.3s (20 ticks)* verdict showing |
+| `05-board-sealed` | Fault Line with the outer pair run tight along row 1 — the red banner naming the pair that got stranded. The route is `SEAL_DEMO` in `index.html`, shared with the suite, so this picture cannot advertise a warning the tests no longer prove |
 | `cover` | `cover.svg` rendered at 1260x1000, i.e. itch's 630x500 cover at 2x |
-
-**Still to do: the board-sealed warning.** It is the one shot `stageSolution` cannot produce, because it
-needs a deliberately *wrong* route — the solver only ever hands back correct ones. Adding it means either
-a hand-authored losing route in the shot list or a way to set a wire's intent directly.
 
 A short GIF of a wire filling along its dotted route and stopping at a live gate would sell the mechanic
 better than any still. cut-and-fill has a working `tools/gif.mjs` built on this same CDP plumbing, so

@@ -117,6 +117,25 @@ const SHOTS = [
     wait: 400,
   },
   {
+    id: "05-board-sealed",
+    file: "05-board-sealed.png",
+    width: 720, height: 900,
+    fit: true,
+    // The one position stageSolution cannot produce: solutions are correct by
+    // construction, and this needs a MISTAKE. The route lives in index.html as
+    // SEAL_DEMO and is shared with the suite, which asserts that it really does
+    // seal and that the warning names the stranded pair — so this picture
+    // cannot end up advertising a warning the tests no longer prove.
+    setup: SKIP_INTRO + `
+      const d = window.__wiredDev;
+      const r = d.ui.stageSealDemo();
+      if (!r.sealed) throw new Error("the demo route did not seal: " + JSON.stringify(r));
+      d.ui.updateHud();
+      d.ui.draw(r.ticks, 0);
+    `,
+    wait: 300,
+  },
+  {
     id: "cover",
     file: "cover.png",
     // itch's cover slot is 630x500; rendered at 2x so it stays sharp on

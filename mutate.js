@@ -135,6 +135,16 @@ const MUTATIONS = [
     note: 'the board-sealed warning goes permanently quiet',
   },
   {
+    id: 'seal-demo-stops-sealing',
+    file: 'index.html',
+    find: '    route: [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[6,0]],',
+    replace: '    route: [[1,0],[2,0],[3,0],[4,0],[5,0],[6,0]],',
+    // Chosen so the wire still FINISHES and only the sealing changes — a route
+    // that failed to finish would trip an earlier assertion and prove less.
+    expect: 'sealing it is detected on a real board',
+    note: 'the route the store screenshot photographs no longer seals the board',
+  },
+  {
     id: 'spark-is-harmless',
     file: 'index.html',
     find: '    return isGate(ob) ? gateIsLive(ob, tick) : true;',

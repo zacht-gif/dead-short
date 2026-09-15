@@ -3629,6 +3629,35 @@
     return { ticks: tickCount, zaps: zapCount, won };
   }
 
+  // The one position the solver cannot hand us: a board sealed by a finished
+  // wire. Solutions are correct by construction, so staging a *mistake* needs
+  // the mistake written down — the outermost pair on Fault Line run tight along
+  // row 1, stranding the pairs that have to nest inside it. A route a player
+  // would plausibly draw, which is the whole reason the warning exists.
+  //
+  // Defined once because two things consume it: selfTest asserts that it really
+  // does seal and that the warning names the stranded pair, and shots.mjs
+  // photographs it for the store page. Two copies would drift, and the drift
+  // would be a screenshot advertising a warning the suite no longer proves.
+  const SEAL_DEMO = {
+    slug: 'fault-line',
+    start: [0,0],
+    route: [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[6,0]],
+    maxTicks: 40,
+  };
+
+  function stageSealDemo(){
+    const lv = LEVELS.find(l=>l.slug === SEAL_DEMO.slug);
+    if(!lv) return { sealed:false, reason:'no level ' + SEAL_DEMO.slug };
+    enterLevel(lv);
+    onPointerDown(SEAL_DEMO.start);
+    SEAL_DEMO.route.forEach(c=>planTo(c));
+    running = true;
+    for(let i = 0; i < SEAL_DEMO.maxTicks && !sealed; i++) stepTick();
+    running = false;
+    return { sealed, locked: !!(wires[0] && wires[0].locked), ticks: tickCount };
+  }
+
   // ============================================================================
   // EDITOR
   // ============================================================================
@@ -4260,17 +4289,18 @@
       // loose enough that this probe timed out and stayed silent on a board that
       // is provably sealed.
       (function(){
-        const fault = LEVELS.find(l=>l.slug === 'fault-line');
+        const fault = LEVELS.find(l=>l.slug === SEAL_DEMO.slug);
         if(!fault) { ok('fault-line exists to test sealing', false); return; }
         load(fault);
-        // Run the outermost pair tight against row 1 — a route a player would
-        // plausibly draw, which strands the two pairs that must nest inside it.
-        const greedy = [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[6,0]];
-        onPointerDown([0,0]);
-        greedy.forEach(c=>planTo(c));
-        ok('the greedy outer route is drawable', wires[0].intent.length === 9,
+        // The same route the store screenshot photographs — see SEAL_DEMO. It
+        // is shared rather than copied so the picture cannot end up showing a
+        // warning these assertions no longer prove.
+        onPointerDown(SEAL_DEMO.start);
+        SEAL_DEMO.route.forEach(c=>planTo(c));
+        ok('the greedy outer route is drawable',
+           wires[0].intent.length === SEAL_DEMO.route.length + 1,
            'intent=' + wires[0].intent.length);
-        runTicks(40);
+        runTicks(SEAL_DEMO.maxTicks);
         ok('fault-line: the greedy route does finish', wires[0].locked === true);
         ok('fault-line: sealing it is detected on a real board', sealed === true);
         ok('fault-line: the warning names a specific pair',
@@ -4648,6 +4678,7 @@
                         // score: bests live in localStorage and were always
                         // editable from this same console.
                         ui: { enterLevel, showMenu, showSettings, showEditor,
+                              stageSealDemo,
                               stageSolution, draw, updateHud } };
 
   // ---------- Boot ----------

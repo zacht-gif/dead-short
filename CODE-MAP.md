@@ -12,22 +12,22 @@ shapes rather than line numbers.
 
 ```bash
 grep -n stepTick CODE-MAP.md       # -> 2035
-sed -n '2035,2080p' index.html     # read those lines, not all 4,693
+sed -n '2035,2080p' index.html     # read those lines, not all 4,724
 ```
 
-Generated from `index.html` - 4,693 lines, 207,650 bytes, sha256 `3de9d8d871ee`.
+Generated from `index.html` - 4,724 lines, 209,060 bytes, sha256 `8b8fe89cbf4e`.
 
 ## Files
 
 | file | lines | what it is |
 |---|---:|---|
-| `index.html` | 4,693 | The entire game: markup, styles and engine in one file. |
+| `index.html` | 4,724 | The entire game: markup, styles and engine in one file. |
 | `build.js` | 267 | Release gate + packager. Refuses to zip a build that fails a check. |
 | `codemap.js` | 346 | Generates CODE-MAP.md. This file. |
 | `make-icons.mjs` | 188 | Rasterizes icons/*.png from the same art as icon.svg. |
-| `shots.mjs` | 253 | Captures store/screenshots/ from the real game. |
+| `shots.mjs` | 272 | Captures store/screenshots/ from the real game. |
 | `chrome.mjs` | 164 | Headless-Chrome plumbing for shots.mjs. |
-| `mutate.js` | 294 | Mutation audit: breaks the game on purpose to test the gates. |
+| `mutate.js` | 304 | Mutation audit: breaks the game on purpose to test the gates. |
 | `harness.js` | 135 | Loads the inline game script into a stub DOM under node:vm. |
 | `test.js` | 55 | Headless runner for the in-page selfTest(). |
 | `solve.js` | 89 | Proves each level routes, computes par, replays it to verify. |
@@ -79,14 +79,14 @@ block, `HTML` in the body, `JS` in the inline script.
 | 3114-3299 | JS | **LEVEL CODEC** | 6 |
 | 3300-3397 | JS | Trap measurement | 3 |
 | 3398-3419 | JS | Hazard timing helpers | 4 |
-| 3420-3631 | JS | Solver B — scheduling | 6 |
-| 3632-4075 | JS | **EDITOR** | 16 |
-| 4076-4652 | JS | Self test | 1 |
-| 4653-4693 | JS | Boot |  |
+| 3420-3660 | JS | Solver B — scheduling | 7 |
+| 3661-4104 | JS | **EDITOR** | 16 |
+| 4105-4683 | JS | Self test | 1 |
+| 4684-4724 | JS | Boot |  |
 
 ## Functions, by section
 
-All 138 `function` declarations in `index.html`.
+All 139 `function` declarations in `index.html`.
 
 ### Level definitions  <sub>JS &middot; 690-892</sub>
 
@@ -313,7 +313,7 @@ All 138 `function` declarations in `index.html`.
  3411  dangerAt    (lv, tick)
 ```
 
-### Solver B — scheduling  <sub>JS &middot; 3420-3631</sub>
+### Solver B — scheduling  <sub>JS &middot; 3420-3660</sub>
 
 ```
  3437  wireRun       (lv, route, t0, cap)
@@ -322,33 +322,34 @@ All 138 `function` declarations in `index.html`.
  3579  applyAction   (act, sol)
  3597  replaySolution(lv, sol)
  3621  stageSolution (lv, sol, stopAfter)
+ 3649  stageSealDemo ()
 ```
 
-### EDITOR  <sub>JS &middot; 3632-4075</sub>
+### EDITOR  <sub>JS &middot; 3661-4104</sub>
 
 ```
- 3661  edPadFor          (i)
- 3666  edCellUsed        (cell)
- 3672  edInBounds        (cell)
- 3678  editorLevel       ()
- 3698  edInvalidate      ()
- 3704  setVerdict        (html, cls)
- 3709  editorTap         (cell)
- 3782  renderEditorTools ()
- 3800  resizeEditorCanvas()
- 3811  drawEditor        ()
- 3908  drawGlyphOn       (c2d, shape, x, y, size)
- 3926  editorCellAt      (evt)
- 3937  runVerify         ()
- 3974  editorClear       ()
- 3983  editorRandom      ()
- 4002  showEditor        ()
+ 3690  edPadFor          (i)
+ 3695  edCellUsed        (cell)
+ 3701  edInBounds        (cell)
+ 3707  editorLevel       ()
+ 3727  edInvalidate      ()
+ 3733  setVerdict        (html, cls)
+ 3738  editorTap         (cell)
+ 3811  renderEditorTools ()
+ 3829  resizeEditorCanvas()
+ 3840  drawEditor        ()
+ 3937  drawGlyphOn       (c2d, shape, x, y, size)
+ 3955  editorCellAt      (evt)
+ 3966  runVerify         ()
+ 4003  editorClear       ()
+ 4012  editorRandom      ()
+ 4031  showEditor        ()
 ```
 
-### Self test  <sub>JS &middot; 4076-4652</sub>
+### Self test  <sub>JS &middot; 4105-4683</sub>
 
 ```
- 4085  selfTest()
+ 4114  selfTest()
 ```
 
 ## Top-level constants
@@ -408,17 +409,18 @@ sit in **Screen management**.
  3134  EDITOR_MIN          = 5;
  3140  EDITOR_MAX          = 7;
  3141  VERIFY_BUDGET       = 4000000;
- 3638  GATE_PRESETS        = [
- 3642  PATROL_SPEEDS       = [2, 3, 1, 4];
- 3644  edCols              = 6, edRows = 6;
- 3645  edPads              = [];
- 3646  edBlocked           = [];
- 3647  edGates             = [];
- 3648  edPatrols           = [];
- 3649  edTool              = 'pair0';
- 3650  edPatrolDraft       = null;
- 3651  edVerified          = null;
- 3654  edCtx               = editorCanvas.getContext('2d');
+ 3642  SEAL_DEMO           = {
+ 3667  GATE_PRESETS        = [
+ 3671  PATROL_SPEEDS       = [2, 3, 1, 4];
+ 3673  edCols              = 6, edRows = 6;
+ 3674  edPads              = [];
+ 3675  edBlocked           = [];
+ 3676  edGates             = [];
+ 3677  edPatrols           = [];
+ 3678  edTool              = 'pair0';
+ 3679  edPatrolDraft       = null;
+ 3680  edVerified          = null;
+ 3683  edCtx               = editorCanvas.getContext('2d');
 ```
 
 ## Levels
@@ -444,26 +446,26 @@ The 20 assertion groups inside `selfTest()`, so you can find the test
 for a behaviour without reading the whole suite.
 
 ```
- 4100  The first frame of a patrol level renders
- 4112  Current costs a tick per cell, and drawing costs nothing
- 4130  The exploit this whole model exists to kill
- 4145  Determinism: same actions from tick 0, same run
- 4158  Spark position is a pure function of the tick counter
- 4169  A spark shorts what it touches, and only what it touches
- 4203  Current waits at a live contact instead of dying on it
- 4218  Components block routing
- 4229  A finished wire is a wall
- 4242  Sealing the board is detected, and only when certain
- 4368  Ordinary play obeys the same rules par was computed under
- 4396  Progression is keyed by identity, not position
- 4405  A custom board travels inside its own link
- 4431  The editor gate refuses what it cannot prove
- 4451  Save keys are tied to identity, not array position
- 4476  Solver: routing correctness on boards with a known answer
- 4527  Solution contract
- 4570  The daily is generated AND verified
- 4593  Touch targets stay usable on real phones
- 4612  Shipped level data is well-formed
+ 4129  The first frame of a patrol level renders
+ 4141  Current costs a tick per cell, and drawing costs nothing
+ 4159  The exploit this whole model exists to kill
+ 4174  Determinism: same actions from tick 0, same run
+ 4187  Spark position is a pure function of the tick counter
+ 4198  A spark shorts what it touches, and only what it touches
+ 4232  Current waits at a live contact instead of dying on it
+ 4247  Components block routing
+ 4258  A finished wire is a wall
+ 4271  Sealing the board is detected, and only when certain
+ 4398  Ordinary play obeys the same rules par was computed under
+ 4426  Progression is keyed by identity, not position
+ 4435  A custom board travels inside its own link
+ 4461  The editor gate refuses what it cannot prove
+ 4481  Save keys are tied to identity, not array position
+ 4506  Solver: routing correctness on boards with a known answer
+ 4557  Solution contract
+ 4600  The daily is generated AND verified
+ 4623  Touch targets stay usable on real phones
+ 4642  Shipped level data is well-formed
 ```
 
 ## The tooling seam
@@ -472,7 +474,7 @@ for a behaviour without reading the whole suite.
 Renaming anything in it breaks both runners.
 
 ```
-solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ, generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT, trapMeasure, measurePressure, encodeLevel, decodeLevel, // Screen and staging control, used by shots.mjs to // photograph real positions. Nothing here can reach a // score: bests live in localStorage and were always // editable from this same console. ui: { enterLevel, showMenu, showSettings, showEditor, stageSolution, draw, updateHud }
+solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ, generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT, trapMeasure, measurePressure, encodeLevel, decodeLevel, // Screen and staging control, used by shots.mjs to // photograph real positions. Nothing here can reach a // score: bests live in localStorage and were always // editable from this same console. ui: { enterLevel, showMenu, showSettings, showEditor, stageSealDemo, stageSolution, draw, updateHud }
 ```
 
 ## localStorage keys
