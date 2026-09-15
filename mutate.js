@@ -177,18 +177,27 @@ function restore(snap) {
   for (const [f, buf] of snap) fs.writeFileSync(path.join(ROOT, f), buf);
 }
 
+// Anchors are written with \n. The files are not all LF: a `git checkout` under
+// core.autocrlf rewrites index.html as CRLF, and after that every multi-line
+// anchor silently matches nothing. That is precisely how this tool first told
+// me the Mainframe bug had gone undetected — the mutation had never applied.
+function fitEndings(text, src) {
+  return src.includes('\r\n') ? text.replace(/\r?\n/g, '\r\n') : text;
+}
+
 function apply(mut) {
   const p = path.join(ROOT, mut.file);
   const src = fs.readFileSync(p, 'utf8');
-  // An anchor that matches zero times would leave the file untouched, the build
-  // would pass, and the mutation would be recorded as "caught" — a clean green
-  // that means nothing happened. Matching more than once is just as bad: the
-  // edit lands somewhere unintended. Both are errors, never warnings.
-  const hits = src.split(mut.find).length - 1;
+  const find = fitEndings(mut.find, src);
+  // An anchor matching zero times leaves the file untouched, so the build passes
+  // and the mutation looks like a survivor — a red result that means nothing
+  // happened. Matching more than once is just as bad: the edit lands somewhere
+  // unintended. Both are errors, never warnings, and never survivors.
+  const hits = src.split(find).length - 1;
   if (hits !== 1) {
     throw new Error(`anchor matched ${hits} times in ${mut.file} (needs exactly 1)`);
   }
-  fs.writeFileSync(p, src.replace(mut.find, mut.replace));
+  fs.writeFileSync(p, src.replace(find, fitEndings(mut.replace, src)));
 }
 
 function main() {
@@ -210,13 +219,16 @@ function main() {
   try {
     for (const mut of muts) {
       process.stdout.write(`${mut.id.padEnd(22)} `);
-      let caught = false, right = false, detail = '';
+      let caught = false, right = false, detail = '', error = null;
       try {
         apply(mut);
-        // A real edit to index.html comes with a regenerated map, so refresh it
-        // — otherwise checkCodeMap fires first every time and masks the gate
-        // actually under audit.
-        if (mut.refreshMap !== false && mut.file === 'index.html') sh(process.execPath, ['codemap.js']);
+        // A real edit comes with a regenerated map, so refresh it — otherwise
+        // checkCodeMap fires first and masks the gate actually under audit.
+        // Not just for index.html: the map records every support file's line
+        // count too, so a one-line manifest.json change stales it just as much.
+        // That masking is exactly what this audit is for, and it caught it here
+        // first — unshipped-asset reported "caught" while proving nothing.
+        if (mut.refreshMap !== false) sh(process.execPath, ['codemap.js']);
 
         const r = sh(process.execPath, ['build.js']);
         caught = r.code !== 0;
@@ -227,23 +239,35 @@ function main() {
           detail = 'caught by something else: ' + line.trim().slice(0, 40);
         }
       } catch (e) {
-        detail = 'MUTATION ERROR: ' + e.message;
+        // A mutation that could not be applied proves nothing in either
+        // direction. Reporting it as a survivor claims the safety net has a
+        // hole; reporting it as caught claims the opposite. It is its own
+        // outcome, and it is a failure of the audit, not of the code.
+        error = e.message;
       } finally {
         restore(snap);
       }
-      results.push({ ...mut, caught, right, detail });
-      console.log(caught ? (right ? 'caught' : 'caught (wrong gate)') : 'SURVIVED');
+      results.push({ ...mut, caught, right, detail, error });
+      console.log(error ? 'ERROR (did not apply)'
+                : caught ? (right ? 'caught' : 'caught (wrong gate)')
+                : 'SURVIVED');
     }
   } finally {
     restore(snap);
   }
 
-  const survivors = results.filter(r => !r.caught);
+  const errored = results.filter(r => r.error);
+  const survivors = results.filter(r => !r.caught && !r.error);
   const misfiled = results.filter(r => r.caught && !r.right);
 
   console.log('');
-  console.log(`${results.length - survivors.length}/${results.length} mutations caught`);
+  console.log(`${results.filter(r => r.caught).length}/${results.length} mutations caught`);
 
+  if (errored.length) {
+    console.log('\nCould not be applied — these tested NOTHING:');
+    errored.forEach(r => console.log(`  ${r.id}: ${r.error}`));
+    process.exitCode = 1;
+  }
   if (misfiled.length) {
     console.log('\nCaught, but not by the gate that should own them:');
     misfiled.forEach(r => console.log(`  ${r.id}\n    ${r.detail}`));
@@ -252,7 +276,7 @@ function main() {
     console.log('\nSURVIVED — these defects can be introduced today and every check passes:');
     survivors.forEach(r => console.log(`  ${r.id}: ${r.note}`));
     process.exitCode = 1;
-  } else {
+  } else if (!errored.length) {
     console.log('No survivors: every catalogued defect is detected.');
   }
 
