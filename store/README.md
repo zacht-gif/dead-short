@@ -30,21 +30,35 @@ Two things to handle in your pass:
 
 ## Screenshots
 
-I can't write PNGs to disk from here, so these need capturing from a real browser. Serve the game
-(`python -m http.server 8000`) and grab these four — they're the states that show the game best, and
-I've checked each one looks right:
+```bash
+node shots.mjs            # all of them, into store/screenshots/
+node shots.mjs editor     # just the ones whose id contains "editor"
+```
 
-1. **Mid-run on Logic Array.** Draw the nested routes and screenshot while the outer wire is still
-   filling: you get energized wire, dotted planned route, three components, a gate counting down and
-   a spark with its danger cell outlined — the whole vocabulary in one frame.
-2. **The menu.** Shows the ten levels, the daily with its streak, and per-level gold targets.
-3. **The editor, verified.** Build a board and hit Verify so the green *"Verified solvable. Par …"*
-   panel is showing. This is the differentiator — lead with it.
-4. **The board-sealed warning.** On Fault Line, run the outer pair tight along row 1; the red banner
-   naming the stranded pair appears once it locks.
+These are **generated, not captured by hand**. Every in-game position comes from
+`__wiredDev.ui.stageSolution()`, which replays a solution the solver proved and stops partway — so the
+marketing images carry the same guarantee the game does. Nothing is posed, and nothing shows a position
+a player could not have reached by the rules. Nothing in `shots.mjs` knows a pixel coordinate either, so
+a UI change means re-running one command rather than re-staging four screenshots by hand.
 
-A short GIF of a wire filling along its dotted route and stopping at a live gate would sell the
-mechanic better than any still, if you want one.
+Captures are **byte-reproducible**: run it twice and the PNGs hash identically. That is what the Chrome
+flag list in `chrome.mjs` buys, and why the looping animations are pinned to t=0 before the shutter.
+
+| id | what it shows |
+|---|---|
+| `01-mid-run` | Logic Array two thirds through its proven solution — energised wire, the dotted route still to fill, components, a gate mid-cycle, a spark on its outlined cell |
+| `02-menu` | All ten levels, the daily with its streak, per-level gold. Height is measured, so an eleventh level lengthens the shot instead of being cropped out |
+| `03-settings` | The accessibility options, which are a selling point rather than a footnote |
+| `04-editor` | The differentiator: a board loaded through the real paste-a-code path, with the green *Verified solvable. Par 3.3s (20 ticks)* verdict showing |
+| `cover` | `cover.svg` rendered at 1260x1000, i.e. itch's 630x500 cover at 2x |
+
+**Still to do: the board-sealed warning.** It is the one shot `stageSolution` cannot produce, because it
+needs a deliberately *wrong* route — the solver only ever hands back correct ones. Adding it means either
+a hand-authored losing route in the shot list or a way to set a wire's intent directly.
+
+A short GIF of a wire filling along its dotted route and stopping at a live gate would sell the mechanic
+better than any still. cut-and-fill has a working `tools/gif.mjs` built on this same CDP plumbing, so
+that is a port rather than a build if it is wanted.
 
 ## Before publishing
 

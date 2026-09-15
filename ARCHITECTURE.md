@@ -198,6 +198,14 @@ Edit `icon.svg`, then mirror the change into `make-icons.mjs` (`BOLT`,
 duplicates the art instead of parsing the SVG — a general SVG parser would dwarf a
 four-shape icon — and `checkIconArt()` is what stops the two copies drifting.
 
+### Re-capture the store screenshots
+
+`node shots.mjs`. Positions come from `stageSolution`, so they restage themselves —
+there is no pixel coordinate anywhere in `shots.mjs`, and a UI change just means
+running it again. Captures are byte-reproducible; if two runs differ, something
+non-deterministic reached the frame and the Chrome flags in `chrome.mjs` are the
+place to look.
+
 ### Bump the version
 
 `GAME_VERSION` in `index.html` **and** `CACHE_NAME` in `sw.js`. The build fails if
@@ -247,6 +255,7 @@ browsers strip the query string, which kills `?test=1`.
 | levels | `node solve.js` (or one slug) |
 | map | `node codemap.js` (`--check` to verify) |
 | icons | `node make-icons.mjs` |
+| screenshots | `node shots.mjs` |
 | release | `node build.js` |
 
 **The release needs PowerShell 7.** Windows PowerShell 5.1's `Compress-Archive`

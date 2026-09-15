@@ -29,6 +29,8 @@ const SUPPORT = [
   ['build.js',      'Release gate + packager. Refuses to zip a build that fails a check.'],
   ['codemap.js',    'Generates CODE-MAP.md. This file.'],
   ['make-icons.mjs', 'Rasterizes icons/*.png from the same art as icon.svg.'],
+  ['shots.mjs',     'Captures store/screenshots/ from the real game.'],
+  ['chrome.mjs',    'Headless-Chrome plumbing for shots.mjs.'],
   ['harness.js',    'Loads the inline game script into a stub DOM under node:vm.'],
   ['test.js',       'Headless runner for the in-page selfTest().'],
   ['solve.js',      'Proves each level routes, computes par, replays it to verify.'],
@@ -195,6 +197,14 @@ function render() {
   w('This file answers *where*. For *what shape* and *what to touch for a given change*,');
   w('read [ARCHITECTURE.md](ARCHITECTURE.md) - hand-written, and stable because it names');
   w('shapes rather than line numbers.');
+  w();
+  w('**Use it like this** - find the thing, then read only its slice:');
+  w();
+  w('```bash');
+  w('grep -n stepTick CODE-MAP.md       # -> 2035');
+  w("sed -n '2035,2080p' index.html     # read those lines, not all " +
+    ls.length.toLocaleString());
+  w('```');
   w();
   w('Generated from `index.html` - ' + ls.length.toLocaleString() + ' lines, ' +
     Buffer.byteLength(src).toLocaleString() + ' bytes, sha256 `' + hash + '`.');

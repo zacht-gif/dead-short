@@ -2245,7 +2245,14 @@
     const tpc = ob.ticksPerCell;
     const idx = Math.floor(tick / tpc);
     const within = ((tick % tpc) + frac) / tpc;   // 0..1 through this cell's window
-    const a = ob.path[idx % n], b = ob.path[(idx+1) % n];
+    // idx goes NEGATIVE whenever the caller samples back past tick 0 — draw()
+    // asks for earlier ticks to paint the spark's trail, so entering any level
+    // with a patrol evaluates tick -1 on its very first frame. JS's % keeps the
+    // sign, so path[-1] was undefined and the frame threw. The main loop's
+    // try/catch caught it and dropped the frame, which is exactly why nine of
+    // the ten shipped levels did this for a year without anyone seeing it.
+    const at = (i)=> ob.path[((i % n) + n) % n];
+    const a = at(idx), b = at(idx+1);
     const e = hopEase(within);
     return [ a[0] + (b[0]-a[0])*e, a[1] + (b[1]-a[1])*e ];
   }
@@ -3564,6 +3571,29 @@
   // Replays a solution through the REAL engine — the same stepTick() a player
   // drives. This is what binds the solvers to the game: if either search's model
   // of the rules drifts, this stops matching and the contract test fails.
+  // What one scheduled action MEANS, defined exactly once. Both the replay that
+  // verifies par and the staging used for screenshots run through here, because
+  // two readings of the same action list is how the engine and the model came
+  // apart the first time (see advanceToNextPlanned). Returns an error string, or
+  // null when the action was legal.
+  function applyAction(act, sol){
+    const kind = act[0];
+    if(kind === 'F' || kind === 'S'){
+      const i = parseInt(act.slice(1), 10);
+      setActiveColor(i);
+      if(kind === 'F') activeColor = i;         // free: no tick is spent
+      else stepTick();
+      return null;
+    }
+    const w = wires[activeColor];
+    const route = sol.paths[activeColor];
+    if(!w || !route) return 'no active wire at ' + act;
+    w.intent = kind === 'A' ? route.slice(0, w.cells.length + 1)
+                            : route.slice(0, w.cells.length);
+    stepTick();
+    return null;
+  }
+
   function replaySolution(lv, sol){
     const savedLevel = level;
     level = lv;
@@ -3571,25 +3601,32 @@
     running = true;
     let illegal = null;
     sol.actions.forEach(act=>{
-      const kind = act[0];
-      if(kind === 'F' || kind === 'S'){
-        const i = parseInt(act.slice(1), 10);
-        setActiveColor(i);
-        if(kind === 'F') activeColor = i;       // free: no tick is spent
-        else stepTick();
-        return;
-      }
-      const w = wires[activeColor];
-      const route = sol.paths[activeColor];
-      if(!w || !route){ illegal = 'no active wire at ' + act; return; }
-      w.intent = kind === 'A' ? route.slice(0, w.cells.length + 1)
-                              : route.slice(0, w.cells.length);
-      stepTick();
+      const err = applyAction(act, sol);
+      if(err) illegal = err;
     });
     const out = { won, ticks: tickCount, zaps: zapCount, illegal };
     level = savedLevel;
     resetPuzzle();
     return out;
+  }
+
+  // Plays a proven solution partway and LEAVES the board there, frozen, for a
+  // capture tool to photograph. replaySolution restores state on the way out,
+  // which is right for verification and useless for a screenshot.
+  //
+  // Every marketing image is therefore a position the solver proved reachable,
+  // reached by the rules — not a hand-drag that has to be redone whenever the
+  // UI moves. running is cleared at the end so the render loop holds the frame
+  // instead of ticking past it while the camera is still opening.
+  function stageSolution(lv, sol, stopAfter){
+    level = lv;
+    resetPuzzle();
+    running = true;
+    const n = Math.min(stopAfter == null ? sol.actions.length : stopAfter,
+                       sol.actions.length);
+    for(let k = 0; k < n; k++) applyAction(sol.actions[k], sol);
+    running = false;
+    return { ticks: tickCount, zaps: zapCount, won };
   }
 
   // ============================================================================
@@ -4060,6 +4097,18 @@
     });
 
     try{
+      // --- The first frame of a patrol level renders ------------------------
+      // draw() samples the spark's trail from earlier ticks, so frame zero asks
+      // obstacleRenderPos for tick -1. That threw, and the main loop's
+      // try/catch swallowed it — invisible in a browser, one dropped frame on
+      // entry to 9 of the 10 shipped levels.
+      LEVELS.filter(lv=>lv.obstacles.some(o=>!isGate(o))).forEach(lv=>{
+        let threw = null;
+        try{ obstacleRenderPos(lv.obstacles.find(o=>!isGate(o)), -1, 0); }
+        catch(e){ threw = e.message; }
+        ok('patrol renders at a negative tick on ' + lv.slug, threw === null, threw || '');
+      });
+
       // --- Current costs a tick per cell, and drawing costs nothing ---------
       load(plainLevel());
       onPointerDown([0,0]);
@@ -4593,7 +4642,13 @@
   // level's par comes from the same code whichever way it was authored.
   window.__wiredDev = { solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ,
                         generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT,
-                        trapMeasure, measurePressure };
+                        trapMeasure, measurePressure, encodeLevel, decodeLevel,
+                        // Screen and staging control, used by shots.mjs to
+                        // photograph real positions. Nothing here can reach a
+                        // score: bests live in localStorage and were always
+                        // editable from this same console.
+                        ui: { enterLevel, showMenu, showSettings, showEditor,
+                              stageSolution, draw, updateHud } };
 
   // ---------- Boot ----------
   document.getElementById('creditsVersion').textContent = 'v' + GAME_VERSION;

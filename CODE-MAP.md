@@ -8,16 +8,25 @@ This file answers *where*. For *what shape* and *what to touch for a given chang
 read [ARCHITECTURE.md](ARCHITECTURE.md) - hand-written, and stable because it names
 shapes rather than line numbers.
 
-Generated from `index.html` - 4,638 lines, 204,659 bytes, sha256 `8125cb43f226`.
+**Use it like this** - find the thing, then read only its slice:
+
+```bash
+grep -n stepTick CODE-MAP.md       # -> 2035
+sed -n '2035,2080p' index.html     # read those lines, not all 4,693
+```
+
+Generated from `index.html` - 4,693 lines, 207,650 bytes, sha256 `3de9d8d871ee`.
 
 ## Files
 
 | file | lines | what it is |
 |---|---:|---|
-| `index.html` | 4,638 | The entire game: markup, styles and engine in one file. |
+| `index.html` | 4,693 | The entire game: markup, styles and engine in one file. |
 | `build.js` | 267 | Release gate + packager. Refuses to zip a build that fails a check. |
-| `codemap.js` | 335 | Generates CODE-MAP.md. This file. |
+| `codemap.js` | 345 | Generates CODE-MAP.md. This file. |
 | `make-icons.mjs` | 188 | Rasterizes icons/*.png from the same art as icon.svg. |
+| `shots.mjs` | 253 | Captures store/screenshots/ from the real game. |
+| `chrome.mjs` | 164 | Headless-Chrome plumbing for shots.mjs. |
 | `harness.js` | 135 | Loads the inline game script into a stub DOM under node:vm. |
 | `test.js` | 55 | Headless runner for the in-page selfTest(). |
 | `solve.js` | 89 | Proves each level routes, computes par, replays it to verify. |
@@ -58,25 +67,25 @@ block, `HTML` in the body, `JS` in the inline script.
 | 1690-1754 | JS | Sound (synthesized via Web Audio API — no asset files, keeps... | 4 |
 | 1755-2081 | JS | Input | 10 |
 | 2082-2208 | JS | Keyboard input (WASD / arrows) | 5 |
-| 2209-2297 | JS | Obstacle motion + collision | 9 |
-| 2298-2353 | JS | Wire identity: shape + pattern (always on) and palette (swappable) | 2 |
-| 2354-2730 | JS | Rendering | 2 |
-| 2731-2766 | JS | Main loop | 1 |
-| 2767-2870 | JS | Buttons | 5 |
-| 2871-2894 | JS | Intro / splash screen | 2 |
-| 2895-2916 | JS | **SOLVERS** |  |
-| 2917-3106 | JS | Solver A — routing | 5 |
-| 3107-3292 | JS | **LEVEL CODEC** | 6 |
-| 3293-3390 | JS | Trap measurement | 3 |
-| 3391-3412 | JS | Hazard timing helpers | 4 |
-| 3413-3594 | JS | Solver B — scheduling | 4 |
-| 3595-4038 | JS | **EDITOR** | 16 |
-| 4039-4597 | JS | Self test | 1 |
-| 4598-4638 | JS | Boot |  |
+| 2209-2304 | JS | Obstacle motion + collision | 9 |
+| 2305-2360 | JS | Wire identity: shape + pattern (always on) and palette (swappable) | 2 |
+| 2361-2737 | JS | Rendering | 2 |
+| 2738-2773 | JS | Main loop | 1 |
+| 2774-2877 | JS | Buttons | 5 |
+| 2878-2901 | JS | Intro / splash screen | 2 |
+| 2902-2923 | JS | **SOLVERS** |  |
+| 2924-3113 | JS | Solver A — routing | 5 |
+| 3114-3299 | JS | **LEVEL CODEC** | 6 |
+| 3300-3397 | JS | Trap measurement | 3 |
+| 3398-3419 | JS | Hazard timing helpers | 4 |
+| 3420-3631 | JS | Solver B — scheduling | 6 |
+| 3632-4075 | JS | **EDITOR** | 16 |
+| 4076-4652 | JS | Self test | 1 |
+| 4653-4693 | JS | Boot |  |
 
 ## Functions, by section
 
-All 136 `function` declarations in `index.html`.
+All 138 `function` declarations in `index.html`.
 
 ### Level definitions  <sub>JS &middot; 690-892</sub>
 
@@ -214,7 +223,7 @@ All 136 `function` declarations in `index.html`.
  2162  checkWin        ()
 ```
 
-### Obstacle motion + collision  <sub>JS &middot; 2209-2297</sub>
+### Obstacle motion + collision  <sub>JS &middot; 2209-2304</sub>
 
 ```
  2217  isGate             (ob)
@@ -222,121 +231,123 @@ All 136 `function` declarations in `index.html`.
  2227  obstacleCellAt     (ob, tick)
  2236  hopEase            (f)
  2242  obstacleRenderPos  (ob, tick, frac)
- 2253  obstacleIsDangerous(ob, tick)
- 2260  cellIsHot          (cell, tick)
- 2269  checkZaps          (tick)
- 2291  flashZap           ()
+ 2260  obstacleIsDangerous(ob, tick)
+ 2267  cellIsHot          (cell, tick)
+ 2276  checkZaps          (tick)
+ 2298  flashZap           ()
 ```
 
-### Wire identity: shape + pattern (always on) and palette (swappable)  <sub>JS &middot; 2298-2353</sub>
+### Wire identity: shape + pattern (always on) and palette (swappable)  <sub>JS &middot; 2305-2360</sub>
 
 ```
- 2322  styleFor (baseColor)
- 2327  drawGlyph(shape, x, y, size)
+ 2329  styleFor (baseColor)
+ 2334  drawGlyph(shape, x, y, size)
 ```
 
-### Rendering  <sub>JS &middot; 2354-2730</sub>
+### Rendering  <sub>JS &middot; 2361-2737</sub>
 
 ```
- 2355  cssVar(name, fallback)
- 2362  draw  (tick, frac)
+ 2362  cssVar(name, fallback)
+ 2369  draw  (tick, frac)
 ```
 
-### Main loop  <sub>JS &middot; 2731-2766</sub>
+### Main loop  <sub>JS &middot; 2738-2773</sub>
 
 ```
- 2739  tick(now)
+ 2746  tick(now)
 ```
 
-### Buttons  <sub>JS &middot; 2767-2870</sub>
+### Buttons  <sub>JS &middot; 2774-2877</sub>
 
 ```
- 2775  nextLevelAfter(lv)
- 2796  shareText     ()
- 2803  challengeUrl  ()
- 2834  shareTextOut  (title, body, blurb)
- 2862  doShare       ()
+ 2782  nextLevelAfter(lv)
+ 2803  shareText     ()
+ 2810  challengeUrl  ()
+ 2841  shareTextOut  (title, body, blurb)
+ 2869  doShare       ()
 ```
 
-### Intro / splash screen  <sub>JS &middot; 2871-2894</sub>
+### Intro / splash screen  <sub>JS &middot; 2878-2901</sub>
 
 ```
- 2875  playIntro()
- 2880  finish   ()
+ 2882  playIntro()
+ 2887  finish   ()
 ```
 
-### Solver A — routing  <sub>JS &middot; 2917-3106</sub>
+### Solver A — routing  <sub>JS &middot; 2924-3113</sub>
 
 ```
- 2921  routeSolve      (lv, opts)
- 2958  stillConnectable(k)
- 2989  reachable       (fromIdx, goalIdx)
- 3010  place           (k, cost)
- 3022  walk            (k, p, cur, path, costBefore)
+ 2928  routeSolve      (lv, opts)
+ 2965  stillConnectable(k)
+ 2996  reachable       (fromIdx, goalIdx)
+ 3017  place           (k, cost)
+ 3029  walk            (k, p, cur, path, costBefore)
 ```
 
-### LEVEL CODEC  <sub>JS &middot; 3107-3292</sub>
+### LEVEL CODEC  <sub>JS &middot; 3114-3299</sub>
 
 ```
- 3136  b64urlEncode(s)
- 3139  b64urlDecode(s)
- 3145  encodeLevel (lv)
- 3171  decodeLevel (code)
- 3264  customSlug  (code)
- 3270  verifyLevel (lv)
+ 3143  b64urlEncode(s)
+ 3146  b64urlDecode(s)
+ 3152  encodeLevel (lv)
+ 3178  decodeLevel (code)
+ 3271  customSlug  (code)
+ 3277  verifyLevel (lv)
 ```
 
-### Trap measurement  <sub>JS &middot; 3293-3390</sub>
+### Trap measurement  <sub>JS &middot; 3300-3397</sub>
 
 ```
- 3308  enumerateRoutes(lv, pairIdx, slack, maxCount)
- 3354  restRoutable   (lv, pairIdx, route)
- 3369  trapMeasure    (lv, opts)
+ 3315  enumerateRoutes(lv, pairIdx, slack, maxCount)
+ 3361  restRoutable   (lv, pairIdx, route)
+ 3376  trapMeasure    (lv, opts)
 ```
 
-### Hazard timing helpers  <sub>JS &middot; 3391-3412</sub>
+### Hazard timing helpers  <sub>JS &middot; 3398-3419</sub>
 
 ```
- 3392  gcd         (a,b)
- 3393  lcm         (a,b)
- 3396  hazardPeriod(lv)
- 3404  dangerAt    (lv, tick)
+ 3399  gcd         (a,b)
+ 3400  lcm         (a,b)
+ 3403  hazardPeriod(lv)
+ 3411  dangerAt    (lv, tick)
 ```
 
-### Solver B — scheduling  <sub>JS &middot; 3413-3594</sub>
+### Solver B — scheduling  <sub>JS &middot; 3420-3631</sub>
 
 ```
- 3430  wireRun       (lv, route, t0, cap)
- 3486  scheduleSolve (lv, routes, opts)
- 3548  solveLevel    (lv, opts)
- 3567  replaySolution(lv, sol)
+ 3437  wireRun       (lv, route, t0, cap)
+ 3493  scheduleSolve (lv, routes, opts)
+ 3555  solveLevel    (lv, opts)
+ 3579  applyAction   (act, sol)
+ 3597  replaySolution(lv, sol)
+ 3621  stageSolution (lv, sol, stopAfter)
 ```
 
-### EDITOR  <sub>JS &middot; 3595-4038</sub>
+### EDITOR  <sub>JS &middot; 3632-4075</sub>
 
 ```
- 3624  edPadFor          (i)
- 3629  edCellUsed        (cell)
- 3635  edInBounds        (cell)
- 3641  editorLevel       ()
- 3661  edInvalidate      ()
- 3667  setVerdict        (html, cls)
- 3672  editorTap         (cell)
- 3745  renderEditorTools ()
- 3763  resizeEditorCanvas()
- 3774  drawEditor        ()
- 3871  drawGlyphOn       (c2d, shape, x, y, size)
- 3889  editorCellAt      (evt)
- 3900  runVerify         ()
- 3937  editorClear       ()
- 3946  editorRandom      ()
- 3965  showEditor        ()
+ 3661  edPadFor          (i)
+ 3666  edCellUsed        (cell)
+ 3672  edInBounds        (cell)
+ 3678  editorLevel       ()
+ 3698  edInvalidate      ()
+ 3704  setVerdict        (html, cls)
+ 3709  editorTap         (cell)
+ 3782  renderEditorTools ()
+ 3800  resizeEditorCanvas()
+ 3811  drawEditor        ()
+ 3908  drawGlyphOn       (c2d, shape, x, y, size)
+ 3926  editorCellAt      (evt)
+ 3937  runVerify         ()
+ 3974  editorClear       ()
+ 3983  editorRandom      ()
+ 4002  showEditor        ()
 ```
 
-### Self test  <sub>JS &middot; 4039-4597</sub>
+### Self test  <sub>JS &middot; 4076-4652</sub>
 
 ```
- 4048  selfTest()
+ 4085  selfTest()
 ```
 
 ## Top-level constants
@@ -388,25 +399,25 @@ sit in **Screen management**.
  1545  ctx                 = canvas.getContext('2d');
  1695  audioCtx            = null;
  1739  sfx                 = {
- 2306  WIRE_STYLE          = {
- 2315  COLORBLIND_PALETTE  = {
- 2915  ROUTE_BUDGET        = 400000;
- 3125  CODE_VERSION        = 'W1';
- 3126  PAIR_COLORS         = ["#ff5d6c","#ffd75a","#7ab8ff","#54e6a6","#c98...
- 3127  EDITOR_MIN          = 5;
- 3133  EDITOR_MAX          = 7;
- 3134  VERIFY_BUDGET       = 4000000;
- 3601  GATE_PRESETS        = [
- 3605  PATROL_SPEEDS       = [2, 3, 1, 4];
- 3607  edCols              = 6, edRows = 6;
- 3608  edPads              = [];
- 3609  edBlocked           = [];
- 3610  edGates             = [];
- 3611  edPatrols           = [];
- 3612  edTool              = 'pair0';
- 3613  edPatrolDraft       = null;
- 3614  edVerified          = null;
- 3617  edCtx               = editorCanvas.getContext('2d');
+ 2313  WIRE_STYLE          = {
+ 2322  COLORBLIND_PALETTE  = {
+ 2922  ROUTE_BUDGET        = 400000;
+ 3132  CODE_VERSION        = 'W1';
+ 3133  PAIR_COLORS         = ["#ff5d6c","#ffd75a","#7ab8ff","#54e6a6","#c98...
+ 3134  EDITOR_MIN          = 5;
+ 3140  EDITOR_MAX          = 7;
+ 3141  VERIFY_BUDGET       = 4000000;
+ 3638  GATE_PRESETS        = [
+ 3642  PATROL_SPEEDS       = [2, 3, 1, 4];
+ 3644  edCols              = 6, edRows = 6;
+ 3645  edPads              = [];
+ 3646  edBlocked           = [];
+ 3647  edGates             = [];
+ 3648  edPatrols           = [];
+ 3649  edTool              = 'pair0';
+ 3650  edPatrolDraft       = null;
+ 3651  edVerified          = null;
+ 3654  edCtx               = editorCanvas.getContext('2d');
 ```
 
 ## Levels
@@ -428,29 +439,30 @@ Par comes from `PAR_CONTRACT`; regenerate it with `node solve.js --contract`.
 
 ## Test groups
 
-The 19 assertion groups inside `selfTest()`, so you can find the test
+The 20 assertion groups inside `selfTest()`, so you can find the test
 for a behaviour without reading the whole suite.
 
 ```
- 4063  Current costs a tick per cell, and drawing costs nothing
- 4081  The exploit this whole model exists to kill
- 4096  Determinism: same actions from tick 0, same run
- 4109  Spark position is a pure function of the tick counter
- 4120  A spark shorts what it touches, and only what it touches
- 4154  Current waits at a live contact instead of dying on it
- 4169  Components block routing
- 4180  A finished wire is a wall
- 4193  Sealing the board is detected, and only when certain
- 4319  Ordinary play obeys the same rules par was computed under
- 4347  Progression is keyed by identity, not position
- 4356  A custom board travels inside its own link
- 4382  The editor gate refuses what it cannot prove
- 4402  Save keys are tied to identity, not array position
- 4427  Solver: routing correctness on boards with a known answer
- 4478  Solution contract
- 4521  The daily is generated AND verified
- 4544  Touch targets stay usable on real phones
- 4563  Shipped level data is well-formed
+ 4100  The first frame of a patrol level renders
+ 4112  Current costs a tick per cell, and drawing costs nothing
+ 4130  The exploit this whole model exists to kill
+ 4145  Determinism: same actions from tick 0, same run
+ 4158  Spark position is a pure function of the tick counter
+ 4169  A spark shorts what it touches, and only what it touches
+ 4203  Current waits at a live contact instead of dying on it
+ 4218  Components block routing
+ 4229  A finished wire is a wall
+ 4242  Sealing the board is detected, and only when certain
+ 4368  Ordinary play obeys the same rules par was computed under
+ 4396  Progression is keyed by identity, not position
+ 4405  A custom board travels inside its own link
+ 4431  The editor gate refuses what it cannot prove
+ 4451  Save keys are tied to identity, not array position
+ 4476  Solver: routing correctness on boards with a known answer
+ 4527  Solution contract
+ 4570  The daily is generated AND verified
+ 4593  Touch targets stay usable on real phones
+ 4612  Shipped level data is well-formed
 ```
 
 ## The tooling seam
@@ -459,7 +471,7 @@ for a behaviour without reading the whole suite.
 Renaming anything in it breaks both runners.
 
 ```
-solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ, generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT, trapMeasure, measurePressure
+solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ, generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT, trapMeasure, measurePressure, encodeLevel, decodeLevel, // Screen and staging control, used by shots.mjs to // photograph real positions. Nothing here can reach a // score: bests live in localStorage and were always // editable from this same console. ui: { enterLevel, showMenu, showSettings, showEditor, stageSolution, draw, updateHud }
 ```
 
 ## localStorage keys
