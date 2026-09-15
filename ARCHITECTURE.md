@@ -140,8 +140,18 @@ actions, which *did* charge. The one path under test was the one path already
 correct.
 
 **A test that has never failed with the defect present has not been shown to detect
-anything.** Reintroduce the bug in a scratch copy and watch the test go red before
-you trust it.
+anything.** `node mutate.js` does this for you: it applies each catalogued defect,
+runs the full chain, and reports any that SURVIVE. Add a mutation whenever you add
+a gate - a gate with no mutation is an untested claim.
+
+Two traps that tool hit, both worth knowing:
+
+- **A mutation that fails to apply must never read as a result.** Reported as a
+  survivor it claims a hole that is not there; reported as caught it claims cover
+  that is not there. It is its own outcome.
+- **An earlier gate can mask the one under test.** Editing any file stales
+  `CODE-MAP.md`, so `checkCodeMap` fired first and hid what was actually being
+  measured. The audit regenerates the map before judging.
 
 ---
 
@@ -257,6 +267,7 @@ browsers strip the query string, which kills `?test=1`.
 | icons | `node make-icons.mjs` |
 | screenshots | `node shots.mjs` |
 | release | `node build.js` |
+| audit the gates | `node mutate.js` (`--list`, `--verbose`) |
 
 **The release needs PowerShell 7.** Windows PowerShell 5.1's `Compress-Archive`
 writes backslashes as the path separator inside the archive, which the zip spec

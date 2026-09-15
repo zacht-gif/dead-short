@@ -31,6 +31,7 @@ const SUPPORT = [
   ['make-icons.mjs', 'Rasterizes icons/*.png from the same art as icon.svg.'],
   ['shots.mjs',     'Captures store/screenshots/ from the real game.'],
   ['chrome.mjs',    'Headless-Chrome plumbing for shots.mjs.'],
+  ['mutate.js',     'Mutation audit: breaks the game on purpose to test the gates.'],
   ['harness.js',    'Loads the inline game script into a stub DOM under node:vm.'],
   ['test.js',       'Headless runner for the in-page selfTest().'],
   ['solve.js',      'Proves each level routes, computes par, replays it to verify.'],
