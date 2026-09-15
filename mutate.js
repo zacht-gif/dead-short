@@ -99,7 +99,7 @@ const MUTATIONS = [
     file: 'index.html',
     find: '        setActiveColor(i);\n        return;\n      }\n    }\n    activeColor = null;',
     replace: '        activeColor = i;\n        return;\n      }\n    }\n    activeColor = null;',
-    expect: 'FAILED',
+    expect: 'ordinary play never beats par',
     note: 'THE Mainframe bug: automatic handoff costs no tick, so ordinary play beats par',
   },
   {
@@ -107,7 +107,7 @@ const MUTATIONS = [
     file: 'index.html',
     find: "      if(kind === 'F') activeColor = i;         // free: no tick is spent",
     replace: "      if(kind === 'F') { activeColor = i; stepTick(); }",
-    expect: 'FAILED',
+    expect: 'replay takes exactly par ticks',
     note: 'the model charges for a switch the engine gives away — the same bug mirrored',
   },
   {
@@ -115,7 +115,7 @@ const MUTATIONS = [
     file: 'index.html',
     find: 'const at = (i)=> ob.path[((i % n) + n) % n];',
     replace: 'const at = (i)=> ob.path[i % n];',
-    expect: 'FAILED',
+    expect: 'patrol renders at a negative tick',
     note: 'first rendered frame of every patrol level throws again',
   },
   {
@@ -123,7 +123,7 @@ const MUTATIONS = [
     file: 'index.html',
     find: '    "mainframe":     34,',
     replace: '    "mainframe":     33,',
-    expect: 'FAILED',
+    expect: 're-derived par matches the original',
     note: 'a committed par no longer matches what the solver derives',
   },
   {
@@ -131,7 +131,7 @@ const MUTATIONS = [
     file: 'index.html',
     find: '    if(!open.length) return null;',
     replace: '    if(!open.length) return null;\n    return null;',
-    expect: 'FAILED',
+    expect: 'sealing the board is detected',
     note: 'the board-sealed warning goes permanently quiet',
   },
   {
@@ -139,7 +139,7 @@ const MUTATIONS = [
     file: 'index.html',
     find: '    return isGate(ob) ? gateIsLive(ob, tick) : true;',
     replace: '    return isGate(ob) ? gateIsLive(ob, tick) : false;',
-    expect: 'FAILED',
+    expect: 'a route crossing a patrol lane gets shorted',
     note: 'patrols stop shorting wires — the central hazard disabled',
   },
 ];
