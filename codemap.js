@@ -28,6 +28,7 @@ const SUPPORT = [
   ['index.html',    'The entire game: markup, styles and engine in one file.'],
   ['build.js',      'Release gate + packager. Refuses to zip a build that fails a check.'],
   ['codemap.js',    'Generates CODE-MAP.md. This file.'],
+  ['make-icons.mjs', 'Rasterizes icons/*.png from the same art as icon.svg.'],
   ['harness.js',    'Loads the inline game script into a stub DOM under node:vm.'],
   ['test.js',       'Headless runner for the in-page selfTest().'],
   ['solve.js',      'Proves each level routes, computes par, replays it to verify.'],

@@ -5,7 +5,11 @@
 // matches the one in index.html and refuses to package a mismatch, because
 // "forgot to bump the cache" is invisible until players report a stale game.
 const CACHE_NAME = 'wired-v2.0.0';
-const CACHE_FILES = ['./', './index.html', './manifest.json', './icon.svg'];
+const CACHE_FILES = [
+  './', './index.html', './manifest.json', './icon.svg',
+  './icons/icon-192.png', './icons/icon-512.png',
+  './icons/maskable-512.png', './icons/apple-touch-icon-180.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

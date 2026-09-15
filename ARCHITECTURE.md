@@ -116,6 +116,9 @@ invisible in a browser until a player hits it.
 | `index.html` stays self-contained | no external `<script src>`, stylesheet, `@import`, or `http(s)` URL |
 | no debug scaffolding | `__tickOnce`, `debugger;`, `TODO:`, `FIXME` in `index.html` |
 | `CODE-MAP.md` is current | the map points at lines that have moved |
+| the icon art still matches | `make-icons.mjs`'s bolt path or palette drifted from `icon.svg` |
+| every referenced asset ships | the manifest, `sw.js` or a `<link>` names a file not in `RUNTIME_FILES` |
+| the zip is well-formed | a nested path was stored with a backslash, or a file is missing |
 | the suite passes | `node test.js` |
 | every level still solves and replays | `node solve.js` |
 
@@ -179,6 +182,22 @@ management* → read it in `applySettings()`. Settings persist under
 Append to `SKINS[]` with an `unlocked()` predicate. `ALL_SKIN_TOKEN_KEYS` derives
 itself, so nothing else needs touching. Keep it cosmetic.
 
+### Add or change a shipped asset
+
+Four places, and the build fails if you miss one:
+
+1. the file itself
+2. `RUNTIME_FILES` in `build.js` — what gets staged into the zip
+3. `CACHE_FILES` in `sw.js` — what works offline
+4. whatever references it (`manifest.json` `icons[]`, or a `<link>` in `index.html`)
+
+### Change the app icon
+
+Edit `icon.svg`, then mirror the change into `make-icons.mjs` (`BOLT`,
+`BOLT_POINTS`, `BG`, `EDGE`, `GOLD`) and run `node make-icons.mjs`. The generator
+duplicates the art instead of parsing the SVG — a general SVG parser would dwarf a
+four-shape icon — and `checkIconArt()` is what stops the two copies drifting.
+
 ### Bump the version
 
 `GAME_VERSION` in `index.html` **and** `CACHE_NAME` in `sw.js`. The build fails if
@@ -227,7 +246,14 @@ browsers strip the query string, which kills `?test=1`.
 | suite | `node test.js` (`--verbose` lists passing assertions) |
 | levels | `node solve.js` (or one slug) |
 | map | `node codemap.js` (`--check` to verify) |
+| icons | `node make-icons.mjs` |
 | release | `node build.js` |
+
+**The release needs PowerShell 7.** Windows PowerShell 5.1's `Compress-Archive`
+writes backslashes as the path separator inside the archive, which the zip spec
+forbids — `icons/icon-192.png` then 404s once it is on itch. `build.js` prefers
+`pwsh`, falls back to `powershell`, and reads the finished archive back either
+way, so a bad zip fails the build instead of reaching a player.
 
 ---
 

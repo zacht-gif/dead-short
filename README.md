@@ -15,6 +15,8 @@ Plays in any modern browser. Installable as a PWA and fully playable offline.
 | `manifest.json` | PWA manifest |
 | `sw.js` | Cache-first service worker for offline play |
 | `icon.svg` | App icon (hand-authored vector) |
+| `icons/` | PNG app icons for install prompts — generated, committed |
+| `make-icons.mjs` | Rasterizes `icons/` from the same art as `icon.svg` |
 | `LICENSE` | All rights reserved — see below |
 | `build.js` | Packages `dist/wired-<version>.zip` for upload |
 | `test.js` / `harness.js` | Headless runner for the in-page test suite |
