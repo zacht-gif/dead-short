@@ -1,0 +1,8 @@
+# One line ending everywhere. index.html had drifted to CRLF via a git checkout
+# under core.autocrlf, which silently broke every multi-line anchor in mutate.js
+# and added ~4.7 KB of carriage returns to the shipped file.
+* text=auto eol=lf
+
+# Let git keep its hands off the raster assets entirely.
+*.png binary
+*.zip binary
