@@ -66,6 +66,18 @@ function checkDebugScaffolding(){
   if(found.length) fail('debug scaffolding left in index.html: ' + found.join(', '));
 }
 
+function checkCodeMap(){
+  // CODE-MAP.md is generated from index.html. A stale map is worse than no map:
+  // it sends the next reader confidently to a line that has since moved, and the
+  // mistake only shows up after the edit is made.
+  try{
+    execFileSync(process.execPath, [path.join(ROOT, 'codemap.js'), '--check'], { encoding:'utf8' });
+  } catch(e){
+    fail('CODE-MAP.md is out of date with index.html.\n' +
+         '        Run: node codemap.js');
+  }
+}
+
 function runTests(){
   if(SKIP_TESTS){ console.log('  ! tests skipped'); return; }
   try{
@@ -114,6 +126,8 @@ function main(){
   checkSelfContained();
   console.log('  checking for debug scaffolding…');
   checkDebugScaffolding();
+  console.log('  checking the code map is current…');
+  checkCodeMap();
   console.log('  running tests…');
   runTests();
   console.log('  solving every level…');

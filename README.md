@@ -19,6 +19,9 @@ Plays in any modern browser. Installable as a PWA and fully playable offline.
 | `build.js` | Packages `dist/wired-<version>.zip` for upload |
 | `test.js` / `harness.js` | Headless runner for the in-page test suite |
 | `solve.js` | Proves every level routes and verifies its par |
+| `codemap.js` | Generates `CODE-MAP.md`; `--check` proves it is current |
+| `ARCHITECTURE.md` | Data shapes, invariants, and edit recipes — start here |
+| `CODE-MAP.md` | Generated line-number index of `index.html` — do not hand-edit |
 | `store/` | itch.io cover art and page copy (drafts) |
 
 ## The zero-dependency rule
