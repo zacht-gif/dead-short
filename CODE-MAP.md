@@ -15,7 +15,7 @@ grep -n stepTick CODE-MAP.md       # -> 2035
 sed -n '2035,2080p' index.html     # read those lines, not all 4,724
 ```
 
-Generated from `index.html` - 4,724 lines, 209,060 bytes, sha256 `8b8fe89cbf4e`.
+Generated from `index.html` - 4,724 lines, 209,047 bytes, sha256 `d465f5635785`.
 
 ## Files
 

@@ -10,8 +10,9 @@ point, not a finished asset.
 
 ## The cover
 
-`cover.svg` is drawn at itch's cover size (630×500, the minimum being 315×250). Export it to PNG at
-2× — 1260×1000 — so it stays sharp on high-DPI screens.
+`cover.svg` is drawn at itch's cover size (630×500, the minimum being 315×250). `node shots.mjs cover`
+renders it to `screenshots/cover.png` at 2× — 1260×1000 — so it stays sharp on high-DPI screens. No
+manual export step.
 
 **Why it's an SVG and not a PNG:** every mark in it is original vector geometry — the bolt is a
 polygon, the wires are paths, the pads are circles. Nothing is a system emoji glyph. That matters:

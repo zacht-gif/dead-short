@@ -26,7 +26,7 @@ Plays in any modern browser. Installable as a PWA and fully playable offline.
 | `mutate.js` | Mutation audit — introduces each known defect and checks something catches it |
 | `ARCHITECTURE.md` | Data shapes, invariants, and edit recipes — start here |
 | `CODE-MAP.md` | Generated line-number index of `index.html` — do not hand-edit |
-| `store/` | itch.io cover art and page copy (drafts) |
+| `store/` | itch.io page copy, cover art, and generated `screenshots/` |
 
 ## The zero-dependency rule
 
@@ -36,7 +36,8 @@ coincidence to note.**
 - No libraries or frameworks. No npm, no bundler, no build step.
 - No web fonts — the CSS uses the system font stack only.
 - No audio files — every sound is synthesized at runtime through the Web Audio API.
-- No bundled images beyond `icon.svg`. The board is drawn entirely on canvas; the UI is CSS.
+- No third-party art. The only images shipped are `icon.svg` and the PNG icons rasterized from it by
+  `make-icons.mjs`; the board is drawn entirely on canvas and the UI is CSS.
 - No analytics, no ads, no network calls, no backend. The game never phones home.
 
 Two separate properties depend on this and both break together:
@@ -70,7 +71,14 @@ it:
 - `sw.js`'s `CACHE_NAME` doesn't match `GAME_VERSION` (a stale cache serves returning players the old
   build forever);
 - `index.html` stops being self-contained (external script, stylesheet, `@import`, or an http URL);
-- debug scaffolding is left behind.
+- debug scaffolding is left behind;
+- `CODE-MAP.md` is out of date, so the index would point at lines that have moved;
+- `make-icons.mjs`'s copy of the art has drifted from `icon.svg`;
+- the manifest, `sw.js` or a `<link>` names a file that is not in `RUNTIME_FILES`, so the zip would
+  ship without it;
+- the finished zip is malformed — a nested path stored with a backslash, or a file missing.
+
+`node mutate.js` audits those gates by introducing each defect and checking something goes red.
 
 ## Running it
 

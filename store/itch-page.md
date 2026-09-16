@@ -58,8 +58,8 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
 
 ### Built to be played anywhere
 
-One HTML file. No install, no account, no tracking, no network calls of any kind — the whole game is
-63 KB and works offline once loaded. Plays with mouse, touch, or entirely by keyboard.
+One HTML file. No install, no account, no tracking, no network calls of any kind — the page is about
+63 KB over the wire and works offline once loaded. Plays with mouse, touch, or entirely by keyboard.
 
 **Accessibility** is shipped, not planned: every wire carries a distinct shape *and* a distinct dash
 pattern for all players, so colour is never the only signal. There's a colourblind palette verified
@@ -119,8 +119,12 @@ The board stays frozen until your first move, so plan as long as you like.
    itch does not forward query strings into the embedded game, so a link pointing at the store page
    opens the game *without* the challenge. Point it at a page that serves `index.html` directly
    (GitHub Pages works) or leave it empty and accept that links only deep-link when self-hosted.
-2. **Re-run `node build.js`** so the zip matches whatever you last changed. It refuses to package if
-   the tests fail, if any level stops solving, or if `sw.js`'s cache name doesn't match the version.
-3. **Decide on the name.** "Wired" is a Condé Nast trademark. A browser puzzle game is a different
+2. **Re-run `node build.js`** so the zip matches whatever you last changed. Eight gates have to pass
+   before it will package anything — see README, `Building for release`.
+3. **Re-run `node shots.mjs`** if the UI moved at all. The screenshots and the cover are generated
+   from the real game, so a UI change makes them stale in exactly the way a build goes stale. Upload
+   `store/screenshots/`: `01-mid-run`, `02-menu`, `03-settings`, `04-editor`, `05-board-sealed`, and
+   `cover.png` for the cover slot.
+4. **Decide on the name.** "Wired" is a Condé Nast trademark. A browser puzzle game is a different
    category and the word describes the actual mechanic, but it's your call and it's much cheaper to
    change now than after the page has traction.

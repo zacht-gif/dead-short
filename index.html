@@ -1198,11 +1198,11 @@
       unlocked:()=> LEVELS.some(lv=>hasCleanClear(lv)),
       tokens:{ '--bg-pattern':'#163a2e', '--grid-line':'#1c3d33', '--good':'#37e6a0' } },
     { id:'full-board', name:'Full Board', flavor:'Every socket populated. Nothing left breadboarded.',
-      cond:'Clear all three tiers at least once each.',
+      cond:'Clear every level at least once.',
       unlocked:()=> LEVELS.every(lv=>getBest(lv)!==null),
       tokens:{ '--accent-2':'#7df9ff', '--panel-border':'#2b5a7a', '--bg-pattern':'#123049' } },
     { id:'zero-shorts', name:'Zero Shorts', flavor:'The board that never sparked.',
-      cond:'Earn a zap-free clean clear on all three tiers.',
+      cond:'Earn a zap-free clean clear on every level.',
       unlocked:()=> LEVELS.every(lv=>hasCleanClear(lv)),
       tokens:{ '--accent':'#ffd75a', '--bg-pattern':'#2a1f0d', '--grid-line':'#33270f' }, badge:'⚡ ZERO SHORTS' },
   ];

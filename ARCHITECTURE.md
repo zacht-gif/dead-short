@@ -7,7 +7,7 @@ names shapes rather than line numbers, so it does not rot when the file moves ar
 | doc | job | maintained by |
 |---|---|---|
 | `README.md` | Design doc — the rules and their reasoning | hand |
-| `CLAUDE.md` | The branch situation, and what has cost real time | hand |
+| `CLAUDE.md` | What has cost real time here, and why | hand |
 | **`ARCHITECTURE.md`** | **Shapes, invariants, and edit recipes** | **hand** |
 | `CODE-MAP.md` | Line-number index of `index.html` | `node codemap.js` |
 
@@ -279,10 +279,11 @@ way, so a bad zip fails the build instead of reaching a player.
 
 ## Small mismatches worth knowing
 
-- **Two skins promise "all three tiers"** (`full-board`, `zero-shorts`) but there is
-  no tier concept anywhere in the data — their `unlocked()` predicates are
-  `LEVELS.every(...)`, i.e. all ten levels. The copy is describing a structure the
-  code does not have. Harmless today; misleading if tiers ever get added for real.
+- **Skin unlock copy has to restate its own predicate.** Two skins used to
+  promise "all three tiers" when there is no tier concept in the data at all —
+  both predicates are `LEVELS.every(...)`. Fixed, but the shape recurs: a `cond`
+  string is prose that nothing verifies, so it can describe a structure the code
+  does not have and no test will object.
 - **`dist/` is gitignored**, so the uploadable zip never travels between machines.
   `node build.js` remakes it. Git can call this repo clean while the artifact you
   would upload is missing or stale.
