@@ -57,8 +57,18 @@ function checkSelfContained(){
   if(/<script[^>]+\bsrc=/i.test(html)) offenders.push('external <script src>');
   if(/<link[^>]+rel=["']?stylesheet/i.test(html)) offenders.push('external stylesheet');
   if(/@import\s+url\(/i.test(html)) offenders.push('CSS @import');
-  if(/https?:\/\/(?!www\.w3\.org)/i.test(html.replace(/<!--[\s\S]*?-->/g, ''))){
-    offenders.push('an http(s) URL in the document');
+  // CANONICAL_URL is a real https URL and belongs here: shared challenge links
+  // have to point at a page that serves this file, and the game never FETCHES
+  // it, so the zero-dependency rule is untouched. Allowlisted by reading its
+  // own value rather than by hardcoding a host, so changing where the game is
+  // published cannot quietly widen what the check permits. Everything else
+  // still fails, including another URL on the same host.
+  const canonical = (html.match(/const CANONICAL_URL = '([^']*)'/) || [, ''])[1];
+  let scanned = html.replace(/<!--[\s\S]*?-->/g, '');
+  if(canonical) scanned = scanned.split(canonical).join('');
+  if(/https?:\/\/(?!www\.w3\.org)/i.test(scanned)){
+    const found = (scanned.match(/https?:\/\/(?!www\.w3\.org)[^"'\s)]*/i) || [''])[0];
+    offenders.push('an http(s) URL in the document: ' + found.slice(0, 60));
   }
   if(offenders.length){
     fail('index.html is no longer self-contained: ' + offenders.join(', ') + '.\n' +

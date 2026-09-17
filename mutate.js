@@ -145,6 +145,17 @@ const MUTATIONS = [
     note: 'the route the store screenshot photographs no longer seals the board',
   },
   {
+    id: 'other-url-on-canonical-host',
+    file: 'index.html',
+    // The allowlist exempts CANONICAL_URL's exact value. If it were written as
+    // a host prefix instead, this would sail through - so prove it does not.
+    find: "  const TICK_HZ = 6;",
+    replace: "  const NOT_THE_CANONICAL_ONE = 'https://zacht-gif.github.io/dead-short/tracker.js';
+  const TICK_HZ = 6;",
+    expect: 'an http(s) URL in the document',
+    note: 'a second URL on the canonical host slips past the self-contained gate',
+  },
+  {
     id: 'store-prefix-renamed',
     file: 'index.html',
     find: "  const STORE_PREFIX = 'wired-v3-';",

@@ -192,11 +192,24 @@ treat third-party frames, not measured here.
 
 **What is actually left is the two judgement calls, not code:**
 
-1. **`CANONICAL_URL` is still `''`** (`index.html`). Resolved in principle: point
-   it at the Pages mirror, which is what makes a challenge link survive the next
-   upload. Empty is not broken - it falls back to the itch.zone URL of
-   `index.html`, so the query string does reach the game - but itch regenerates
-   that URL every upload, so links rot on each release.
+1. **`CANONICAL_URL`: set 2026-09-16** to `https://zacht-gif.github.io/dead-short/`,
+   and verified live - a challenge link on that host greets you with "Challenge
+   from Zach, beat 5.7s on Mainframe". It has to be a page serving `index.html`
+   directly, because the board and target ride on a query string and itch does
+   not forward those into an embed.
+
+   **This is the one deliberate exception to the unpromoted-mirror rule**, and it
+   is a real trade rather than an oversight: challenge links now send players to
+   Pages, where itch never sees the play. Pointing them at the store page instead
+   would break two advertised features - challenge links, and shared custom
+   boards, which cannot work at all without their query string. A broken feature
+   you are advertising costs more than ranking signal from a link volume that is
+   currently zero. One line to revisit if sharing ever becomes real traffic.
+
+   Worth knowing: cut-and-fill's `PLAY_URL` is the itch **store page**, and that
+   is correct *there* - its shared link carries no data, so it is an invitation
+   rather than a deep link. Same-shaped constant, different job. Do not copy one
+   to the other.
 2. **The name: resolved 2026-09-16.** The game was called Wired until then, which
    is a Conde Nast trademark and, more practically, unsearchable - nobody finds a
    browser puzzle game by typing "Wired game". It is now **Dead Short**: the

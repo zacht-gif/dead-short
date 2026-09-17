@@ -680,9 +680,23 @@
   // until players report playing a version you thought you'd replaced.
   const GAME_VERSION = '2.0.0';
 
-  // Where shared links should point. Leave empty to use whatever URL the game
-  // is being served from; see challengeUrl() for why that isn't always right.
-  const CANONICAL_URL = '';
+  // Where shared links point. This has to be a page that serves index.html
+  // DIRECTLY, because challengeUrl() hangs the board and the target score off
+  // it as a query string and itch does not forward query strings into an
+  // embedded game. The itch store page would therefore drop the challenge
+  // silently - which is why this is not the same kind of value as
+  // cut-and-fill's PLAY_URL, where the shared link carries no data and the
+  // store page is exactly right.
+  //
+  // KNOWN TENSION, decided deliberately. The GitHub Pages mirror is otherwise
+  // kept out of everything, because a play that lands there is a discovery
+  // signal itch never sees. Challenge links are the one exception: pointing
+  // them at itch would break two advertised features (challenge links and
+  // shared custom boards, the latter of which cannot work at all without its
+  // query string). A broken advertised feature costs more than ranking signal
+  // from a link volume that is currently zero. Revisit if sharing ever becomes
+  // real traffic - it is one line and a republish.
+  const CANONICAL_URL = 'https://zacht-gif.github.io/dead-short/';
 
   const TICK_HZ = 6;                       // ticks per second
   const MS_PER_TICK = 1000 / TICK_HZ;
