@@ -199,7 +199,7 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-16: **323/323 assertions pass**, all ten shipped
+On `main`, verified 2026-09-17: **324/324 assertions pass**, all ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
 **19/19 mutations caught** by `node mutate.js`. v2.0.0, `dist/dead-short-2.0.0.zip`.
 
