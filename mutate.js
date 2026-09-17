@@ -150,8 +150,7 @@ const MUTATIONS = [
     // The allowlist exempts CANONICAL_URL's exact value. If it were written as
     // a host prefix instead, this would sail through - so prove it does not.
     find: "  const TICK_HZ = 6;",
-    replace: "  const NOT_THE_CANONICAL_ONE = 'https://zacht-gif.github.io/dead-short/tracker.js';
-  const TICK_HZ = 6;",
+    replace: "  const TICK_HZ = 6; const NOT_THE_CANONICAL_ONE = 'https://zacht-gif.github.io/dead-short/tracker.js';",
     expect: 'an http(s) URL in the document',
     note: 'a second URL on the canonical host slips past the self-contained gate',
   },
