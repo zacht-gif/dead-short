@@ -140,6 +140,26 @@ plays as a file listing instead of a game.
   settings migration, silently change every daily board, and break all three node tools at once.
   Done 2026-09-16, and the suite now pins all three literals plus one fixed daily board end to end,
   because none of those failures makes anything go red on its own.
+- **A gate's comment is not evidence, and can be flatly untrue.** The exemption
+  letting `CANONICAL_URL` past the self-contained check stripped that value as a
+  *substring*, so anything starting with it had its front half deleted and the
+  remainder no longer looked like a URL - `https://<canonical>/tracker.js` sailed
+  straight through. The comment above it said "everything else still fails,
+  including another URL on the same host". That was false the moment it was
+  written. It was caught the same hour only because the mutation testing the
+  allowlist's width went in alongside it and came back SURVIVED. **An exemption
+  is a hole until something proves its shape.**
+- **A pipeline's exit code belongs to the last command in it.** `node mutate.js
+  | tail -30` reported success while mutate.js was crashing on a syntax error,
+  because the status came from `tail`. The broken file was committed on the
+  strength of that. Redirect to a file and check `$?` before the pipe, or the
+  thing you are using to *watch* for failure is what hides it.
+- **The `
+`-becomes-a-real-newline trap bites twice.** It broke `build.js`
+  once and then `mutate.js`, both times through a shell-quoted multi-line
+  string. The fix is not more careful escaping - it is not needing an escape:
+  write the replacement as one line. Nothing else ran `mutate.js`, so it stayed
+  broken through a commit.
 - **itch does not forward query strings into the embedded game.** A challenge
   link pointing at the store page opens the game without the challenge.
   Anything built on share links has to survive that.
@@ -158,7 +178,7 @@ plays as a file listing instead of a game.
 
 On `main`, verified 2026-09-16: **323/323 assertions pass**, all ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**16/16 mutations caught** by `node mutate.js`. v2.0.0, `dist/dead-short-2.0.0.zip`.
+**17/17 mutations caught** by `node mutate.js`. v2.0.0, `dist/dead-short-2.0.0.zip`.
 
 The store assets are done and are **generated, not hand-captured**: `node shots.mjs`
 rebuilds all six from the real game, byte-reproducibly. Every in-game position
