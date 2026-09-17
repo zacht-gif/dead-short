@@ -22,12 +22,12 @@ Generated from `index.html` - 4,794 lines, 213,372 bytes, sha256 `1dd8b53b93f7`.
 | file | lines | what it is |
 |---|---:|---|
 | `index.html` | 4,794 | The entire game: markup, styles and engine in one file. |
-| `build.js` | 277 | Release gate + packager. Refuses to zip a build that fails a check. |
+| `build.js` | 282 | Release gate + packager. Refuses to zip a build that fails a check. |
 | `codemap.js` | 346 | Generates CODE-MAP.md. This file. |
 | `make-icons.mjs` | 188 | Rasterizes icons/*.png from the same art as icon.svg. |
 | `shots.mjs` | 301 | Captures store/screenshots/ from the real game. |
 | `chrome.mjs` | 164 | Headless-Chrome plumbing for shots.mjs. |
-| `mutate.js` | 339 | Mutation audit: breaks the game on purpose to test the gates. |
+| `mutate.js` | 338 | Mutation audit: breaks the game on purpose to test the gates. |
 | `harness.js` | 135 | Loads the inline game script into a stub DOM under node:vm. |
 | `test.js` | 55 | Headless runner for the in-page selfTest(). |
 | `solve.js` | 89 | Proves each level routes, computes par, replays it to verify. |
