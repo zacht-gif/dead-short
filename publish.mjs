@@ -19,13 +19,22 @@
  * not to ship a build you used it on, and the way to honour that is to make it
  * unreachable from the thing that ships.
  *
- * ONE-TIME SETUP, and it cannot be automated from here:
+ * ONE-TIME SETUP, and none of it can be automated from here:
  *
- *   1. butler login
+ *   1. The itch project has to EXIST first. butler pushes builds to a project;
+ *      it does not create one. Make it on the itch dashboard with Kind of
+ *      project: HTML and the URL slug matching ITCH_SLUG below, or the push
+ *      fails with a 404 that reads like an auth problem and is not one.
+ *
+ *   2. butler login
  *      Opens a browser to authenticate against your itch.io account.
  *      Interactive by design — credentials are yours to enter, not a script's.
+ *      Already done on this machine for cut-and-fill, and butler's credentials
+ *      are per-machine rather than per-project, so this is likely a no-op:
+ *      `butler status <any existing target>` tells you without changing
+ *      anything.
  *
- *   2. After the FIRST push, open the itch Edit game page and tick
+ *   3. After the FIRST push, open the itch Edit game page and tick
  *      "This file will be played in the browser" for the new channel.
  *      butler cannot set that flag (itch's own docs say so), so until you do,
  *      the pushed build is a DOWNLOAD sitting next to your playable upload.
