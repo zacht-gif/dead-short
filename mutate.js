@@ -145,6 +145,26 @@ const MUTATIONS = [
     note: 'the route the store screenshot photographs no longer seals the board',
   },
   {
+    id: 'itch-slug-disagrees',
+    file: 'index.html',
+    // Mutating the URL rather than publish.mjs keeps the edit inside VOLATILE,
+    // and proves the same thing: the two names are compared, not assumed equal.
+    find: "  const CANONICAL_URL = 'https://thornsrl.itch.io/dead-short';",
+    replace: "  const CANONICAL_URL = 'https://thornsrl.itch.io/dead-shorts';",
+    expect: 'named twice and the two disagree',
+    note: 'links point at one itch project while the upload goes to another',
+  },
+  {
+    id: 'custom-board-code-dropped',
+    file: 'index.html',
+    // Anchored on the condition, not the string, so no escape sequence has to
+    // survive being written into this file - which has broken it twice today.
+    find: "    if(level.isCustom && level.code){",
+    replace: "    if(false && level.isCustom && level.code){",
+    expect: 'carries its code in the text too',
+    note: 'a shared custom board becomes unreachable: itch drops the ?board= param',
+  },
+  {
     id: 'other-url-on-canonical-host',
     file: 'index.html',
     // The allowlist exempts CANONICAL_URL's exact value. If it were written as

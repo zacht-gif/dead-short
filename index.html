@@ -8,6 +8,13 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
 <meta name="theme-color" content="#0a0e17">
+<!-- Keeps this FILE out of search results, which is not the same as hiding
+     the game: itch's store page is itch's own HTML and stays indexable. What
+     this suppresses is the two copies that would compete with it - the GitHub
+     Pages mirror, and the raw html-classic.itch.zone game URL. A robots.txt
+     cannot do this job: it is only honoured at a host root, and the mirror
+     sits on a shared github.io host owned by a different repo. -->
+<meta name="robots" content="noindex">
 <style>
   :root{
     /* Surfaces — deep PCB substrate, not arbitrary grays */
@@ -680,23 +687,28 @@
   // until players report playing a version you thought you'd replaced.
   const GAME_VERSION = '2.0.0';
 
-  // Where shared links point. This has to be a page that serves index.html
-  // DIRECTLY, because challengeUrl() hangs the board and the target score off
-  // it as a query string and itch does not forward query strings into an
-  // embedded game. The itch store page would therefore drop the challenge
-  // silently - which is why this is not the same kind of value as
-  // cut-and-fill's PLAY_URL, where the shared link carries no data and the
-  // store page is exactly right.
+  // Where shared links point: the itch STORE page, so that every share is a
+  // play itch can count. Same choice as cut-and-fill's PLAY_URL, and made for
+  // the same reason - a link sent by one player to another brings a NEW player,
+  // which is exactly the arrival itch ranking is meant to reward, and a mirror
+  // would collect all of them somewhere itch can never see.
   //
-  // KNOWN TENSION, decided deliberately. The GitHub Pages mirror is otherwise
-  // kept out of everything, because a play that lands there is a discovery
-  // signal itch never sees. Challenge links are the one exception: pointing
-  // them at itch would break two advertised features (challenge links and
-  // shared custom boards, the latter of which cannot work at all without its
-  // query string). A broken advertised feature costs more than ranking signal
-  // from a link volume that is currently zero. Revisit if sharing ever becomes
-  // real traffic - it is one line and a republish.
-  const CANONICAL_URL = 'https://zacht-gif.github.io/dead-short/';
+  // WHAT THIS COSTS, so nobody "fixes" it later without knowing. itch does not
+  // forward query strings into an embedded game, so the ?challenge= and ?board=
+  // parameters challengeUrl() builds are DROPPED on arrival. A recipient still
+  // gets the game, the level name and the score to beat, because shareText()
+  // carries all three in words - they just pick the level themselves instead of
+  // being greeted by it. The information survives; the convenience does not.
+  //
+  // The exception that had to be closed first: a custom board exists nowhere
+  // but in its code, so shareText() now includes it for custom levels. Without
+  // that, this value would make a shared custom board unreachable rather than
+  // merely inconvenient.
+  //
+  // The Pages mirror still exists and still works; it is simply not what links
+  // point at. Reversible in one line if sharing ever becomes real traffic and
+  // the deep link turns out to be worth more than the tracking.
+  const CANONICAL_URL = 'https://thornsrl.itch.io/dead-short';
 
   const TICK_HZ = 6;                       // ticks per second
   const MS_PER_TICK = 1000 / TICK_HZ;
@@ -2834,7 +2846,15 @@
   function shareText(){
     const score = currentScore();
     const best = getBest(level);
-    return `⚡ Dead Short — ${level.name}\nScore ${fmtTicks(score)} (best ${fmtTicks(best!==null?best:score)}), ${zapCount} short${zapCount===1?'':'s'}.`;
+    let out = `⚡ Dead Short — ${level.name}\nScore ${fmtTicks(score)} (best ${fmtTicks(best!==null?best:score)}), ${zapCount} short${zapCount===1?'':'s'}.`;
+    // A shipped level can be found from its name alone. A custom board cannot -
+    // it exists nowhere but in this string. CANONICAL_URL is the itch store page
+    // and itch drops query strings on the way into the embed, so the ?board=
+    // parameter never arrives and the text is the only carrier left.
+    if(level.isCustom && level.code){
+      out += '\nBoard code (paste it into the editor): ' + level.code;
+    }
+    return out;
   }
   // Encodes level + score in the URL itself — no backend needed — so opening
   // the link can greet the recipient with a specific score to beat.
@@ -4474,7 +4494,16 @@
         const saved = level;
         level = built;
         const url = challengeUrl();
+        // The board has to survive in WORDS as well as in the link. CANONICAL_URL
+        // is the itch store page and itch drops query strings entering the embed,
+        // so on the shipped build the ?board= parameter never arrives - the text
+        // is the only carrier that actually reaches the recipient. Nothing else
+        // asserts this, and losing it turns a shared custom board from awkward
+        // into unreachable, with no error anywhere.
+        const txt = shareText();
         level = saved;
+        ok('a shared custom board carries its code in the text too',
+           txt.indexOf(built.code) !== -1, txt);
         ok('a custom board link carries the board itself', url.indexOf('board=') !== -1);
         ok('a custom board link needs no level name to resolve',
            url.indexOf('challenge=') === -1, url);

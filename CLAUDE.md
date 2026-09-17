@@ -140,6 +140,15 @@ plays as a file listing instead of a game.
   settings migration, silently change every daily board, and break all three node tools at once.
   Done 2026-09-16, and the suite now pins all three literals plus one fixed daily board end to end,
   because none of those failures makes anything go red on its own.
+- **A backslash escape does not survive being written through a shell heredoc.**
+  Five breakages in one afternoon, all the same: `\n` arrives as a real newline
+  and leaves an unterminated JS string. It broke `mutate.js`, then `build.js`
+  twice. Note the asymmetry that makes it confusing - `\.` and `\/` come through
+  fine, because Python leaves an *unrecognised* escape alone and only collapses
+  the ones it knows. The fix is to never write one: build it as `chr(92) + 'n'`,
+  or anchor on a line that needs no escape at all.
+  The fifth instance was this very bullet: writing the note about `\n` turning into
+  a newline turned its `\n` into a newline.
 - **A gate's comment is not evidence, and can be flatly untrue.** The exemption
   letting `CANONICAL_URL` past the self-contained check stripped that value as a
   *substring*, so anything starting with it had its front half deleted and the
@@ -178,7 +187,7 @@ plays as a file listing instead of a game.
 
 On `main`, verified 2026-09-16: **323/323 assertions pass**, all ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**17/17 mutations caught** by `node mutate.js`. v2.0.0, `dist/dead-short-2.0.0.zip`.
+**19/19 mutations caught** by `node mutate.js`. v2.0.0, `dist/dead-short-2.0.0.zip`.
 
 The store assets are done and are **generated, not hand-captured**: `node shots.mjs`
 rebuilds all six from the real game, byte-reproducibly. Every in-game position
@@ -212,24 +221,35 @@ treat third-party frames, not measured here.
 
 **What is actually left is the two judgement calls, not code:**
 
-1. **`CANONICAL_URL`: set 2026-09-16** to `https://zacht-gif.github.io/dead-short/`,
-   and verified live - a challenge link on that host greets you with "Challenge
-   from Zach, beat 5.7s on Mainframe". It has to be a page serving `index.html`
-   directly, because the board and target ride on a query string and itch does
-   not forward those into an embed.
+1. **`CANONICAL_URL`: settled 2026-09-16** on `https://thornsrl.itch.io/dead-short`
+   - the itch **store page**, so every share is a play itch can count. Same as
+   cut-and-fill's `PLAY_URL`, and the reasoning is the priority: a link sent from
+   one player to another brings a *new* player, which is exactly the arrival itch
+   ranking rewards, and a mirror would collect all of them out of itch's sight.
 
-   **This is the one deliberate exception to the unpromoted-mirror rule**, and it
-   is a real trade rather than an oversight: challenge links now send players to
-   Pages, where itch never sees the play. Pointing them at the store page instead
-   would break two advertised features - challenge links, and shared custom
-   boards, which cannot work at all without their query string. A broken feature
-   you are advertising costs more than ranking signal from a link volume that is
-   currently zero. One line to revisit if sharing ever becomes real traffic.
+   **Know what it costs before "fixing" it.** itch does not forward query strings
+   into an embedded game, so the `?challenge=` and `?board=` parameters are
+   dropped on arrival. The recipient still gets the game, the level name and the
+   score to beat, because `shareText()` says all three in words - they pick the
+   level themselves instead of being greeted by it. Information survives;
+   convenience does not.
 
-   Worth knowing: cut-and-fill's `PLAY_URL` is the itch **store page**, and that
-   is correct *there* - its shared link carries no data, so it is an invitation
-   rather than a deep link. Same-shaped constant, different job. Do not copy one
-   to the other.
+   **The hole that had to be closed first:** a custom board exists nowhere but in
+   its code, so a dropped `?board=` made it *unreachable*, not merely awkward.
+   `shareText()` now carries the code for custom levels, the suite asserts it, and
+   a mutation proves the assertion fires.
+
+   The Pages mirror still works and still serves the PWA; it is simply not what
+   links point at. `index.html` carries `<meta name="robots" content="noindex">`
+   so neither the mirror nor the raw `html-classic.itch.zone` URL competes with
+   the store page in search. A `robots.txt` cannot do that job - it is only
+   honoured at a host root, and the mirror sits on a shared `github.io` host
+   owned by a different repo.
+
+   **The slug is now named in two files** (`CANONICAL_URL` and `ITCH_SLUG` in
+   `publish.mjs`) and `build.js` checks they agree. If they drift, both halves
+   keep working - the upload lands on one project while every shared link sends
+   players to another - which is why it is a gate and not a comment.
 2. **The name: resolved 2026-09-16.** The game was called Wired until then, which
    is a Conde Nast trademark and, more practically, unsearchable - nobody finds a
    browser puzzle game by typing "Wired game". It is now **Dead Short**: the

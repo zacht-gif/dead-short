@@ -81,6 +81,31 @@ function checkSelfContained(){
   }
 }
 
+// The itch slug is now named in two files: CANONICAL_URL points at the store
+// page, and publish.mjs pushes to that project. They are written independently
+// and nothing connects them, so they can disagree - and the failure is the worst
+// shape there is, because BOTH halves keep working. The build uploads happily to
+// one project while every shared link sends players to a different one.
+function checkItchSlugAgrees(){
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const pub = fs.readFileSync(path.join(ROOT, 'publish.mjs'), 'utf8');
+  const canonical = (html.match(/const CANONICAL_URL = '([^']*)'/) || [, ''])[1];
+  if(!/itch\.io\//.test(canonical)) return;  // not pointed at itch; nothing to agree with
+  const fromUrl = canonical.replace(/\/+$/, '').split('/').pop();
+  const m = pub.match(/const ITCH_SLUG = (?:"([^"]*)"|'([^']*)'|null)/);
+  const fromPub = m ? (m[1] || m[2] || null) : null;
+  if(!fromPub){
+    fail('CANONICAL_URL points at the itch project "' + fromUrl + '" but publish.mjs\n' +
+         '        has no ITCH_SLUG set, so the build would upload nowhere.');
+  }
+  if(fromPub !== fromUrl){
+    fail('the itch project is named twice and the two disagree:\n' +
+         '        CANONICAL_URL (index.html) -> ' + fromUrl + '\n' +
+         '        ITCH_SLUG (publish.mjs)    -> ' + fromPub + '\n' +
+         '        Shared links and the upload would go to different projects.');
+  }
+}
+
 function checkDebugScaffolding(){
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const bad = ['__tickOnce', 'debugger;', 'TODO:', 'FIXME'];
@@ -242,6 +267,8 @@ function main(){
   checkSelfContained();
   console.log('  checking for debug scaffolding…');
   checkDebugScaffolding();
+  console.log('  checking the itch slug agrees in both files…');
+  checkItchSlugAgrees();
   console.log('  checking the code map is current…');
   checkCodeMap();
   console.log('  checking the icon art still matches…');

@@ -115,31 +115,36 @@ The board stays frozen until your first move, so plan as long as you like.
 
 ## Things to double-check before you hit publish
 
-1. **Set `CANONICAL_URL`** in `index.html`, and do it in this order, because the URL bakes in:
+1. **`CANONICAL_URL` is set** to `https://thornsrl.itch.io/dead-short` — the store page, so every
+   shared link is a play itch counts. It must match `ITCH_SLUG` in `publish.mjs`; `build.js` fails the
+   build if they disagree, so create the itch project under exactly that slug.
 
-   1. **Rename the GitHub repo** `wired` → `dead-short` (Settings → General). GitHub redirects the
-      old name, so nothing breaks, but the Pages URL is derived from the repo name — rename after
-      enabling Pages and every link already shared points at the old one.
-   2. **Enable Pages** (Settings → Pages → Source: Deploy from a branch → `main` / root). The repo
-      is public as of 2026-09-16, so this is available. Confirm the game loads there before step 3.
-   3. **Set `CANONICAL_URL = 'https://zacht-gif.github.io/dead-short/'`** and re-run `node build.js`.
+   Query strings do not reach an embedded game on itch, so challenge links arrive without their
+   challenge — the share text names the level and the score, so the information is there either way.
+   Custom boards carry their code in the text for the same reason.
 
-   Leave it empty until Pages is actually serving: an empty value degrades gracefully, a URL that
-   404s does not. The three options, for the record:
+   The Pages mirror stays live for the PWA and as a backup host, `noindex`ed so it cannot outrank the
+   store page. If sharing ever becomes real traffic and the deep link is worth more than the tracking,
+   point this at the mirror instead — one line, then rebuild and republish.
 
-   - **Leave it `''` (fine for launch).** `challengeUrl()` falls back to `location.href`, which inside
-     an itch embed is the `html-classic.itch.zone` URL of `index.html` itself. That is a static file
-     served directly, so the query string reaches the game and the challenge *should* survive — but
-     itch regenerates that URL on **every upload**, so old links rot each time you ship a version.
-     Read off the code rather than tested against a live page; check one real link on launch day.
-   - **Point it at a page you serve `index.html` from** (GitHub Pages and the like). Permanent, tidy
-     links. This is the upgrade if sharing turns out to matter; it is not worth delaying launch for.
-   - **Do not point it at the itch store page.** itch does not forward query strings into the
-     embedded game, so every challenge link would silently lose its challenge — strictly worse than
-     leaving it empty.
+   <details><summary>Why not the Pages mirror, and how to switch if that changes</summary>
 
-   The share sheet always carries the readable result text as well, so the social payload survives
-   whichever you pick. Only the deep link is at stake.
+   The mirror (`https://zacht-gif.github.io/dead-short/`) *does* serve `index.html` directly, so a
+   challenge link there arrives complete — verified live on 2026-09-16, greeting with "Challenge
+   from Zach, beat 5.7s on Mainframe". It was rejected anyway, deliberately: every such click would
+   be a new player arriving where itch cannot count them, and play tracking is the priority.
+
+   The third option, `CANONICAL_URL = ''`, falls back to `location.href`, which inside an itch embed
+   is the `html-classic.itch.zone` URL of `index.html`. Query strings do reach that, but itch
+   regenerates the URL on **every upload**, so links rot on each release. Strictly worse than either
+   real choice.
+
+   To switch to the mirror later: change the one constant, `node build.js`, `node publish.mjs`.
+   Links already shared keep working — store-page links still load the game, mirror links stay
+   complete — so nobody is stranded either way.
+
+   </details>
+
 2. **Re-run `node build.js`** so the zip matches whatever you last changed. Eight gates have to pass
    before it will package anything — see README, `Building for release`.
 3. **Re-run `node shots.mjs`** if the UI moved at all. The screenshots and the cover are generated
