@@ -156,7 +156,7 @@ const SHOTS = [
 
 /* --------------------------------- capture -------------------------------- */
 
-// Wired pulses and flashes on infinite CSS loops. Left running, a capture
+// Dead Short pulses and flashes on infinite CSS loops. Left running, a capture
 // samples them at whatever phase the clock happened to be in and no two runs
 // match — so pin the looping ones and hold them at t=0.
 const PIN_ANIMATIONS = `(async () => {

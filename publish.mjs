@@ -12,7 +12,7 @@
  * broken game.
  *
  * WHAT IS DIFFERENT HERE. cut-and-fill ships a single index.html and its
- * publish script re-implements its own self-contained check. wired already has
+ * publish script re-implements its own self-contained check. Dead Short already has
  * build.js as the enforcer — eight gates — so this runs that instead of
  * duplicating any of it, and stages the same RUNTIME_FILES list build.js zips.
  * There is deliberately no --no-test passthrough: build.js's own comment says
@@ -51,7 +51,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
    public URL and cannot be changed later without breaking every link, so it is
    set once, deliberately, rather than defaulted. */
 const ITCH_USER = "thornsrl";
-const ITCH_SLUG = null;   // <- set this to the project slug, e.g. "netlist"
+const ITCH_SLUG = "dead-short";
 const CHANNEL = "html5";
 
 /* Reject anything unrecognised rather than ignoring it. In cut-and-fill a flag
@@ -129,7 +129,7 @@ function main() {
 
   // butler pushes a directory, so stage exactly what ships and nothing else:
   // no tools, no docs, no store assets, no .git.
-  const stage = path.join(tmpdir(), `wired-publish-${process.pid}`);
+  const stage = path.join(tmpdir(), `deadshort-publish-${process.pid}`);
   rmSync(stage, { recursive: true, force: true });
   mkdirSync(stage, { recursive: true });
   const files = runtimeFiles();

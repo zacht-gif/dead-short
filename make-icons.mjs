@@ -3,7 +3,7 @@
  *
  *   node make-icons.mjs
  *
- * Why a hand-rolled rasteriser instead of sharp/canvas/ImageMagick: Wired ships
+ * Why a hand-rolled rasteriser instead of sharp/canvas/ImageMagick: Dead Short ships
  * with zero dependencies and no build step (see README, "Dependencies"), and a
  * four-shape flat icon does not justify breaking that. Node's zlib is the only
  * thing here that isn't arithmetic.

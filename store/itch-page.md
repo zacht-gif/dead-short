@@ -1,4 +1,4 @@
-# itch.io page copy — Wired
+# itch.io page copy — Dead Short
 
 Draft copy for the store page. Everything below is ready to paste; the cover
 still needs your finishing pass (see `store/README.md`).
@@ -7,7 +7,7 @@ still needs your finishing pass (see `store/README.md`).
 
 ## Title
 
-**Wired**
+**Dead Short**
 
 ## Short description / tagline
 *(itch's one-line field, shown in listings — keep it under ~140 chars)*
@@ -18,7 +18,7 @@ still needs your finishing pass (see `store/README.md`).
 
 ## Page body
 
-**Wired is a circuit puzzle that never rolls a die.**
+**Dead Short is a circuit puzzle that never rolls a die.**
 
 Drag a route from each solder pad to its matching pair. Drawing is free and instant — but current
 flows one cell at a time, down one route at a time, and the clock is running while it does. Routes
@@ -41,7 +41,7 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
   actually demand — which is not the same as how long they take. The finale has a *lower* par than
   the level before it.
 - **The game tells you when you've sealed the board.** Finishing a wire is permanent, so a wire
-  completed along the wrong route can strand another pair. Wired notices and says which pair, rather
+  completed along the wrong route can strand another pair. Dead Short notices and says which pair, rather
   than letting you keep trying at something that can't be finished.
 
 ### What's in it
@@ -87,7 +87,7 @@ The board stays frozen until your first move, so plan as long as you like.
 ## itch.io upload settings
 
 - **Kind of project:** HTML
-- **Upload:** `dist/wired-2.0.0.zip`, ticked **"This file will be played in the browser"**
+- **Upload:** `dist/dead-short-2.0.0.zip`, ticked **"This file will be played in the browser"**
 - **Embed size:** 720 × 900
 - **Options:** ✅ Fullscreen button ✅ Mobile friendly ✅ Automatically start on page load
 - **Pricing:** No payment — with donations enabled
@@ -105,7 +105,7 @@ The board stays frozen until your first move, so plan as long as you like.
 
 ### Notes for the description footer
 
-> Wired is free to play. If you want to throw something in the tip jar, thank you — it goes straight
+> Dead Short is free to play. If you want to throw something in the tip jar, thank you — it goes straight
 > into the next one.
 >
 > Boards shared by players are created by them and exchanged as text codes; nothing is uploaded or
@@ -115,7 +115,17 @@ The board stays frozen until your first move, so plan as long as you like.
 
 ## Things to double-check before you hit publish
 
-1. **Decide `CANONICAL_URL`** in `index.html`. Three options and they are not equally good:
+1. **Set `CANONICAL_URL`** in `index.html`, and do it in this order, because the URL bakes in:
+
+   1. **Rename the GitHub repo** `wired` → `dead-short` (Settings → General). GitHub redirects the
+      old name, so nothing breaks, but the Pages URL is derived from the repo name — rename after
+      enabling Pages and every link already shared points at the old one.
+   2. **Enable Pages** (Settings → Pages → Source: Deploy from a branch → `main` / root). The repo
+      is public as of 2026-09-16, so this is available. Confirm the game loads there before step 3.
+   3. **Set `CANONICAL_URL = 'https://zacht-gif.github.io/dead-short/'`** and re-run `node build.js`.
+
+   Leave it empty until Pages is actually serving: an empty value degrades gracefully, a URL that
+   404s does not. The three options, for the record:
 
    - **Leave it `''` (fine for launch).** `challengeUrl()` falls back to `location.href`, which inside
      an itch embed is the `html-classic.itch.zone` URL of `index.html` itself. That is a static file
@@ -136,20 +146,18 @@ The board stays frozen until your first move, so plan as long as you like.
    from the real game, so a UI change makes them stale in exactly the way a build goes stale. Upload
    `store/screenshots/`: `01-mid-run`, `02-menu`, `03-settings`, `04-editor`, `05-board-sealed`, and
    `cover.png` for the cover slot.
-4. **Decide on the name.** "Wired" is a Condé Nast trademark. A browser puzzle game is a different
-   category and the word describes the actual mechanic, but it's your call and it's much cheaper to
-   change now than after the page has traction — and the discoverability problem bites whatever the
-   legal position is, because "Wired game" cannot be searched for.
+4. **The name — settled 2026-09-16, kept here as the record.** The game was *Wired*, which is a
+   Condé Nast trademark and could not be searched for regardless. It is now **Dead Short**.
 
-   **If you do rename it, change the display layer only.** The name appears in ~12 player-visible
-   strings, `manifest.json`, `cover.svg`, and the docs — an hour's work. These must NOT be renamed
-   with it:
+   The rename was display-layer only. These keep the old name, and the suite now pins all three
+   literals so a later find-and-replace fails loudly instead of silently:
 
    | keep as-is | renaming it would |
    |---|---|
    | `STORE_PREFIX = 'wired-v3-'` | wipe every player's saved scores and settings |
-   | `'wired-v2-settings'` fallback | break the migration from the older save format |
-   | `hashStr('wired-daily-v3-' + …)` | change **every daily board**, past and future |
+   | `LEGACY_SETTINGS_KEY = 'wired-v2-settings'` | break the migration from the older save format |
+   | `DAILY_SEED_PREFIX = 'wired-daily-v3-'` | change **every daily board**, past and future |
    | `__wiredDev` / `__wiredSelfTest` | break `test.js`, `solve.js` and `shots.mjs` at once |
 
-   A find-and-replace over the whole file is the failure mode here, not the fix.
+   A find-and-replace over the whole file is the failure mode here, not the fix. The rule that
+   falls out of it: **anything still spelled `wired` is load-bearing.**

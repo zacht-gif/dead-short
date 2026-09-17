@@ -1,6 +1,6 @@
 {
-  "name": "Wired — a circuit routing puzzle",
-  "short_name": "Wired",
+  "name": "Dead Short — a circuit routing puzzle",
+  "short_name": "Dead Short",
   "description": "Route every pair without crossing. Time the current past the sparks. Nothing is random.",
   "start_url": "./index.html",
   "scope": "./",

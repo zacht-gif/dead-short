@@ -1,4 +1,4 @@
-# Wired
+# Dead Short
 
 A real-time circuit-wiring puzzle. Connect every pair of terminals without crossing paths, route around
 the components soldered to the board, and get each trace energized before a patrolling spark shorts it
@@ -20,7 +20,7 @@ of its own** — see `Where it is published` below, because the itch build is th
 | `make-icons.mjs` | Rasterizes `icons/` from the same art as `icon.svg` |
 | `shots.mjs` / `chrome.mjs` | Captures `store/screenshots/` from the real game |
 | `LICENSE` | All rights reserved — see below |
-| `build.js` | Packages `dist/wired-<version>.zip` for upload |
+| `build.js` | Packages `dist/dead-short-<version>.zip` for upload |
 | `publish.mjs` | Runs every gate, then pushes to itch with butler |
 | `test.js` / `harness.js` | Headless runner for the in-page test suite |
 | `solve.js` | Proves every level routes and verifies its par |
@@ -32,7 +32,7 @@ of its own** — see `Where it is published` below, because the itch build is th
 
 ## The zero-dependency rule
 
-**Wired has no third-party dependencies of any kind, and this is a constraint to maintain rather than a
+**Dead Short has no third-party dependencies of any kind, and this is a constraint to maintain rather than a
 coincidence to note.**
 
 - No libraries or frameworks. No npm, no bundler, no build step.
@@ -46,7 +46,7 @@ Two separate properties depend on this and both break together:
 
 1. **Self-contained distribution.** The game is a file you can double-click, email, or drop on any static
    host. Adding an external request makes it a thing that needs a network and a CDN's uptime.
-2. **Clean licensing.** Nothing in Wired requires anyone else's permission. Adding a web font, a code
+2. **Clean licensing.** Nothing in Dead Short requires anyone else's permission. Adding a web font, a code
    library, an audio sample, or a stock image introduces a license obligation to track and comply with.
 
 So: adding a CDN `<script>`, a Google Font, an analytics snippet, or a sound file is not a small
@@ -63,7 +63,7 @@ plan before building a cover around a system emoji glyph.
 node build.js
 ```
 
-Writes `dist/wired-<version>.zip` with `index.html` at the **root** — itch.io requires that, or the
+Writes `dist/dead-short-<version>.zip` with `index.html` at the **root** — itch.io requires that, or the
 upload plays as a file listing instead of a game. Only runtime files ship.
 
 The build refuses to package if any of these fail, because each one is invisible until a player hits

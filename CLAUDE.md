@@ -1,4 +1,4 @@
-# wired — read this before changing anything
+# Dead Short — read this before changing anything
 
 A real-time circuit-routing puzzle, one self-contained HTML file plus a PWA
 shell. `C:\dev\CLAUDE.md` above this covers machines, git identity and syncing.
@@ -135,10 +135,11 @@ plays as a file listing instead of a game.
   Fixed with `width:fit-content`. Worth knowing that the store screenshots are where this became
   visible: a still image is the cheapest review of a layout you have stopped seeing.
 - **Renaming the game is a display-layer change, and a global find-and-replace is the bug.**
-  `STORE_PREFIX`, the `wired-v2-settings` migration key, the `wired-daily-v3-` hash seed and the
-  `__wiredDev` tool seam all contain the name and must all keep it: renaming them would wipe saved
-  progress, break the settings migration, silently change every daily board, and break all three node
-  tools at once. The table in `store/itch-page.md` lists them.
+  `STORE_PREFIX`, `LEGACY_SETTINGS_KEY`, `DAILY_SEED_PREFIX` and the `__wiredDev` tool seam all
+  contain the old name and must all keep it: renaming them would wipe saved progress, break the
+  settings migration, silently change every daily board, and break all three node tools at once.
+  Done 2026-09-16, and the suite now pins all three literals plus one fixed daily board end to end,
+  because none of those failures makes anything go red on its own.
 - **itch does not forward query strings into the embedded game.** A challenge
   link pointing at the store page opens the game without the challenge.
   Anything built on share links has to survive that.
@@ -155,9 +156,9 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-16: **319/319 assertions pass**, all ten shipped
+On `main`, verified 2026-09-16: **323/323 assertions pass**, all ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**13/13 mutations caught** by `node mutate.js`. v2.0.0, `dist/wired-2.0.0.zip`.
+**16/16 mutations caught** by `node mutate.js`. v2.0.0, `dist/dead-short-2.0.0.zip`.
 
 The store assets are done and are **generated, not hand-captured**: `node shots.mjs`
 rebuilds all six from the real game, byte-reproducibly. Every in-game position
@@ -196,11 +197,26 @@ treat third-party frames, not measured here.
    upload. Empty is not broken - it falls back to the itch.zone URL of
    `index.html`, so the query string does reach the game - but itch regenerates
    that URL every upload, so links rot on each release.
-2. **The name.** Wired is a Conde Nast trademark, and "Wired game" is unsearchable
-   whatever the legal position. Renaming is a display-layer change; the table in
-   `store/itch-page.md` lists the four identifiers that must keep the old name or
-   they wipe saves, break the settings migration, move every daily board, and
-   break all three node tools.
+2. **The name: resolved 2026-09-16.** The game was called Wired until then, which
+   is a Conde Nast trademark and, more practically, unsearchable - nobody finds a
+   browser puzzle game by typing "Wired game". It is now **Dead Short**: the
+   electrical term for the failure the game punishes, and free of collisions on
+   itch.
+
+   Worth knowing that writing this section is where the blanket find-and-replace
+   bit: the sweep that renamed the docs also rewrote the sentence explaining what
+   the old name *was*, leaving "the game was called Dead Short until then". Caught
+   by reading it back. The identifiers survived only because they were excluded
+   deliberately, not because the sweep was careful.
+
+   The rename was **display-layer only**. Four identifiers keep the old name and
+   are pinned by the suite so they cannot be swept up by a later tidy-up:
+   `STORE_PREFIX`, `LEGACY_SETTINGS_KEY`, `DAILY_SEED_PREFIX` and the
+   `__wiredDev` / `__wiredSelfTest` seam. Renaming them would orphan every saved
+   score, silently drop the settings migration, deal a different daily board for
+   every date there has ever been, and break all three node tools - none of which
+   fails anything on its own. The rule that falls out of it is worth keeping:
+   **anything still spelled `wired` is load-bearing.**
 
 Then the cover's finishing pass (`store/README.md`) and the upload settings already
 written out in `store/itch-page.md`.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Headless runner for Wired's in-page self test.
+// Headless runner for Dead Short's in-page self test.
 //
 // The game is one HTML file with no module boundary, which makes it look
 // untestable. It isn't: the assertions live inside index.html as selfTest(),

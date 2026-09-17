@@ -189,7 +189,7 @@ function render() {
   const o = [];
   const w = (s) => o.push(s === undefined ? '' : s);
 
-  w('# Wired - code map');
+  w('# Dead Short - code map');
   w();
   w('**Generated file. Do not edit by hand - your changes will be overwritten.**');
   w('Regenerate with `node codemap.js`. `node codemap.js --check` proves it is current,');

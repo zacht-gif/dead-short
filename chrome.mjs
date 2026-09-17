@@ -7,7 +7,7 @@
  * across rather than having to be rediscovered.
  *
  * It is a separate file there because a second capture tool needed the same CDP
- * client, and two copies would have drifted. Wired has one caller today; the
+ * client, and two copies would have drifted. Dead Short has one caller today; the
  * split is kept anyway so the two repos' copies stay diffable.
  *
  * Node 24 ships a global WebSocket, so this needs no dependencies and makes no
@@ -98,7 +98,7 @@ export async function launch() {
   if (!CHROME) {
     throw new Error("No Chrome or Edge found. Install one, or edit the CHROME list in chrome.mjs.");
   }
-  const profile = path.join(tmpdir(), `wired-capture-${process.pid}`);
+  const profile = path.join(tmpdir(), `deadshort-capture-${process.pid}`);
   const port = 9222 + (process.pid % 500);
 
   const chrome = spawn(

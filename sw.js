@@ -4,6 +4,9 @@
 // served the old build from cache forever. build.js checks that this version
 // matches the one in index.html and refuses to package a mismatch, because
 // "forgot to bump the cache" is invisible until players report a stale game.
+// Keeps the pre-rename name on purpose, like the other internal keys: it is a
+// cache key, never shown to anyone, and leaving every 'wired-' identifier alone
+// keeps one simple rule - anything still spelled 'wired' is load-bearing.
 const CACHE_NAME = 'wired-v2.0.0';
 const CACHE_FILES = [
   './', './index.html', './manifest.json', './icon.svg',

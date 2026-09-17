@@ -1,4 +1,4 @@
-# Wired - code map
+# Dead Short - code map
 
 **Generated file. Do not edit by hand - your changes will be overwritten.**
 Regenerate with `node codemap.js`. `node codemap.js --check` proves it is current,
@@ -12,26 +12,26 @@ shapes rather than line numbers.
 
 ```bash
 grep -n stepTick CODE-MAP.md       # -> 2035
-sed -n '2035,2080p' index.html     # read those lines, not all 4,728
+sed -n '2035,2080p' index.html     # read those lines, not all 4,780
 ```
 
-Generated from `index.html` - 4,728 lines, 209,290 bytes, sha256 `6a22c014cacf`.
+Generated from `index.html` - 4,780 lines, 212,409 bytes, sha256 `4f4a51e6ccc4`.
 
 ## Files
 
 | file | lines | what it is |
 |---|---:|---|
-| `index.html` | 4,728 | The entire game: markup, styles and engine in one file. |
+| `index.html` | 4,780 | The entire game: markup, styles and engine in one file. |
 | `build.js` | 267 | Release gate + packager. Refuses to zip a build that fails a check. |
 | `codemap.js` | 346 | Generates CODE-MAP.md. This file. |
 | `make-icons.mjs` | 188 | Rasterizes icons/*.png from the same art as icon.svg. |
 | `shots.mjs` | 301 | Captures store/screenshots/ from the real game. |
 | `chrome.mjs` | 164 | Headless-Chrome plumbing for shots.mjs. |
-| `mutate.js` | 304 | Mutation audit: breaks the game on purpose to test the gates. |
+| `mutate.js` | 328 | Mutation audit: breaks the game on purpose to test the gates. |
 | `harness.js` | 135 | Loads the inline game script into a stub DOM under node:vm. |
 | `test.js` | 55 | Headless runner for the in-page selfTest(). |
 | `solve.js` | 89 | Proves each level routes, computes par, replays it to verify. |
-| `sw.js` | 38 | Service worker. CACHE_NAME must contain GAME_VERSION. |
+| `sw.js` | 41 | Service worker. CACHE_NAME must contain GAME_VERSION. |
 | `manifest.json` | 42 | PWA manifest. |
 | `icon.svg` | 6 | The only image asset the game ships. |
 
@@ -55,34 +55,34 @@ block, `HTML` in the body, `JS` in the inline script.
 | 558-671 | HTML | SETTINGS SCREEN |  |
 | 672-693 | JS | Tunables |  |
 | 694-896 | JS | Level definitions | 2 |
-| 897-1067 | JS | Daily challenge | 10 |
-| 1068-1073 | JS | Medals |  |
-| 1074-1122 | JS | Solution contract | 3 |
-| 1123-1181 | JS | Persistent storage | 10 |
-| 1182-1190 | JS | Lifetime stats (for the Settings > Stats section) | 3 |
-| 1191-1252 | JS | Cosmetic perks (purely visual — never affect timing, sparks... | 4 |
-| 1253-1510 | JS | Screen management | 10 |
-| 1511-1536 | JS | State |  |
-| 1537-1638 | JS | The clock | 6 |
-| 1639-1693 | JS | Geometry helpers | 9 |
-| 1694-1758 | JS | Sound (synthesized via Web Audio API — no asset files, keeps... | 4 |
-| 1759-2085 | JS | Input | 10 |
-| 2086-2212 | JS | Keyboard input (WASD / arrows) | 5 |
-| 2213-2308 | JS | Obstacle motion + collision | 9 |
-| 2309-2364 | JS | Wire identity: shape + pattern (always on) and palette (swappable) | 2 |
-| 2365-2741 | JS | Rendering | 2 |
-| 2742-2777 | JS | Main loop | 1 |
-| 2778-2881 | JS | Buttons | 5 |
-| 2882-2905 | JS | Intro / splash screen | 2 |
-| 2906-2927 | JS | **SOLVERS** |  |
-| 2928-3117 | JS | Solver A — routing | 5 |
-| 3118-3303 | JS | **LEVEL CODEC** | 6 |
-| 3304-3401 | JS | Trap measurement | 3 |
-| 3402-3423 | JS | Hazard timing helpers | 4 |
-| 3424-3664 | JS | Solver B — scheduling | 7 |
-| 3665-4108 | JS | **EDITOR** | 16 |
-| 4109-4687 | JS | Self test | 1 |
-| 4688-4728 | JS | Boot |  |
+| 897-1073 | JS | Daily challenge | 10 |
+| 1074-1079 | JS | Medals |  |
+| 1080-1128 | JS | Solution contract | 3 |
+| 1129-1190 | JS | Persistent storage | 10 |
+| 1191-1199 | JS | Lifetime stats (for the Settings > Stats section) | 3 |
+| 1200-1261 | JS | Cosmetic perks (purely visual — never affect timing, sparks... | 4 |
+| 1262-1523 | JS | Screen management | 10 |
+| 1524-1549 | JS | State |  |
+| 1550-1651 | JS | The clock | 6 |
+| 1652-1706 | JS | Geometry helpers | 9 |
+| 1707-1771 | JS | Sound (synthesized via Web Audio API — no asset files, keeps... | 4 |
+| 1772-2098 | JS | Input | 10 |
+| 2099-2225 | JS | Keyboard input (WASD / arrows) | 5 |
+| 2226-2321 | JS | Obstacle motion + collision | 9 |
+| 2322-2377 | JS | Wire identity: shape + pattern (always on) and palette (swappable) | 2 |
+| 2378-2754 | JS | Rendering | 2 |
+| 2755-2790 | JS | Main loop | 1 |
+| 2791-2894 | JS | Buttons | 5 |
+| 2895-2918 | JS | Intro / splash screen | 2 |
+| 2919-2940 | JS | **SOLVERS** |  |
+| 2941-3130 | JS | Solver A — routing | 5 |
+| 3131-3316 | JS | **LEVEL CODEC** | 6 |
+| 3317-3414 | JS | Trap measurement | 3 |
+| 3415-3436 | JS | Hazard timing helpers | 4 |
+| 3437-3677 | JS | Solver B — scheduling | 7 |
+| 3678-4121 | JS | **EDITOR** | 16 |
+| 4122-4739 | JS | Self test | 1 |
+| 4740-4780 | JS | Boot |  |
 
 ## Functions, by section
 
@@ -95,7 +95,7 @@ All 139 `function` declarations in `index.html`.
   881  loopPath(waypoints)
 ```
 
-### Daily challenge  <sub>JS &middot; 897-1067</sub>
+### Daily challenge  <sub>JS &middot; 897-1073</sub>
 
 ```
   905  hashStr              (s)
@@ -103,253 +103,253 @@ All 139 `function` declarations in `index.html`.
   919  localDateString      (d)
   937  randomDailyBoard     (rand, dateStr)
   974  measurePressure      (lv, sol)
-  984  generateDailyLevel   (dateStr)
- 1042  terminalCellOf       (lv, cell)
- 1046  getDailyStreak       ()
- 1047  recordDailyPlay      (dateStr)
- 1060  resolveChallengeLevel(challengeSlug)
+  990  generateDailyLevel   (dateStr)
+ 1048  terminalCellOf       (lv, cell)
+ 1052  getDailyStreak       ()
+ 1053  recordDailyPlay      (dateStr)
+ 1066  resolveChallengeLevel(challengeSlug)
 ```
 
-### Solution contract  <sub>JS &middot; 1074-1122</sub>
+### Solution contract  <sub>JS &middot; 1080-1128</sub>
 
 ```
- 1098  parFor            (lv)
- 1109  getMedalThresholds(lv)
- 1114  medalForScore     (lv, scoreTicks)
+ 1104  parFor            (lv)
+ 1115  getMedalThresholds(lv)
+ 1120  medalForScore     (lv, scoreTicks)
 ```
 
-### Persistent storage  <sub>JS &middot; 1123-1181</sub>
+### Persistent storage  <sub>JS &middot; 1129-1190</sub>
 
 ```
- 1142  levelFingerprint(lv)
- 1156  levelKey        (lv)
- 1157  bestKey         (lv)
- 1158  getBest         (lv)
- 1164  setBestIfBetter (lv, scoreTicks)
- 1174  cleanClearKey   (lv)
- 1175  hasCleanClear   (lv)
- 1176  markCleanClear  (lv)
- 1179  ticksToSeconds  (t)
- 1180  fmtTicks        (t)
+ 1151  levelFingerprint(lv)
+ 1165  levelKey        (lv)
+ 1166  bestKey         (lv)
+ 1167  getBest         (lv)
+ 1173  setBestIfBetter (lv, scoreTicks)
+ 1183  cleanClearKey   (lv)
+ 1184  hasCleanClear   (lv)
+ 1185  markCleanClear  (lv)
+ 1188  ticksToSeconds  (t)
+ 1189  fmtTicks        (t)
 ```
 
-### Lifetime stats (for the Settings > Stats section)  <sub>JS &middot; 1182-1190</sub>
+### Lifetime stats (for the Settings > Stats section)  <sub>JS &middot; 1191-1199</sub>
 
 ```
- 1183  bumpCounter      (key)
- 1186  getCounter       (key)
- 1187  medalsEarnedCount()
+ 1192  bumpCounter      (key)
+ 1195  getCounter       (key)
+ 1196  medalsEarnedCount()
 ```
 
-### Cosmetic perks (purely visual — never affect timing, sparks...  <sub>JS &middot; 1191-1252</sub>
+### Cosmetic perks (purely visual — never affect timing, sparks...  <sub>JS &middot; 1200-1261</sub>
 
 ```
- 1214  getEquippedSkinId()
- 1215  setEquippedSkinId(id)
- 1216  applySkin        ()
- 1225  renderSkinList   ()
+ 1223  getEquippedSkinId()
+ 1224  setEquippedSkinId(id)
+ 1225  applySkin        ()
+ 1234  renderSkinList   ()
 ```
 
-### Screen management  <sub>JS &middot; 1253-1510</sub>
+### Screen management  <sub>JS &middot; 1262-1523</sub>
 
 ```
- 1272  loadSettings   ()
- 1310  saveSettings   ()
- 1313  applySettings  ()
- 1341  escapeHtml     (s)
- 1348  describeHazards(lv)
- 1359  renderMenu     ()
- 1454  showMenu       ()
- 1465  renderStats    ()
- 1481  showSettings   ()
- 1491  enterLevel     (lv)
+ 1285  loadSettings   ()
+ 1323  saveSettings   ()
+ 1326  applySettings  ()
+ 1354  escapeHtml     (s)
+ 1361  describeHazards(lv)
+ 1372  renderMenu     ()
+ 1467  showMenu       ()
+ 1478  renderStats    ()
+ 1494  showSettings   ()
+ 1504  enterLevel     (lv)
 ```
 
-### The clock  <sub>JS &middot; 1537-1638</sub>
+### The clock  <sub>JS &middot; 1550-1651</sub>
 
 ```
- 1568  computeCellSize     (cols, rows)
- 1584  resizeCanvasForLevel()
- 1597  currentScore        ()
- 1599  resetPuzzle         ()
- 1621  startRunIfIdle      ()
- 1629  updateHud           ()
+ 1581  computeCellSize     (cols, rows)
+ 1597  resizeCanvasForLevel()
+ 1610  currentScore        ()
+ 1612  resetPuzzle         ()
+ 1634  startRunIfIdle      ()
+ 1642  updateHud           ()
 ```
 
-### Geometry helpers  <sub>JS &middot; 1639-1693</sub>
+### Geometry helpers  <sub>JS &middot; 1652-1706</sub>
 
 ```
- 1640  cellAt          (px, py)
- 1645  sameCell        (a,b)
- 1646  adjacent        (a,b)
- 1647  terminalAt      (cell)
- 1655  isBlocked       (cell)
- 1661  inBounds        (cell)
- 1667  occupiedBy      (cell, excludeIdx)
- 1677  ownIntentIndexAt(cell)
- 1687  commonPrefixLen (a, b)
+ 1653  cellAt          (px, py)
+ 1658  sameCell        (a,b)
+ 1659  adjacent        (a,b)
+ 1660  terminalAt      (cell)
+ 1668  isBlocked       (cell)
+ 1674  inBounds        (cell)
+ 1680  occupiedBy      (cell, excludeIdx)
+ 1690  ownIntentIndexAt(cell)
+ 1700  commonPrefixLen (a, b)
 ```
 
-### Sound (synthesized via Web Audio API — no asset files, keeps...  <sub>JS &middot; 1694-1758</sub>
+### Sound (synthesized via Web Audio API — no asset files, keeps...  <sub>JS &middot; 1707-1771</sub>
 
 ```
- 1700  ensureAudio()
- 1709  playTone   (freq, opts)
- 1724  playNoise  (opts)
- 1753  haptic     (pattern)
+ 1713  ensureAudio()
+ 1722  playTone   (freq, opts)
+ 1737  playNoise  (opts)
+ 1766  haptic     (pattern)
 ```
 
-### Input  <sub>JS &middot; 1759-2085</sub>
+### Input  <sub>JS &middot; 1772-2098</sub>
 
 ```
- 1760  pointerPos          (evt)
- 1778  setActiveColor      (idx)
- 1784  onPointerDown       (cell)
- 1836  planTo              (cell)
- 1897  advanceToNextPlanned()
- 1913  propagateActiveWire ()
- 1985  findSealedPair      ()
- 2019  announceSealIfAny   ()
- 2039  stepTick            ()
- 2052  endPointer          ()
+ 1773  pointerPos          (evt)
+ 1791  setActiveColor      (idx)
+ 1797  onPointerDown       (cell)
+ 1849  planTo              (cell)
+ 1910  advanceToNextPlanned()
+ 1926  propagateActiveWire ()
+ 1998  findSealedPair      ()
+ 2032  announceSealIfAny   ()
+ 2052  stepTick            ()
+ 2065  endPointer          ()
 ```
 
-### Keyboard input (WASD / arrows)  <sub>JS &middot; 2086-2212</sub>
+### Keyboard input (WASD / arrows)  <sub>JS &middot; 2099-2225</sub>
 
 ```
- 2091  cycleActiveColor(dir)
- 2110  planHead        ()
- 2117  keyboardStep    (dc, dr)
- 2130  keyboardBack    ()
- 2166  checkWin        ()
+ 2104  cycleActiveColor(dir)
+ 2123  planHead        ()
+ 2130  keyboardStep    (dc, dr)
+ 2143  keyboardBack    ()
+ 2179  checkWin        ()
 ```
 
-### Obstacle motion + collision  <sub>JS &middot; 2213-2308</sub>
+### Obstacle motion + collision  <sub>JS &middot; 2226-2321</sub>
 
 ```
- 2221  isGate             (ob)
- 2224  gateIsLive         (ob, tick)
- 2231  obstacleCellAt     (ob, tick)
- 2240  hopEase            (f)
- 2246  obstacleRenderPos  (ob, tick, frac)
- 2264  obstacleIsDangerous(ob, tick)
- 2271  cellIsHot          (cell, tick)
- 2280  checkZaps          (tick)
- 2302  flashZap           ()
+ 2234  isGate             (ob)
+ 2237  gateIsLive         (ob, tick)
+ 2244  obstacleCellAt     (ob, tick)
+ 2253  hopEase            (f)
+ 2259  obstacleRenderPos  (ob, tick, frac)
+ 2277  obstacleIsDangerous(ob, tick)
+ 2284  cellIsHot          (cell, tick)
+ 2293  checkZaps          (tick)
+ 2315  flashZap           ()
 ```
 
-### Wire identity: shape + pattern (always on) and palette (swappable)  <sub>JS &middot; 2309-2364</sub>
+### Wire identity: shape + pattern (always on) and palette (swappable)  <sub>JS &middot; 2322-2377</sub>
 
 ```
- 2333  styleFor (baseColor)
- 2338  drawGlyph(shape, x, y, size)
+ 2346  styleFor (baseColor)
+ 2351  drawGlyph(shape, x, y, size)
 ```
 
-### Rendering  <sub>JS &middot; 2365-2741</sub>
+### Rendering  <sub>JS &middot; 2378-2754</sub>
 
 ```
- 2366  cssVar(name, fallback)
- 2373  draw  (tick, frac)
+ 2379  cssVar(name, fallback)
+ 2386  draw  (tick, frac)
 ```
 
-### Main loop  <sub>JS &middot; 2742-2777</sub>
+### Main loop  <sub>JS &middot; 2755-2790</sub>
 
 ```
- 2750  tick(now)
+ 2763  tick(now)
 ```
 
-### Buttons  <sub>JS &middot; 2778-2881</sub>
+### Buttons  <sub>JS &middot; 2791-2894</sub>
 
 ```
- 2786  nextLevelAfter(lv)
- 2807  shareText     ()
- 2814  challengeUrl  ()
- 2845  shareTextOut  (title, body, blurb)
- 2873  doShare       ()
+ 2799  nextLevelAfter(lv)
+ 2820  shareText     ()
+ 2827  challengeUrl  ()
+ 2858  shareTextOut  (title, body, blurb)
+ 2886  doShare       ()
 ```
 
-### Intro / splash screen  <sub>JS &middot; 2882-2905</sub>
+### Intro / splash screen  <sub>JS &middot; 2895-2918</sub>
 
 ```
- 2886  playIntro()
- 2891  finish   ()
+ 2899  playIntro()
+ 2904  finish   ()
 ```
 
-### Solver A — routing  <sub>JS &middot; 2928-3117</sub>
+### Solver A — routing  <sub>JS &middot; 2941-3130</sub>
 
 ```
- 2932  routeSolve      (lv, opts)
- 2969  stillConnectable(k)
- 3000  reachable       (fromIdx, goalIdx)
- 3021  place           (k, cost)
- 3033  walk            (k, p, cur, path, costBefore)
+ 2945  routeSolve      (lv, opts)
+ 2982  stillConnectable(k)
+ 3013  reachable       (fromIdx, goalIdx)
+ 3034  place           (k, cost)
+ 3046  walk            (k, p, cur, path, costBefore)
 ```
 
-### LEVEL CODEC  <sub>JS &middot; 3118-3303</sub>
+### LEVEL CODEC  <sub>JS &middot; 3131-3316</sub>
 
 ```
- 3147  b64urlEncode(s)
- 3150  b64urlDecode(s)
- 3156  encodeLevel (lv)
- 3182  decodeLevel (code)
- 3275  customSlug  (code)
- 3281  verifyLevel (lv)
+ 3160  b64urlEncode(s)
+ 3163  b64urlDecode(s)
+ 3169  encodeLevel (lv)
+ 3195  decodeLevel (code)
+ 3288  customSlug  (code)
+ 3294  verifyLevel (lv)
 ```
 
-### Trap measurement  <sub>JS &middot; 3304-3401</sub>
+### Trap measurement  <sub>JS &middot; 3317-3414</sub>
 
 ```
- 3319  enumerateRoutes(lv, pairIdx, slack, maxCount)
- 3365  restRoutable   (lv, pairIdx, route)
- 3380  trapMeasure    (lv, opts)
+ 3332  enumerateRoutes(lv, pairIdx, slack, maxCount)
+ 3378  restRoutable   (lv, pairIdx, route)
+ 3393  trapMeasure    (lv, opts)
 ```
 
-### Hazard timing helpers  <sub>JS &middot; 3402-3423</sub>
+### Hazard timing helpers  <sub>JS &middot; 3415-3436</sub>
 
 ```
- 3403  gcd         (a,b)
- 3404  lcm         (a,b)
- 3407  hazardPeriod(lv)
- 3415  dangerAt    (lv, tick)
+ 3416  gcd         (a,b)
+ 3417  lcm         (a,b)
+ 3420  hazardPeriod(lv)
+ 3428  dangerAt    (lv, tick)
 ```
 
-### Solver B — scheduling  <sub>JS &middot; 3424-3664</sub>
+### Solver B — scheduling  <sub>JS &middot; 3437-3677</sub>
 
 ```
- 3441  wireRun       (lv, route, t0, cap)
- 3497  scheduleSolve (lv, routes, opts)
- 3559  solveLevel    (lv, opts)
- 3583  applyAction   (act, sol)
- 3601  replaySolution(lv, sol)
- 3625  stageSolution (lv, sol, stopAfter)
- 3653  stageSealDemo ()
+ 3454  wireRun       (lv, route, t0, cap)
+ 3510  scheduleSolve (lv, routes, opts)
+ 3572  solveLevel    (lv, opts)
+ 3596  applyAction   (act, sol)
+ 3614  replaySolution(lv, sol)
+ 3638  stageSolution (lv, sol, stopAfter)
+ 3666  stageSealDemo ()
 ```
 
-### EDITOR  <sub>JS &middot; 3665-4108</sub>
+### EDITOR  <sub>JS &middot; 3678-4121</sub>
 
 ```
- 3694  edPadFor          (i)
- 3699  edCellUsed        (cell)
- 3705  edInBounds        (cell)
- 3711  editorLevel       ()
- 3731  edInvalidate      ()
- 3737  setVerdict        (html, cls)
- 3742  editorTap         (cell)
- 3815  renderEditorTools ()
- 3833  resizeEditorCanvas()
- 3844  drawEditor        ()
- 3941  drawGlyphOn       (c2d, shape, x, y, size)
- 3959  editorCellAt      (evt)
- 3970  runVerify         ()
- 4007  editorClear       ()
- 4016  editorRandom      ()
- 4035  showEditor        ()
+ 3707  edPadFor          (i)
+ 3712  edCellUsed        (cell)
+ 3718  edInBounds        (cell)
+ 3724  editorLevel       ()
+ 3744  edInvalidate      ()
+ 3750  setVerdict        (html, cls)
+ 3755  editorTap         (cell)
+ 3828  renderEditorTools ()
+ 3846  resizeEditorCanvas()
+ 3857  drawEditor        ()
+ 3954  drawGlyphOn       (c2d, shape, x, y, size)
+ 3972  editorCellAt      (evt)
+ 3983  runVerify         ()
+ 4020  editorClear       ()
+ 4029  editorRandom      ()
+ 4048  showEditor        ()
 ```
 
-### Self test  <sub>JS &middot; 4109-4687</sub>
+### Self test  <sub>JS &middot; 4122-4739</sub>
 
 ```
- 4118  selfTest()
+ 4131  selfTest()
 ```
 
 ## Top-level constants
@@ -368,59 +368,61 @@ sit in **Screen management**.
   715  LEVELS              = [
   924  DAILY_PALETTE       = ["#ff5d6c","#ffd75a","#7ab8ff","#c98bff","#54e...
   935  DAILY_BAND          = { parMin: 22, parMax: 46, holdsMin: 2, holdsMa...
-  983  dailyCache          = new Map();
- 1080  PAR_CONTRACT        = {
- 1096  MEDAL_ICON          = { gold:'🥇', silver:'🥈', bronze:'🥉' };
- 1097  parCache            = new Map();
- 1130  STORE_PREFIX        = 'wired-v3-';
- 1141  fingerprintCache    = new Map();
- 1193  SKINS               = [
- 1213  ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tok...
- 1254  screen              = 'menu';
- 1266  SETTINGS_DEFAULTS   = {colorblind:false, reduceMotion:false, muted:f...
- 1267  SETTINGS_KEY        = STORE_PREFIX + 'settings';
- 1280  settings            = loadSettings();
- 1283  pendingChallenge    = null;
- 1284  pendingBoard        = null;
- 1515  MIN_CELL            = 32, MAX_CELL = 64;
- 1516  CELL                = MAX_CELL;
- 1517  level               = LEVELS[0];
- 1528  wires               = {};
- 1529  activeColor         = null;
- 1530  dragging            = false;
- 1531  won                 = false;
- 1532  zapCount            = 0;
- 1533  previewUntil        = 0;
- 1534  sealed              = false;
- 1535  justLocked          = false;
- 1542  tickCount           = 0;
- 1543  running             = false;
- 1544  tickAccum           = 0;
- 1545  lastFrameMs         = null;
- 1546  pendingSwitchTicks  = 0;
- 1549  ctx                 = canvas.getContext('2d');
- 1699  audioCtx            = null;
- 1743  sfx                 = {
- 2317  WIRE_STYLE          = {
- 2326  COLORBLIND_PALETTE  = {
- 2926  ROUTE_BUDGET        = 400000;
- 3136  CODE_VERSION        = 'W1';
- 3137  PAIR_COLORS         = ["#ff5d6c","#ffd75a","#7ab8ff","#54e6a6","#c98...
- 3138  EDITOR_MIN          = 5;
- 3144  EDITOR_MAX          = 7;
- 3145  VERIFY_BUDGET       = 4000000;
- 3646  SEAL_DEMO           = {
- 3671  GATE_PRESETS        = [
- 3675  PATROL_SPEEDS       = [2, 3, 1, 4];
- 3677  edCols              = 6, edRows = 6;
- 3678  edPads              = [];
- 3679  edBlocked           = [];
- 3680  edGates             = [];
- 3681  edPatrols           = [];
- 3682  edTool              = 'pair0';
- 3683  edPatrolDraft       = null;
- 3684  edVerified          = null;
- 3687  edCtx               = editorCanvas.getContext('2d');
+  987  DAILY_SEED_PREFIX   = 'wired-daily-v3-';
+  989  dailyCache          = new Map();
+ 1086  PAR_CONTRACT        = {
+ 1102  MEDAL_ICON          = { gold:'🥇', silver:'🥈', bronze:'🥉' };
+ 1103  parCache            = new Map();
+ 1139  STORE_PREFIX        = 'wired-v3-';
+ 1150  fingerprintCache    = new Map();
+ 1202  SKINS               = [
+ 1222  ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tok...
+ 1263  screen              = 'menu';
+ 1275  SETTINGS_DEFAULTS   = {colorblind:false, reduceMotion:false, muted:f...
+ 1276  SETTINGS_KEY        = STORE_PREFIX + 'settings';
+ 1283  LEGACY_SETTINGS_KEY = 'wired-v2-settings';
+ 1293  settings            = loadSettings();
+ 1296  pendingChallenge    = null;
+ 1297  pendingBoard        = null;
+ 1528  MIN_CELL            = 32, MAX_CELL = 64;
+ 1529  CELL                = MAX_CELL;
+ 1530  level               = LEVELS[0];
+ 1541  wires               = {};
+ 1542  activeColor         = null;
+ 1543  dragging            = false;
+ 1544  won                 = false;
+ 1545  zapCount            = 0;
+ 1546  previewUntil        = 0;
+ 1547  sealed              = false;
+ 1548  justLocked          = false;
+ 1555  tickCount           = 0;
+ 1556  running             = false;
+ 1557  tickAccum           = 0;
+ 1558  lastFrameMs         = null;
+ 1559  pendingSwitchTicks  = 0;
+ 1562  ctx                 = canvas.getContext('2d');
+ 1712  audioCtx            = null;
+ 1756  sfx                 = {
+ 2330  WIRE_STYLE          = {
+ 2339  COLORBLIND_PALETTE  = {
+ 2939  ROUTE_BUDGET        = 400000;
+ 3149  CODE_VERSION        = 'W1';
+ 3150  PAIR_COLORS         = ["#ff5d6c","#ffd75a","#7ab8ff","#54e6a6","#c98...
+ 3151  EDITOR_MIN          = 5;
+ 3157  EDITOR_MAX          = 7;
+ 3158  VERIFY_BUDGET       = 4000000;
+ 3659  SEAL_DEMO           = {
+ 3684  GATE_PRESETS        = [
+ 3688  PATROL_SPEEDS       = [2, 3, 1, 4];
+ 3690  edCols              = 6, edRows = 6;
+ 3691  edPads              = [];
+ 3692  edBlocked           = [];
+ 3693  edGates             = [];
+ 3694  edPatrols           = [];
+ 3695  edTool              = 'pair0';
+ 3696  edPatrolDraft       = null;
+ 3697  edVerified          = null;
+ 3700  edCtx               = editorCanvas.getContext('2d');
 ```
 
 ## Levels
@@ -442,30 +444,31 @@ Par comes from `PAR_CONTRACT`; regenerate it with `node solve.js --contract`.
 
 ## Test groups
 
-The 20 assertion groups inside `selfTest()`, so you can find the test
+The 21 assertion groups inside `selfTest()`, so you can find the test
 for a behaviour without reading the whole suite.
 
 ```
- 4133  The first frame of a patrol level renders
- 4145  Current costs a tick per cell, and drawing costs nothing
- 4163  The exploit this whole model exists to kill
- 4178  Determinism: same actions from tick 0, same run
- 4191  Spark position is a pure function of the tick counter
- 4202  A spark shorts what it touches, and only what it touches
- 4236  Current waits at a live contact instead of dying on it
- 4251  Components block routing
- 4262  A finished wire is a wall
- 4275  Sealing the board is detected, and only when certain
- 4402  Ordinary play obeys the same rules par was computed under
- 4430  Progression is keyed by identity, not position
- 4439  A custom board travels inside its own link
- 4465  The editor gate refuses what it cannot prove
- 4485  Save keys are tied to identity, not array position
- 4510  Solver: routing correctness on boards with a known answer
- 4561  Solution contract
- 4604  The daily is generated AND verified
- 4627  Touch targets stay usable on real phones
- 4646  Shipped level data is well-formed
+ 4146  The first frame of a patrol level renders
+ 4158  Current costs a tick per cell, and drawing costs nothing
+ 4176  The exploit this whole model exists to kill
+ 4191  Determinism: same actions from tick 0, same run
+ 4204  Spark position is a pure function of the tick counter
+ 4215  A spark shorts what it touches, and only what it touches
+ 4249  Current waits at a live contact instead of dying on it
+ 4264  Components block routing
+ 4275  A finished wire is a wall
+ 4288  Sealing the board is detected, and only when certain
+ 4415  Ordinary play obeys the same rules par was computed under
+ 4443  Progression is keyed by identity, not position
+ 4452  A custom board travels inside its own link
+ 4478  The editor gate refuses what it cannot prove
+ 4498  Save keys are tied to identity, not array position
+ 4523  The persistence contract survives a rename
+ 4562  Solver: routing correctness on boards with a known answer
+ 4613  Solution contract
+ 4656  The daily is generated AND verified
+ 4679  Touch targets stay usable on real phones
+ 4698  Shipped level data is well-formed
 ```
 
 ## The tooling seam

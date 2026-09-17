@@ -1,4 +1,4 @@
-# Wired — architecture and editing guide
+# Dead Short — architecture and editing guide
 
 The orientation layer. `CODE-MAP.md` says *where* things are; this says *what shape*
 they are and *what to touch* for a given change. It is hand-written and deliberately

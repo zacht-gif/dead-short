@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Packages the game for upload.
 //
-//   node build.js            run checks, write dist/wired-<version>.zip
+//   node build.js            run checks, write dist/dead-short-<version>.zip
 //   node build.js --no-test  skip the suite (don't ship a build you did this to)
 //
 // itch.io needs a zip with index.html at the ROOT — not inside a folder — or the
@@ -219,7 +219,7 @@ function checkZipPaths(zipPath){
 
 function main(){
   const version = readVersion();
-  console.log(`Building Wired v${version}`);
+  console.log(`Building Dead Short v${version}`);
 
   console.log('  checking service worker cache version…');
   checkServiceWorkerVersion(version);
@@ -249,7 +249,7 @@ function main(){
     fs.copyFileSync(src, dest);
   });
 
-  const zipPath = path.join(DIST, `wired-${version}.zip`);
+  const zipPath = path.join(DIST, `dead-short-${version}.zip`);
   rmrf(zipPath);
   zipDir(stage, zipPath);
   rmrf(stage);

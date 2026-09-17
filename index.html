@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Wired — a circuit routing puzzle</title>
+<title>Dead Short — a circuit routing puzzle</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
@@ -439,7 +439,7 @@
   </svg>
   <div id="introFlash"></div>
   <div id="introWordmark">
-    <h1><span class="bolt" id="introBolt">⚡</span> <span id="introTitle">Wired</span></h1>
+    <h1><span class="bolt" id="introBolt">⚡</span> <span id="introTitle">Dead Short</span></h1>
     <div class="subtitle" id="introTagline">Route every pair. Time the current. Nothing is random.</div>
   </div>
   <div id="introSkipHint">tap to skip</div>
@@ -451,7 +451,7 @@
   <div id="menuScreen" class="screen">
     <button id="settingsBtn" aria-label="Settings">⚙</button>
     <header>
-      <h1><span class="bolt">⚡</span> Wired</h1>
+      <h1><span class="bolt">⚡</span> Dead Short</h1>
       <div class="subtitle">Route every pair. Time the current. Nothing is random.</div>
       <div id="menuBadge" class="hidden"></div>
     </header>
@@ -565,7 +565,7 @@
 
     <div class="settingsSection">
       <h3>About</h3>
-      <p>Wired is a circuit-wiring puzzle that never rolls a die. Every spark's path, every board, every
+      <p>Dead Short is a circuit-wiring puzzle that never rolls a die. Every spark's path, every board, every
       tick of the clock is fixed and repeatable — the only variable in the room is you. Connect the
       pairs, dodge the current, beat your own best time. No luck to blame for a short, none to thank for
       a clean run — just better routing and a faster finish.</p>
@@ -628,7 +628,7 @@
     </div>
 
     <div id="settingsCredits">
-      <span id="creditsVersion"></span> · Wired grew out of an earlier puzzle, Cut &amp; Fill.<br>
+      <span id="creditsVersion"></span> · Dead Short grew out of an earlier puzzle, Cut &amp; Fill.<br>
       © 2026 Zach Thornsbury. All rights reserved.<br>
       No trackers, no ads, no network calls — this game never phones home.
     </div>
@@ -980,10 +980,16 @@
     };
   }
 
+  // The seed prefix is part of the SAVE FORMAT, not the branding: every daily
+  // board anyone has ever played is derived from it. It keeps the old name on
+  // purpose after the rename to Dead Short - changing it would silently deal a
+  // different board for every date, past and future. selfTest pins the literal.
+  const DAILY_SEED_PREFIX = 'wired-daily-v3-';
+
   const dailyCache = new Map();
   function generateDailyLevel(dateStr){
     if(dailyCache.has(dateStr)) return dailyCache.get(dateStr);
-    const rand = mulberry32(hashStr('wired-daily-v3-' + dateStr));
+    const rand = mulberry32(hashStr(DAILY_SEED_PREFIX + dateStr));
     let chosen = null;
 
     outer:
@@ -1127,6 +1133,9 @@
   // corrupts somebody's bests — anything that outlives the current arrangement
   // keys off identity. v2 data was written under different scoring rules and is
   // deliberately not migrated; it's simply ignored.
+  // Keeps the pre-rename name deliberately: this prefixes every saved score,
+  // setting and counter in localStorage, so renaming it orphans all of it with
+  // nothing going red. selfTest pins the literal for exactly that reason.
   const STORE_PREFIX = 'wired-v3-';
 
   // Slug alone is not enough. Keying by slug survives REORDERING a level, which
@@ -1269,9 +1278,13 @@
   // settings are carried across: silently resetting somebody's colorblind or
   // reduce-motion preference because the SCORING changed would be a real
   // accessibility regression for no reason.
+  // The v2 key as it was actually written on disk. Renaming it does not fail
+  // anything; it just quietly stops finding the settings it exists to rescue.
+  const LEGACY_SETTINGS_KEY = 'wired-v2-settings';
+
   function loadSettings(){
     try{
-      const raw = localStorage.getItem(SETTINGS_KEY) || localStorage.getItem('wired-v2-settings') || '{}';
+      const raw = localStorage.getItem(SETTINGS_KEY) || localStorage.getItem(LEGACY_SETTINGS_KEY) || '{}';
       return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(raw));
     } catch(e){
       return Object.assign({}, SETTINGS_DEFAULTS);
@@ -2770,7 +2783,7 @@
         lastFrameMs = null;
       }
     } catch(err){
-      console.error('Wired: frame error', err);
+      console.error('Dead Short: frame error', err);
     }
     requestAnimationFrame(tick);
   }
@@ -2807,7 +2820,7 @@
   function shareText(){
     const score = currentScore();
     const best = getBest(level);
-    return `⚡ Wired — ${level.name}\nScore ${fmtTicks(score)} (best ${fmtTicks(best!==null?best:score)}), ${zapCount} short${zapCount===1?'':'s'}.`;
+    return `⚡ Dead Short — ${level.name}\nScore ${fmtTicks(score)} (best ${fmtTicks(best!==null?best:score)}), ${zapCount} short${zapCount===1?'':'s'}.`;
   }
   // Encodes level + score in the URL itself — no backend needed — so opening
   // the link can greet the recipient with a specific score to beat.
@@ -4070,7 +4083,7 @@
   editorPlayBtn.onclick = ()=>{ if(edVerified) enterLevel(edVerified.level); };
   editorCopyBtn.onclick = ()=>{
     if(!edVerified) return;
-    shareTextOut('Wired — custom board', edVerified.level.code);
+    shareTextOut('Dead Short — custom board', edVerified.level.code);
   };
   document.getElementById('editorLoad').onclick = ()=>{
     const raw = document.getElementById('editorImport').value.trim();
@@ -4507,6 +4520,45 @@
            baseKey + ' vs ' + movedKey);
       })();
 
+      // --- The persistence contract survives a rename ------------------------
+      // These three literals are the save format. Nothing else in the suite
+      // touches them, so renaming one breaks no test and produces no error - it
+      // just silently orphans every stored score, drops the settings migration
+      // on the floor, or deals a different daily board for every date there has
+      // ever been. That is the whole hazard: the failure is invisible from
+      // inside the game, and only a player who already had data would ever see
+      // it. So they are mirrored here by hand, the same way PAR_CONTRACT mirrors
+      // par, and for the same reason - a value that must not drift needs a
+      // second copy that disagrees loudly when it does.
+      //
+      // The game was renamed from Wired to Dead Short and these deliberately did
+      // NOT follow. If you are here because this failed, the fix is almost
+      // certainly to put the old string back, not to update the expectation.
+      ok('the localStorage prefix still says wired-v3-', STORE_PREFIX === 'wired-v3-',
+         STORE_PREFIX);
+      ok('the v2 settings migration key is unchanged',
+         LEGACY_SETTINGS_KEY === 'wired-v2-settings', LEGACY_SETTINGS_KEY);
+      ok('the daily seed prefix is unchanged',
+         DAILY_SEED_PREFIX === 'wired-daily-v3-', DAILY_SEED_PREFIX);
+      // The seed is only half of it: a change to the generator itself moves the
+      // boards just as thoroughly. Pin one known date end to end so the whole
+      // pipeline is covered, not just the string feeding it.
+      const DAILY_FIXTURE = {
+        pairs:   [[[1,0],[3,5]],[[2,0],[4,5]],[[3,0],[5,5]]],
+        blocked: [[0,3],[1,3],[4,3]],
+      };
+      (function(){
+        const d = generateDailyLevel('2026-01-01');
+        ok('a fixed date still generates the same daily board',
+           d.cols === 6 && d.rows === 6 &&
+           JSON.stringify(d.terminals.map(t=>[t.a,t.b])) ===
+             JSON.stringify(DAILY_FIXTURE.pairs) &&
+           JSON.stringify(d.blocked) === JSON.stringify(DAILY_FIXTURE.blocked),
+           d.cols + 'x' + d.rows + ' ' +
+           JSON.stringify(d.terminals.map(t=>[t.a,t.b])) + ' ' +
+           JSON.stringify(d.blocked));
+      })();
+
       // --- Solver: routing correctness on boards with a known answer --------
       // A corridor with the only through-route blocked off is unroutable, and
       // the solver must say so having actually EXHAUSTED the search — reporting
@@ -4699,7 +4751,7 @@
     document.getElementById('introScreen').classList.add('hidden');
     document.body.innerHTML =
       `<div style="font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:24px;max-width:900px;margin:0 auto;">
-        <h1 style="font-size:20px;margin:0 0 4px;">Wired — self test</h1>
+        <h1 style="font-size:20px;margin:0 0 4px;">Dead Short — self test</h1>
         <div style="color:${r.failed ? '#ff5d6c' : '#45e0a8'};font-size:15px;margin-bottom:16px;">
           ${r.passed}/${r.total} passed${r.failed ? ` · ${r.failed} FAILED` : ''}
         </div>
