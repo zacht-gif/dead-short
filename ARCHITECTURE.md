@@ -216,6 +216,17 @@ running it again. Captures are byte-reproducible; if two runs differ, something
 non-deterministic reached the frame and the Chrome flags in `chrome.mjs` are the
 place to look.
 
+A shot may declare `scale` (a device pixel ratio) to capture above its CSS size;
+the cover uses `width: 630, height: 500, scale: 2`. Set the viewport to the
+content's own size and let `scale` do the magnifying — asking for a doubled
+*viewport* instead gives a doubled image with the content still at 1× in the
+corner, which is how the cover shipped three quarters blank.
+
+Before each capture the tool asserts the root element covers the viewport. That
+is the guard against the above, and it fails the run rather than writing a
+partly-blank PNG. **Determinism cannot stand in for it** — blank pixels are
+perfectly reproducible.
+
 ### Bump the version
 
 `GAME_VERSION` in `index.html` **and** `CACHE_NAME` in `sw.js`. The build fails if
@@ -284,6 +295,14 @@ way, so a bad zip fails the build instead of reaching a player.
   both predicates are `LEVELS.every(...)`. Fixed, but the shape recurs: a `cond`
   string is prose that nothing verifies, so it can describe a structure the code
   does not have and no test will object.
+- **A full-width block cannot be centred with `margin:0 auto`.** `.boardFrame` is a
+  `div`, so it filled its container while the canvas inside stayed left-aligned,
+  leaving dead panel beside every board. It needs `width:fit-content` to have a
+  width worth centring. Both `.boardFrame` instances hold exactly one `<canvas>`
+  and no absolutely-positioned overlay, which is what makes shrink-to-fit safe.
+- **Hit-testing reads the canvas rect, never the frame.** `pointerPos()` and
+  `editorCellAt()` both measure `canvas.getBoundingClientRect()`, so restyling the
+  frame around it cannot desynchronise clicks from cells.
 - **`dist/` is gitignored**, so the uploadable zip never travels between machines.
   `node build.js` remakes it. Git can call this repo clean while the artifact you
   would upload is missing or stale.

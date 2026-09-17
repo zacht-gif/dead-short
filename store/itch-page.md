@@ -115,10 +115,21 @@ The board stays frozen until your first move, so plan as long as you like.
 
 ## Things to double-check before you hit publish
 
-1. **Set `CANONICAL_URL`** in `index.html` if you want challenge links to work from the itch build.
-   itch does not forward query strings into the embedded game, so a link pointing at the store page
-   opens the game *without* the challenge. Point it at a page that serves `index.html` directly
-   (GitHub Pages works) or leave it empty and accept that links only deep-link when self-hosted.
+1. **Decide `CANONICAL_URL`** in `index.html`. Three options and they are not equally good:
+
+   - **Leave it `''` (fine for launch).** `challengeUrl()` falls back to `location.href`, which inside
+     an itch embed is the `html-classic.itch.zone` URL of `index.html` itself. That is a static file
+     served directly, so the query string reaches the game and the challenge *should* survive — but
+     itch regenerates that URL on **every upload**, so old links rot each time you ship a version.
+     Read off the code rather than tested against a live page; check one real link on launch day.
+   - **Point it at a page you serve `index.html` from** (GitHub Pages and the like). Permanent, tidy
+     links. This is the upgrade if sharing turns out to matter; it is not worth delaying launch for.
+   - **Do not point it at the itch store page.** itch does not forward query strings into the
+     embedded game, so every challenge link would silently lose its challenge — strictly worse than
+     leaving it empty.
+
+   The share sheet always carries the readable result text as well, so the social payload survives
+   whichever you pick. Only the deep link is at stake.
 2. **Re-run `node build.js`** so the zip matches whatever you last changed. Eight gates have to pass
    before it will package anything — see README, `Building for release`.
 3. **Re-run `node shots.mjs`** if the UI moved at all. The screenshots and the cover are generated
@@ -127,4 +138,18 @@ The board stays frozen until your first move, so plan as long as you like.
    `cover.png` for the cover slot.
 4. **Decide on the name.** "Wired" is a Condé Nast trademark. A browser puzzle game is a different
    category and the word describes the actual mechanic, but it's your call and it's much cheaper to
-   change now than after the page has traction.
+   change now than after the page has traction — and the discoverability problem bites whatever the
+   legal position is, because "Wired game" cannot be searched for.
+
+   **If you do rename it, change the display layer only.** The name appears in ~12 player-visible
+   strings, `manifest.json`, `cover.svg`, and the docs — an hour's work. These must NOT be renamed
+   with it:
+
+   | keep as-is | renaming it would |
+   |---|---|
+   | `STORE_PREFIX = 'wired-v3-'` | wipe every player's saved scores and settings |
+   | `'wired-v2-settings'` fallback | break the migration from the older save format |
+   | `hashStr('wired-daily-v3-' + …)` | change **every daily board**, past and future |
+   | `__wiredDev` / `__wiredSelfTest` | break `test.js`, `solve.js` and `shots.mjs` at once |
+
+   A find-and-replace over the whole file is the failure mode here, not the fix.

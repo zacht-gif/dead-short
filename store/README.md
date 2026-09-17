@@ -14,6 +14,13 @@ point, not a finished asset.
 renders it to `screenshots/cover.png` at 2× — 1260×1000 — so it stays sharp on high-DPI screens. No
 manual export step.
 
+The 2× comes from a **device scale factor**, not from a doubled viewport. A standalone SVG renders at
+its own `width`/`height` attributes and is not stretched to fill the window, so asking for a 1260×1000
+viewport produced a 1260×1000 PNG with the art in the top-left corner and three quarters of it blank
+white. It shipped that way and every check passed, because blank is perfectly reproducible —
+byte-for-byte determinism said nothing about whether anything had been drawn. `shots.mjs` now asserts
+that the page actually paints the viewport it is captured in.
+
 **Why it's an SVG and not a PNG:** every mark in it is original vector geometry — the bolt is a
 polygon, the wires are paths, the pads are circles. Nothing is a system emoji glyph. That matters:
 Segoe UI Emoji and Apple Color Emoji are licensed fonts, and using one of their glyphs as the
@@ -22,9 +29,11 @@ are fine, because those render from the *player's* own font and are never redist
 
 Two things to handle in your pass:
 
-1. **The wordmark uses a generic sans stack**, so it renders differently depending on the machine.
-   Convert the text to outlines before exporting, or set it in whatever face you want the game to be
-   known by.
+1. **The wordmark uses a generic sans stack** (`Segoe UI, Helvetica Neue, Arial, sans-serif`), so it
+   renders as Segoe UI here and as something else on a Mac. Two consequences: the cover is the one
+   asset that is *not* reproducible across machines — regenerating it on the other computer would
+   produce a different PNG and a spurious diff — and the game has no typographic identity of its own.
+   Convert the text to outlines, or set it in whatever face you want the game known by.
 2. **The board in the art is a real position** — three nested pairs routed around two components,
    with one wire still filling and its remaining route shown as a dotted plan. Worth keeping that
    honest if you rework it; it's the clearest single image of what the game actually is.
@@ -44,6 +53,10 @@ a UI change means re-running one command rather than re-staging four screenshots
 
 Captures are **byte-reproducible**: run it twice and the PNGs hash identically. That is what the Chrome
 flag list in `chrome.mjs` buys, and why the looping animations are pinned to t=0 before the shutter.
+
+Reproducible is not the same as correct, and the cover proved it — see above. Reproducibility only
+tells you two runs agree; it cannot tell you they agree on something worth shipping. Look at the
+images.
 
 | id | what it shows |
 |---|---|

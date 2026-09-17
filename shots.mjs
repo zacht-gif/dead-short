@@ -138,10 +138,17 @@ const SHOTS = [
   {
     id: "cover",
     file: "cover.png",
-    // itch's cover slot is 630x500; rendered at 2x so it stays sharp on
+    // itch's cover slot is 630x500; captured at 2x so it stays sharp on
     // high-DPI screens, which is what store/README.md asks for.
+    //
+    // The viewport is the art's OWN size and the 2x comes from `scale`. A
+    // standalone SVG renders at its width/height attributes and is NOT
+    // stretched to the window, so asking for a 1260x1000 viewport produced a
+    // 1260x1000 PNG with the art in the top-left corner and three quarters of
+    // it blank white. Byte-reproducibly blank, which is why it survived a
+    // determinism check: reproducibility is not correctness.
     url: pathToFileURL(path.join(ROOT, "store", "cover.svg")).href,
-    width: 1260, height: 1000,
+    width: 630, height: 500, scale: 2,
     setup: "",
     wait: 200,
   },
@@ -181,8 +188,9 @@ async function main() {
 
   try {
     for (const shot of shots) {
+      const dpr = shot.scale ?? 1;
       await cdp.send("Emulation.setDeviceMetricsOverride",
-        { width: shot.width, height: shot.height, deviceScaleFactor: 1, mobile: false }, sessionId);
+        { width: shot.width, height: shot.height, deviceScaleFactor: dpr, mobile: false }, sessionId);
       await cdp.send("Emulation.setTouchEmulationEnabled",
         { enabled: !!shot.touch, maxTouchPoints: shot.touch ? 5 : 1 }, sessionId);
 
@@ -237,7 +245,7 @@ async function main() {
           if (want === height && pass > 0) break;
           height = want;
           await cdp.send("Emulation.setDeviceMetricsOverride",
-            { width: shot.width, height, deviceScaleFactor: 1, mobile: false }, sessionId);
+            { width: shot.width, height, deviceScaleFactor: dpr, mobile: false }, sessionId);
           await sleep(120);
         }
         shot.measured = height;
@@ -247,13 +255,34 @@ async function main() {
         { expression: PIN_ANIMATIONS, awaitPromise: true }, sessionId);
       await sleep(80);
 
+      // A shot is only worth what the page actually painted. The cover shipped
+      // three quarters blank and every existing check passed it, because blank
+      // is perfectly deterministic — so reproducibility proved nothing here.
+      // Measure instead: the root element has to cover the viewport it is shot
+      // in, or the difference is page background that nobody drew.
+      const { result: cov } = await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          const r = document.documentElement.getBoundingClientRect();
+          return { w: Math.round(r.width), h: Math.round(r.height),
+                   vw: window.innerWidth, vh: window.innerHeight };
+        })()`,
+        returnByValue: true,
+      }, sessionId);
+      const { w: pw, h: ph, vw, vh } = cov.value;
+      if (pw < vw - 1 || ph < vh - 1) {
+        problems.push(`${shot.id}: the page paints only ${pw}x${ph} of a ${vw}x${vh} ` +
+          `viewport — the rest of the capture would be blank`);
+        continue;
+      }
+
       const { data } = await cdp.send("Page.captureScreenshot",
         { format: "png", captureBeyondViewport: false }, sessionId);
       const buf = Buffer.from(data, "base64");
       await writeFile(path.join(OUT, shot.file), buf);
       const h = shot.measured ?? shot.height;
-      console.log(`${shot.file.padEnd(24)} ${shot.width}x${h}` +
-        `${shot.measured ? " (fitted)" : ""}  ${(buf.length / 1024).toFixed(0)} KB`);
+      console.log(`${shot.file.padEnd(24)} ${shot.width * dpr}x${h * dpr}` +
+        `${dpr !== 1 ? ` (${dpr}x)` : ""}${shot.measured ? " (fitted)" : ""}` +
+        `  ${(buf.length / 1024).toFixed(0)} KB`);
     }
   } finally {
     await dispose();

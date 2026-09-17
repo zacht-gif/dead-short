@@ -236,6 +236,10 @@
     border:1px solid var(--panel-border);
     background:var(--panel);
     box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    /* Hug the canvas. A block div fills its container, so `margin:0 auto`
+       was centring nothing: the board sat flush against the left of its own
+       border with dead panel to the right of it on every level. */
+    width:fit-content;
     margin:0 auto;
   }
   canvas{ display:block; }

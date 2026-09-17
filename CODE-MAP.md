@@ -12,20 +12,20 @@ shapes rather than line numbers.
 
 ```bash
 grep -n stepTick CODE-MAP.md       # -> 2035
-sed -n '2035,2080p' index.html     # read those lines, not all 4,724
+sed -n '2035,2080p' index.html     # read those lines, not all 4,728
 ```
 
-Generated from `index.html` - 4,724 lines, 209,047 bytes, sha256 `d465f5635785`.
+Generated from `index.html` - 4,728 lines, 209,290 bytes, sha256 `6a22c014cacf`.
 
 ## Files
 
 | file | lines | what it is |
 |---|---:|---|
-| `index.html` | 4,724 | The entire game: markup, styles and engine in one file. |
+| `index.html` | 4,728 | The entire game: markup, styles and engine in one file. |
 | `build.js` | 267 | Release gate + packager. Refuses to zip a build that fails a check. |
 | `codemap.js` | 346 | Generates CODE-MAP.md. This file. |
 | `make-icons.mjs` | 188 | Rasterizes icons/*.png from the same art as icon.svg. |
-| `shots.mjs` | 272 | Captures store/screenshots/ from the real game. |
+| `shots.mjs` | 301 | Captures store/screenshots/ from the real game. |
 | `chrome.mjs` | 164 | Headless-Chrome plumbing for shots.mjs. |
 | `mutate.js` | 304 | Mutation audit: breaks the game on purpose to test the gates. |
 | `harness.js` | 135 | Loads the inline game script into a stub DOM under node:vm. |
@@ -44,312 +44,312 @@ block, `HTML` in the body, `JS` in the inline script.
 |---|---|---|---:|
 | 83-92 | CSS | Menu screen |  |
 | 93-177 | CSS | Settings screen |  |
-| 178-319 | CSS | Play screen |  |
-| 320-373 | CSS | Intro / splash screen |  |
-| 374-401 | CSS | Editor |  |
-| 402-427 | CSS | Landscape layout |  |
-| 428-445 | HTML | INTRO / SPLASH SCREEN |  |
-| 446-465 | HTML | MENU SCREEN |  |
-| 466-513 | HTML | PLAY SCREEN |  |
-| 514-553 | HTML | EDITOR SCREEN |  |
-| 554-667 | HTML | SETTINGS SCREEN |  |
-| 668-689 | JS | Tunables |  |
-| 690-892 | JS | Level definitions | 2 |
-| 893-1063 | JS | Daily challenge | 10 |
-| 1064-1069 | JS | Medals |  |
-| 1070-1118 | JS | Solution contract | 3 |
-| 1119-1177 | JS | Persistent storage | 10 |
-| 1178-1186 | JS | Lifetime stats (for the Settings > Stats section) | 3 |
-| 1187-1248 | JS | Cosmetic perks (purely visual — never affect timing, sparks... | 4 |
-| 1249-1506 | JS | Screen management | 10 |
-| 1507-1532 | JS | State |  |
-| 1533-1634 | JS | The clock | 6 |
-| 1635-1689 | JS | Geometry helpers | 9 |
-| 1690-1754 | JS | Sound (synthesized via Web Audio API — no asset files, keeps... | 4 |
-| 1755-2081 | JS | Input | 10 |
-| 2082-2208 | JS | Keyboard input (WASD / arrows) | 5 |
-| 2209-2304 | JS | Obstacle motion + collision | 9 |
-| 2305-2360 | JS | Wire identity: shape + pattern (always on) and palette (swappable) | 2 |
-| 2361-2737 | JS | Rendering | 2 |
-| 2738-2773 | JS | Main loop | 1 |
-| 2774-2877 | JS | Buttons | 5 |
-| 2878-2901 | JS | Intro / splash screen | 2 |
-| 2902-2923 | JS | **SOLVERS** |  |
-| 2924-3113 | JS | Solver A — routing | 5 |
-| 3114-3299 | JS | **LEVEL CODEC** | 6 |
-| 3300-3397 | JS | Trap measurement | 3 |
-| 3398-3419 | JS | Hazard timing helpers | 4 |
-| 3420-3660 | JS | Solver B — scheduling | 7 |
-| 3661-4104 | JS | **EDITOR** | 16 |
-| 4105-4683 | JS | Self test | 1 |
-| 4684-4724 | JS | Boot |  |
+| 178-323 | CSS | Play screen |  |
+| 324-377 | CSS | Intro / splash screen |  |
+| 378-405 | CSS | Editor |  |
+| 406-431 | CSS | Landscape layout |  |
+| 432-449 | HTML | INTRO / SPLASH SCREEN |  |
+| 450-469 | HTML | MENU SCREEN |  |
+| 470-517 | HTML | PLAY SCREEN |  |
+| 518-557 | HTML | EDITOR SCREEN |  |
+| 558-671 | HTML | SETTINGS SCREEN |  |
+| 672-693 | JS | Tunables |  |
+| 694-896 | JS | Level definitions | 2 |
+| 897-1067 | JS | Daily challenge | 10 |
+| 1068-1073 | JS | Medals |  |
+| 1074-1122 | JS | Solution contract | 3 |
+| 1123-1181 | JS | Persistent storage | 10 |
+| 1182-1190 | JS | Lifetime stats (for the Settings > Stats section) | 3 |
+| 1191-1252 | JS | Cosmetic perks (purely visual — never affect timing, sparks... | 4 |
+| 1253-1510 | JS | Screen management | 10 |
+| 1511-1536 | JS | State |  |
+| 1537-1638 | JS | The clock | 6 |
+| 1639-1693 | JS | Geometry helpers | 9 |
+| 1694-1758 | JS | Sound (synthesized via Web Audio API — no asset files, keeps... | 4 |
+| 1759-2085 | JS | Input | 10 |
+| 2086-2212 | JS | Keyboard input (WASD / arrows) | 5 |
+| 2213-2308 | JS | Obstacle motion + collision | 9 |
+| 2309-2364 | JS | Wire identity: shape + pattern (always on) and palette (swappable) | 2 |
+| 2365-2741 | JS | Rendering | 2 |
+| 2742-2777 | JS | Main loop | 1 |
+| 2778-2881 | JS | Buttons | 5 |
+| 2882-2905 | JS | Intro / splash screen | 2 |
+| 2906-2927 | JS | **SOLVERS** |  |
+| 2928-3117 | JS | Solver A — routing | 5 |
+| 3118-3303 | JS | **LEVEL CODEC** | 6 |
+| 3304-3401 | JS | Trap measurement | 3 |
+| 3402-3423 | JS | Hazard timing helpers | 4 |
+| 3424-3664 | JS | Solver B — scheduling | 7 |
+| 3665-4108 | JS | **EDITOR** | 16 |
+| 4109-4687 | JS | Self test | 1 |
+| 4688-4728 | JS | Boot |  |
 
 ## Functions, by section
 
 All 139 `function` declarations in `index.html`.
 
-### Level definitions  <sub>JS &middot; 690-892</sub>
+### Level definitions  <sub>JS &middot; 694-896</sub>
 
 ```
-  872  patrol  (ticksPerCell, waypoints)
-  877  loopPath(waypoints)
+  876  patrol  (ticksPerCell, waypoints)
+  881  loopPath(waypoints)
 ```
 
-### Daily challenge  <sub>JS &middot; 893-1063</sub>
+### Daily challenge  <sub>JS &middot; 897-1067</sub>
 
 ```
-  901  hashStr              (s)
-  906  mulberry32           (seed)
-  915  localDateString      (d)
-  933  randomDailyBoard     (rand, dateStr)
-  970  measurePressure      (lv, sol)
-  980  generateDailyLevel   (dateStr)
- 1038  terminalCellOf       (lv, cell)
- 1042  getDailyStreak       ()
- 1043  recordDailyPlay      (dateStr)
- 1056  resolveChallengeLevel(challengeSlug)
+  905  hashStr              (s)
+  910  mulberry32           (seed)
+  919  localDateString      (d)
+  937  randomDailyBoard     (rand, dateStr)
+  974  measurePressure      (lv, sol)
+  984  generateDailyLevel   (dateStr)
+ 1042  terminalCellOf       (lv, cell)
+ 1046  getDailyStreak       ()
+ 1047  recordDailyPlay      (dateStr)
+ 1060  resolveChallengeLevel(challengeSlug)
 ```
 
-### Solution contract  <sub>JS &middot; 1070-1118</sub>
+### Solution contract  <sub>JS &middot; 1074-1122</sub>
 
 ```
- 1094  parFor            (lv)
- 1105  getMedalThresholds(lv)
- 1110  medalForScore     (lv, scoreTicks)
+ 1098  parFor            (lv)
+ 1109  getMedalThresholds(lv)
+ 1114  medalForScore     (lv, scoreTicks)
 ```
 
-### Persistent storage  <sub>JS &middot; 1119-1177</sub>
+### Persistent storage  <sub>JS &middot; 1123-1181</sub>
 
 ```
- 1138  levelFingerprint(lv)
- 1152  levelKey        (lv)
- 1153  bestKey         (lv)
- 1154  getBest         (lv)
- 1160  setBestIfBetter (lv, scoreTicks)
- 1170  cleanClearKey   (lv)
- 1171  hasCleanClear   (lv)
- 1172  markCleanClear  (lv)
- 1175  ticksToSeconds  (t)
- 1176  fmtTicks        (t)
+ 1142  levelFingerprint(lv)
+ 1156  levelKey        (lv)
+ 1157  bestKey         (lv)
+ 1158  getBest         (lv)
+ 1164  setBestIfBetter (lv, scoreTicks)
+ 1174  cleanClearKey   (lv)
+ 1175  hasCleanClear   (lv)
+ 1176  markCleanClear  (lv)
+ 1179  ticksToSeconds  (t)
+ 1180  fmtTicks        (t)
 ```
 
-### Lifetime stats (for the Settings > Stats section)  <sub>JS &middot; 1178-1186</sub>
+### Lifetime stats (for the Settings > Stats section)  <sub>JS &middot; 1182-1190</sub>
 
 ```
- 1179  bumpCounter      (key)
- 1182  getCounter       (key)
- 1183  medalsEarnedCount()
+ 1183  bumpCounter      (key)
+ 1186  getCounter       (key)
+ 1187  medalsEarnedCount()
 ```
 
-### Cosmetic perks (purely visual — never affect timing, sparks...  <sub>JS &middot; 1187-1248</sub>
+### Cosmetic perks (purely visual — never affect timing, sparks...  <sub>JS &middot; 1191-1252</sub>
 
 ```
- 1210  getEquippedSkinId()
- 1211  setEquippedSkinId(id)
- 1212  applySkin        ()
- 1221  renderSkinList   ()
+ 1214  getEquippedSkinId()
+ 1215  setEquippedSkinId(id)
+ 1216  applySkin        ()
+ 1225  renderSkinList   ()
 ```
 
-### Screen management  <sub>JS &middot; 1249-1506</sub>
+### Screen management  <sub>JS &middot; 1253-1510</sub>
 
 ```
- 1268  loadSettings   ()
- 1306  saveSettings   ()
- 1309  applySettings  ()
- 1337  escapeHtml     (s)
- 1344  describeHazards(lv)
- 1355  renderMenu     ()
- 1450  showMenu       ()
- 1461  renderStats    ()
- 1477  showSettings   ()
- 1487  enterLevel     (lv)
+ 1272  loadSettings   ()
+ 1310  saveSettings   ()
+ 1313  applySettings  ()
+ 1341  escapeHtml     (s)
+ 1348  describeHazards(lv)
+ 1359  renderMenu     ()
+ 1454  showMenu       ()
+ 1465  renderStats    ()
+ 1481  showSettings   ()
+ 1491  enterLevel     (lv)
 ```
 
-### The clock  <sub>JS &middot; 1533-1634</sub>
+### The clock  <sub>JS &middot; 1537-1638</sub>
 
 ```
- 1564  computeCellSize     (cols, rows)
- 1580  resizeCanvasForLevel()
- 1593  currentScore        ()
- 1595  resetPuzzle         ()
- 1617  startRunIfIdle      ()
- 1625  updateHud           ()
+ 1568  computeCellSize     (cols, rows)
+ 1584  resizeCanvasForLevel()
+ 1597  currentScore        ()
+ 1599  resetPuzzle         ()
+ 1621  startRunIfIdle      ()
+ 1629  updateHud           ()
 ```
 
-### Geometry helpers  <sub>JS &middot; 1635-1689</sub>
+### Geometry helpers  <sub>JS &middot; 1639-1693</sub>
 
 ```
- 1636  cellAt          (px, py)
- 1641  sameCell        (a,b)
- 1642  adjacent        (a,b)
- 1643  terminalAt      (cell)
- 1651  isBlocked       (cell)
- 1657  inBounds        (cell)
- 1663  occupiedBy      (cell, excludeIdx)
- 1673  ownIntentIndexAt(cell)
- 1683  commonPrefixLen (a, b)
+ 1640  cellAt          (px, py)
+ 1645  sameCell        (a,b)
+ 1646  adjacent        (a,b)
+ 1647  terminalAt      (cell)
+ 1655  isBlocked       (cell)
+ 1661  inBounds        (cell)
+ 1667  occupiedBy      (cell, excludeIdx)
+ 1677  ownIntentIndexAt(cell)
+ 1687  commonPrefixLen (a, b)
 ```
 
-### Sound (synthesized via Web Audio API — no asset files, keeps...  <sub>JS &middot; 1690-1754</sub>
+### Sound (synthesized via Web Audio API — no asset files, keeps...  <sub>JS &middot; 1694-1758</sub>
 
 ```
- 1696  ensureAudio()
- 1705  playTone   (freq, opts)
- 1720  playNoise  (opts)
- 1749  haptic     (pattern)
+ 1700  ensureAudio()
+ 1709  playTone   (freq, opts)
+ 1724  playNoise  (opts)
+ 1753  haptic     (pattern)
 ```
 
-### Input  <sub>JS &middot; 1755-2081</sub>
+### Input  <sub>JS &middot; 1759-2085</sub>
 
 ```
- 1756  pointerPos          (evt)
- 1774  setActiveColor      (idx)
- 1780  onPointerDown       (cell)
- 1832  planTo              (cell)
- 1893  advanceToNextPlanned()
- 1909  propagateActiveWire ()
- 1981  findSealedPair      ()
- 2015  announceSealIfAny   ()
- 2035  stepTick            ()
- 2048  endPointer          ()
+ 1760  pointerPos          (evt)
+ 1778  setActiveColor      (idx)
+ 1784  onPointerDown       (cell)
+ 1836  planTo              (cell)
+ 1897  advanceToNextPlanned()
+ 1913  propagateActiveWire ()
+ 1985  findSealedPair      ()
+ 2019  announceSealIfAny   ()
+ 2039  stepTick            ()
+ 2052  endPointer          ()
 ```
 
-### Keyboard input (WASD / arrows)  <sub>JS &middot; 2082-2208</sub>
+### Keyboard input (WASD / arrows)  <sub>JS &middot; 2086-2212</sub>
 
 ```
- 2087  cycleActiveColor(dir)
- 2106  planHead        ()
- 2113  keyboardStep    (dc, dr)
- 2126  keyboardBack    ()
- 2162  checkWin        ()
+ 2091  cycleActiveColor(dir)
+ 2110  planHead        ()
+ 2117  keyboardStep    (dc, dr)
+ 2130  keyboardBack    ()
+ 2166  checkWin        ()
 ```
 
-### Obstacle motion + collision  <sub>JS &middot; 2209-2304</sub>
+### Obstacle motion + collision  <sub>JS &middot; 2213-2308</sub>
 
 ```
- 2217  isGate             (ob)
- 2220  gateIsLive         (ob, tick)
- 2227  obstacleCellAt     (ob, tick)
- 2236  hopEase            (f)
- 2242  obstacleRenderPos  (ob, tick, frac)
- 2260  obstacleIsDangerous(ob, tick)
- 2267  cellIsHot          (cell, tick)
- 2276  checkZaps          (tick)
- 2298  flashZap           ()
+ 2221  isGate             (ob)
+ 2224  gateIsLive         (ob, tick)
+ 2231  obstacleCellAt     (ob, tick)
+ 2240  hopEase            (f)
+ 2246  obstacleRenderPos  (ob, tick, frac)
+ 2264  obstacleIsDangerous(ob, tick)
+ 2271  cellIsHot          (cell, tick)
+ 2280  checkZaps          (tick)
+ 2302  flashZap           ()
 ```
 
-### Wire identity: shape + pattern (always on) and palette (swappable)  <sub>JS &middot; 2305-2360</sub>
+### Wire identity: shape + pattern (always on) and palette (swappable)  <sub>JS &middot; 2309-2364</sub>
 
 ```
- 2329  styleFor (baseColor)
- 2334  drawGlyph(shape, x, y, size)
+ 2333  styleFor (baseColor)
+ 2338  drawGlyph(shape, x, y, size)
 ```
 
-### Rendering  <sub>JS &middot; 2361-2737</sub>
+### Rendering  <sub>JS &middot; 2365-2741</sub>
 
 ```
- 2362  cssVar(name, fallback)
- 2369  draw  (tick, frac)
+ 2366  cssVar(name, fallback)
+ 2373  draw  (tick, frac)
 ```
 
-### Main loop  <sub>JS &middot; 2738-2773</sub>
+### Main loop  <sub>JS &middot; 2742-2777</sub>
 
 ```
- 2746  tick(now)
+ 2750  tick(now)
 ```
 
-### Buttons  <sub>JS &middot; 2774-2877</sub>
+### Buttons  <sub>JS &middot; 2778-2881</sub>
 
 ```
- 2782  nextLevelAfter(lv)
- 2803  shareText     ()
- 2810  challengeUrl  ()
- 2841  shareTextOut  (title, body, blurb)
- 2869  doShare       ()
+ 2786  nextLevelAfter(lv)
+ 2807  shareText     ()
+ 2814  challengeUrl  ()
+ 2845  shareTextOut  (title, body, blurb)
+ 2873  doShare       ()
 ```
 
-### Intro / splash screen  <sub>JS &middot; 2878-2901</sub>
+### Intro / splash screen  <sub>JS &middot; 2882-2905</sub>
 
 ```
- 2882  playIntro()
- 2887  finish   ()
+ 2886  playIntro()
+ 2891  finish   ()
 ```
 
-### Solver A — routing  <sub>JS &middot; 2924-3113</sub>
+### Solver A — routing  <sub>JS &middot; 2928-3117</sub>
 
 ```
- 2928  routeSolve      (lv, opts)
- 2965  stillConnectable(k)
- 2996  reachable       (fromIdx, goalIdx)
- 3017  place           (k, cost)
- 3029  walk            (k, p, cur, path, costBefore)
+ 2932  routeSolve      (lv, opts)
+ 2969  stillConnectable(k)
+ 3000  reachable       (fromIdx, goalIdx)
+ 3021  place           (k, cost)
+ 3033  walk            (k, p, cur, path, costBefore)
 ```
 
-### LEVEL CODEC  <sub>JS &middot; 3114-3299</sub>
+### LEVEL CODEC  <sub>JS &middot; 3118-3303</sub>
 
 ```
- 3143  b64urlEncode(s)
- 3146  b64urlDecode(s)
- 3152  encodeLevel (lv)
- 3178  decodeLevel (code)
- 3271  customSlug  (code)
- 3277  verifyLevel (lv)
+ 3147  b64urlEncode(s)
+ 3150  b64urlDecode(s)
+ 3156  encodeLevel (lv)
+ 3182  decodeLevel (code)
+ 3275  customSlug  (code)
+ 3281  verifyLevel (lv)
 ```
 
-### Trap measurement  <sub>JS &middot; 3300-3397</sub>
+### Trap measurement  <sub>JS &middot; 3304-3401</sub>
 
 ```
- 3315  enumerateRoutes(lv, pairIdx, slack, maxCount)
- 3361  restRoutable   (lv, pairIdx, route)
- 3376  trapMeasure    (lv, opts)
+ 3319  enumerateRoutes(lv, pairIdx, slack, maxCount)
+ 3365  restRoutable   (lv, pairIdx, route)
+ 3380  trapMeasure    (lv, opts)
 ```
 
-### Hazard timing helpers  <sub>JS &middot; 3398-3419</sub>
+### Hazard timing helpers  <sub>JS &middot; 3402-3423</sub>
 
 ```
- 3399  gcd         (a,b)
- 3400  lcm         (a,b)
- 3403  hazardPeriod(lv)
- 3411  dangerAt    (lv, tick)
+ 3403  gcd         (a,b)
+ 3404  lcm         (a,b)
+ 3407  hazardPeriod(lv)
+ 3415  dangerAt    (lv, tick)
 ```
 
-### Solver B — scheduling  <sub>JS &middot; 3420-3660</sub>
+### Solver B — scheduling  <sub>JS &middot; 3424-3664</sub>
 
 ```
- 3437  wireRun       (lv, route, t0, cap)
- 3493  scheduleSolve (lv, routes, opts)
- 3555  solveLevel    (lv, opts)
- 3579  applyAction   (act, sol)
- 3597  replaySolution(lv, sol)
- 3621  stageSolution (lv, sol, stopAfter)
- 3649  stageSealDemo ()
+ 3441  wireRun       (lv, route, t0, cap)
+ 3497  scheduleSolve (lv, routes, opts)
+ 3559  solveLevel    (lv, opts)
+ 3583  applyAction   (act, sol)
+ 3601  replaySolution(lv, sol)
+ 3625  stageSolution (lv, sol, stopAfter)
+ 3653  stageSealDemo ()
 ```
 
-### EDITOR  <sub>JS &middot; 3661-4104</sub>
+### EDITOR  <sub>JS &middot; 3665-4108</sub>
 
 ```
- 3690  edPadFor          (i)
- 3695  edCellUsed        (cell)
- 3701  edInBounds        (cell)
- 3707  editorLevel       ()
- 3727  edInvalidate      ()
- 3733  setVerdict        (html, cls)
- 3738  editorTap         (cell)
- 3811  renderEditorTools ()
- 3829  resizeEditorCanvas()
- 3840  drawEditor        ()
- 3937  drawGlyphOn       (c2d, shape, x, y, size)
- 3955  editorCellAt      (evt)
- 3966  runVerify         ()
- 4003  editorClear       ()
- 4012  editorRandom      ()
- 4031  showEditor        ()
+ 3694  edPadFor          (i)
+ 3699  edCellUsed        (cell)
+ 3705  edInBounds        (cell)
+ 3711  editorLevel       ()
+ 3731  edInvalidate      ()
+ 3737  setVerdict        (html, cls)
+ 3742  editorTap         (cell)
+ 3815  renderEditorTools ()
+ 3833  resizeEditorCanvas()
+ 3844  drawEditor        ()
+ 3941  drawGlyphOn       (c2d, shape, x, y, size)
+ 3959  editorCellAt      (evt)
+ 3970  runVerify         ()
+ 4007  editorClear       ()
+ 4016  editorRandom      ()
+ 4035  showEditor        ()
 ```
 
-### Self test  <sub>JS &middot; 4105-4683</sub>
+### Self test  <sub>JS &middot; 4109-4687</sub>
 
 ```
- 4114  selfTest()
+ 4118  selfTest()
 ```
 
 ## Top-level constants
@@ -358,69 +358,69 @@ Cached `getElementById` handles are omitted - there are dozens and they all
 sit in **Screen management**.
 
 ```
-  677  GAME_VERSION        = '2.0.0';
-  681  CANONICAL_URL       = '';
-  683  TICK_HZ             = 6;
-  684  MS_PER_TICK         = 1000 / TICK_HZ;
-  685  MAX_FRAME_MS        = 250;
-  687  ZAP_PENALTY_TICKS   = 3 * TICK_HZ;
-  688  TRACE_MS            = 2500;
-  711  LEVELS              = [
-  920  DAILY_PALETTE       = ["#ff5d6c","#ffd75a","#7ab8ff","#c98bff","#54e...
-  931  DAILY_BAND          = { parMin: 22, parMax: 46, holdsMin: 2, holdsMa...
-  979  dailyCache          = new Map();
- 1076  PAR_CONTRACT        = {
- 1092  MEDAL_ICON          = { gold:'🥇', silver:'🥈', bronze:'🥉' };
- 1093  parCache            = new Map();
- 1126  STORE_PREFIX        = 'wired-v3-';
- 1137  fingerprintCache    = new Map();
- 1189  SKINS               = [
- 1209  ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tok...
- 1250  screen              = 'menu';
- 1262  SETTINGS_DEFAULTS   = {colorblind:false, reduceMotion:false, muted:f...
- 1263  SETTINGS_KEY        = STORE_PREFIX + 'settings';
- 1276  settings            = loadSettings();
- 1279  pendingChallenge    = null;
- 1280  pendingBoard        = null;
- 1511  MIN_CELL            = 32, MAX_CELL = 64;
- 1512  CELL                = MAX_CELL;
- 1513  level               = LEVELS[0];
- 1524  wires               = {};
- 1525  activeColor         = null;
- 1526  dragging            = false;
- 1527  won                 = false;
- 1528  zapCount            = 0;
- 1529  previewUntil        = 0;
- 1530  sealed              = false;
- 1531  justLocked          = false;
- 1538  tickCount           = 0;
- 1539  running             = false;
- 1540  tickAccum           = 0;
- 1541  lastFrameMs         = null;
- 1542  pendingSwitchTicks  = 0;
- 1545  ctx                 = canvas.getContext('2d');
- 1695  audioCtx            = null;
- 1739  sfx                 = {
- 2313  WIRE_STYLE          = {
- 2322  COLORBLIND_PALETTE  = {
- 2922  ROUTE_BUDGET        = 400000;
- 3132  CODE_VERSION        = 'W1';
- 3133  PAIR_COLORS         = ["#ff5d6c","#ffd75a","#7ab8ff","#54e6a6","#c98...
- 3134  EDITOR_MIN          = 5;
- 3140  EDITOR_MAX          = 7;
- 3141  VERIFY_BUDGET       = 4000000;
- 3642  SEAL_DEMO           = {
- 3667  GATE_PRESETS        = [
- 3671  PATROL_SPEEDS       = [2, 3, 1, 4];
- 3673  edCols              = 6, edRows = 6;
- 3674  edPads              = [];
- 3675  edBlocked           = [];
- 3676  edGates             = [];
- 3677  edPatrols           = [];
- 3678  edTool              = 'pair0';
- 3679  edPatrolDraft       = null;
- 3680  edVerified          = null;
- 3683  edCtx               = editorCanvas.getContext('2d');
+  681  GAME_VERSION        = '2.0.0';
+  685  CANONICAL_URL       = '';
+  687  TICK_HZ             = 6;
+  688  MS_PER_TICK         = 1000 / TICK_HZ;
+  689  MAX_FRAME_MS        = 250;
+  691  ZAP_PENALTY_TICKS   = 3 * TICK_HZ;
+  692  TRACE_MS            = 2500;
+  715  LEVELS              = [
+  924  DAILY_PALETTE       = ["#ff5d6c","#ffd75a","#7ab8ff","#c98bff","#54e...
+  935  DAILY_BAND          = { parMin: 22, parMax: 46, holdsMin: 2, holdsMa...
+  983  dailyCache          = new Map();
+ 1080  PAR_CONTRACT        = {
+ 1096  MEDAL_ICON          = { gold:'🥇', silver:'🥈', bronze:'🥉' };
+ 1097  parCache            = new Map();
+ 1130  STORE_PREFIX        = 'wired-v3-';
+ 1141  fingerprintCache    = new Map();
+ 1193  SKINS               = [
+ 1213  ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tok...
+ 1254  screen              = 'menu';
+ 1266  SETTINGS_DEFAULTS   = {colorblind:false, reduceMotion:false, muted:f...
+ 1267  SETTINGS_KEY        = STORE_PREFIX + 'settings';
+ 1280  settings            = loadSettings();
+ 1283  pendingChallenge    = null;
+ 1284  pendingBoard        = null;
+ 1515  MIN_CELL            = 32, MAX_CELL = 64;
+ 1516  CELL                = MAX_CELL;
+ 1517  level               = LEVELS[0];
+ 1528  wires               = {};
+ 1529  activeColor         = null;
+ 1530  dragging            = false;
+ 1531  won                 = false;
+ 1532  zapCount            = 0;
+ 1533  previewUntil        = 0;
+ 1534  sealed              = false;
+ 1535  justLocked          = false;
+ 1542  tickCount           = 0;
+ 1543  running             = false;
+ 1544  tickAccum           = 0;
+ 1545  lastFrameMs         = null;
+ 1546  pendingSwitchTicks  = 0;
+ 1549  ctx                 = canvas.getContext('2d');
+ 1699  audioCtx            = null;
+ 1743  sfx                 = {
+ 2317  WIRE_STYLE          = {
+ 2326  COLORBLIND_PALETTE  = {
+ 2926  ROUTE_BUDGET        = 400000;
+ 3136  CODE_VERSION        = 'W1';
+ 3137  PAIR_COLORS         = ["#ff5d6c","#ffd75a","#7ab8ff","#54e6a6","#c98...
+ 3138  EDITOR_MIN          = 5;
+ 3144  EDITOR_MAX          = 7;
+ 3145  VERIFY_BUDGET       = 4000000;
+ 3646  SEAL_DEMO           = {
+ 3671  GATE_PRESETS        = [
+ 3675  PATROL_SPEEDS       = [2, 3, 1, 4];
+ 3677  edCols              = 6, edRows = 6;
+ 3678  edPads              = [];
+ 3679  edBlocked           = [];
+ 3680  edGates             = [];
+ 3681  edPatrols           = [];
+ 3682  edTool              = 'pair0';
+ 3683  edPatrolDraft       = null;
+ 3684  edVerified          = null;
+ 3687  edCtx               = editorCanvas.getContext('2d');
 ```
 
 ## Levels
@@ -429,16 +429,16 @@ Par comes from `PAR_CONTRACT`; regenerate it with `node solve.js --contract`.
 
 | # | slug | name | grid | par | defined |
 |---:|---|---|---|---:|---:|
-| 1 | `breadboard` | Breadboard | 5x5 | 14 | 715 |
-| 2 | `circuit-board` | Circuit Board | 6x6 | 28 | 727 |
-| 3 | `elbow` | Elbow | 7x7 | 26 | 741 |
-| 4 | `interlock` | Interlock | 7x7 | 29 | 757 |
-| 5 | `mainframe` | Mainframe | 7x7 | 34 | 774 |
-| 6 | `relay-yard` | Relay Yard | 7x8 | 36 | 791 |
-| 7 | `backplane` | Backplane | 7x8 | 39 | 805 |
-| 8 | `logic-array` | Logic Array | 7x8 | 39 | 820 |
-| 9 | `ladder` | Ladder | 7x7 | 31 | 839 |
-| 10 | `fault-line` | Fault Line | 7x6 | 38 | 852 |
+| 1 | `breadboard` | Breadboard | 5x5 | 14 | 719 |
+| 2 | `circuit-board` | Circuit Board | 6x6 | 28 | 731 |
+| 3 | `elbow` | Elbow | 7x7 | 26 | 745 |
+| 4 | `interlock` | Interlock | 7x7 | 29 | 761 |
+| 5 | `mainframe` | Mainframe | 7x7 | 34 | 778 |
+| 6 | `relay-yard` | Relay Yard | 7x8 | 36 | 795 |
+| 7 | `backplane` | Backplane | 7x8 | 39 | 809 |
+| 8 | `logic-array` | Logic Array | 7x8 | 39 | 824 |
+| 9 | `ladder` | Ladder | 7x7 | 31 | 843 |
+| 10 | `fault-line` | Fault Line | 7x6 | 38 | 856 |
 
 ## Test groups
 
@@ -446,26 +446,26 @@ The 20 assertion groups inside `selfTest()`, so you can find the test
 for a behaviour without reading the whole suite.
 
 ```
- 4129  The first frame of a patrol level renders
- 4141  Current costs a tick per cell, and drawing costs nothing
- 4159  The exploit this whole model exists to kill
- 4174  Determinism: same actions from tick 0, same run
- 4187  Spark position is a pure function of the tick counter
- 4198  A spark shorts what it touches, and only what it touches
- 4232  Current waits at a live contact instead of dying on it
- 4247  Components block routing
- 4258  A finished wire is a wall
- 4271  Sealing the board is detected, and only when certain
- 4398  Ordinary play obeys the same rules par was computed under
- 4426  Progression is keyed by identity, not position
- 4435  A custom board travels inside its own link
- 4461  The editor gate refuses what it cannot prove
- 4481  Save keys are tied to identity, not array position
- 4506  Solver: routing correctness on boards with a known answer
- 4557  Solution contract
- 4600  The daily is generated AND verified
- 4623  Touch targets stay usable on real phones
- 4642  Shipped level data is well-formed
+ 4133  The first frame of a patrol level renders
+ 4145  Current costs a tick per cell, and drawing costs nothing
+ 4163  The exploit this whole model exists to kill
+ 4178  Determinism: same actions from tick 0, same run
+ 4191  Spark position is a pure function of the tick counter
+ 4202  A spark shorts what it touches, and only what it touches
+ 4236  Current waits at a live contact instead of dying on it
+ 4251  Components block routing
+ 4262  A finished wire is a wall
+ 4275  Sealing the board is detected, and only when certain
+ 4402  Ordinary play obeys the same rules par was computed under
+ 4430  Progression is keyed by identity, not position
+ 4439  A custom board travels inside its own link
+ 4465  The editor gate refuses what it cannot prove
+ 4485  Save keys are tied to identity, not array position
+ 4510  Solver: routing correctness on boards with a known answer
+ 4561  Solution contract
+ 4604  The daily is generated AND verified
+ 4627  Touch targets stay usable on real phones
+ 4646  Shipped level data is well-formed
 ```
 
 ## The tooling seam
@@ -497,87 +497,87 @@ STORE_PREFIX + 'stats-zaps'
 83 ids, with the line each is declared on.
 
 ```
-app                 444
-banner              501
-bestVal             480
-board               491
-boardWrap           490
-challengeTargetBar  482
-colorblindToggle    592
-controls            496
-creditsVersion      627
-editorBackBtn       517
-editorCanvas        531
-editorClear         524
-editorCodeRow       542
-editorCopy          539
-editorHint          547
-editorImport        543
-editorLoad          544
-editorPlay          538
-editorRandom        525
-editorScreen        515
-editorSize          523
-editorSizeRow       522
-editorTools         528
-editorVerdict       534
-editorVerify        537
-hud                 476
-introBolt           438
-introFlash          436
-introScreen         429
-introSkipHint       441
-introTagline        439
-introTitle          438
-introTraces         430
-introWordmark       437
-menuBadge           452
-menuBanner          455
-menuBtn             469
-menuList            454
-menuScreen          447
-muteToggle          606
-playBody            474
-playBottom          495
-playerNameInput     613
-playLevelName       470
-playLevelNameText   470
-playMain            489
-playScreen          467
-playTop             468
-playTopStats        475
-previewBtn          498
-reduceMotionToggle  599
-restartBtn          497
-scoreVal            479
-sealedBar           483
-sealedRestart       485
-sealedText          484
-settingsBackBtn     557
-settingsBtn         448
-settingsCredits     626
-settingsScreen      555
-shareBlurb          638
-shareBox            639
-shareBtn            499
-shareCard           636
-shareCloseBtn       643
-shareCopyBtn        642
-shareModal          635
-shareStatus         640
-shareTitle          637
-skinList            618
-statsList           623
-timer               477
-winBestLine         653
-winBreakdown        652
-winCard             649
-winEarnLine         654
-winMenu             657
-winModal            648
-winNext             659
-winRestart          656
-winScore            651
-winShare            658
-zapCount            478
+app                 448
+banner              505
+bestVal             484
+board               495
+boardWrap           494
+challengeTargetBar  486
+colorblindToggle    596
+controls            500
+creditsVersion      631
+editorBackBtn       521
+editorCanvas        535
+editorClear         528
+editorCodeRow       546
+editorCopy          543
+editorHint          551
+editorImport        547
+editorLoad          548
+editorPlay          542
+editorRandom        529
+editorScreen        519
+editorSize          527
+editorSizeRow       526
+editorTools         532
+editorVerdict       538
+editorVerify        541
+hud                 480
+introBolt           442
+introFlash          440
+introScreen         433
+introSkipHint       445
+introTagline        443
+introTitle          442
+introTraces         434
+introWordmark       441
+menuBadge           456
+menuBanner          459
+menuBtn             473
+menuList            458
+menuScreen          451
+muteToggle          610
+playBody            478
+playBottom          499
+playerNameInput     617
+playLevelName       474
+playLevelNameText   474
+playMain            493
+playScreen          471
+playTop             472
+playTopStats        479
+previewBtn          502
+reduceMotionToggle  603
+restartBtn          501
+scoreVal            483
+sealedBar           487
+sealedRestart       489
+sealedText          488
+settingsBackBtn     561
+settingsBtn         452
+settingsCredits     630
+settingsScreen      559
+shareBlurb          642
+shareBox            643
+shareBtn            503
+shareCard           640
+shareCloseBtn       647
+shareCopyBtn        646
+shareModal          639
+shareStatus         644
+shareTitle          641
+skinList            622
+statsList           627
+timer               481
+winBestLine         657
+winBreakdown        656
+winCard             653
+winEarnLine         658
+winMenu             661
+winModal            652
+winNext             663
+winRestart          660
+winScore            655
+winShare            662
+zapCount            482
 ```

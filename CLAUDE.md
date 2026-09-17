@@ -122,6 +122,23 @@ plays as a file listing instead of a game.
   Mainframe bug was undetected when it is not. `.gitattributes` pins LF now, and
   failure-to-apply is its own outcome. Same family as the empty-search rule
   below: the absence of a hit is not evidence until the search itself is proven.
+- **Reproducible is not correct, and a determinism check cannot tell you so.** `cover.png` shipped
+  with the art in the top-left quarter and three quarters pure white: a standalone SVG renders at its
+  own `width`/`height` and is not stretched to the viewport, so capturing it in a 1260x1000 window
+  drew 630x500 of art onto a blank page. It passed every check, including the byte-reproducibility
+  check written to prove the shots were trustworthy - because blank reproduces perfectly. It was
+  found by *looking at the picture*. Same family as the swallowed exception above: the tooling was
+  working exactly as specified and the specification did not cover the failure.
+- **`margin:0 auto` centres nothing on a full-width block.** `.boardFrame` is a plain `div`, so it
+  filled its container while the canvas inside it stayed at the left - a bordered panel with 191px of
+  dead space beside the board on every level, in the game and in three of the five store shots.
+  Fixed with `width:fit-content`. Worth knowing that the store screenshots are where this became
+  visible: a still image is the cheapest review of a layout you have stopped seeing.
+- **Renaming the game is a display-layer change, and a global find-and-replace is the bug.**
+  `STORE_PREFIX`, the `wired-v2-settings` migration key, the `wired-daily-v3-` hash seed and the
+  `__wiredDev` tool seam all contain the name and must all keep it: renaming them would wipe saved
+  progress, break the settings migration, silently change every daily board, and break all three node
+  tools at once. The table in `store/itch-page.md` lists them.
 - **itch does not forward query strings into the embedded game.** A challenge
   link pointing at the store page opens the game without the challenge.
   Anything built on share links has to survive that.
