@@ -155,7 +155,7 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-15: **319/319 assertions pass**, all ten shipped
+On `main`, verified 2026-09-16: **319/319 assertions pass**, all ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
 **13/13 mutations caught** by `node mutate.js`. v2.0.0, `dist/wired-2.0.0.zip`.
 
@@ -164,14 +164,43 @@ rebuilds all six from the real game, byte-reproducibly. Every in-game position
 comes from a solver-proven solution replayed partway, except the board-sealed one,
 which needs a deliberate mistake and shares its route with the suite (`SEAL_DEMO`).
 
+## Publishing
+
+**itch is canonical; GitHub Pages is an unpromoted mirror.** Same pattern as
+cut-and-fill, and for its reason: itch ranks partly on plays and views, so a play
+that lands on the mirror is a discovery signal itch never sees. The mirror stays
+out of the README, out of announcements, and out of anything handed to a player.
+It exists for two things - share links that survive a re-upload, and the PWA.
+
+**`node publish.mjs` is the upload.** It runs all eight gates and refuses to push
+a game that fails any of them. Uploading by hand through the dashboard is the step
+where a rebuild stops being a deploy: the repo can be clean, the suite green, and
+what players load a month old, because nothing in git touches what itch serves.
+It has no `--no-test` passthrough on purpose. butler lives at
+`C:/dev/tools/butler/butler.exe` (PATH is checked first) and needs `butler login`
+once, interactively. The FIRST push lands as a *download* until you tick "This
+file will be played in the browser" on the itch Edit page - butler cannot set
+that flag.
+
+**The PWA is inert inside the itch embed.** The install prompt does not fire in a
+third-party iframe and the service worker is unreliable under third-party storage
+partitioning, so `manifest.json` and the icons do nothing there and offline play
+should not be promised on that page. Both work on the mirror. Confirm this against
+the live page rather than taking it on reasoning - it is read off how browsers
+treat third-party frames, not measured here.
+
 **What is actually left is the two judgement calls, not code:**
 
-1. **`CANONICAL_URL` is still `''`** (`index.html`). itch does not forward query
-   strings into an embedded game, so challenge links only deep-link if this points
-   at a page serving `index.html` directly. Decide, or accept the limitation.
-2. **The name.** Wired is a Conde Nast trademark. A browser puzzle game is a
-   different category and the word describes the mechanic, but it is much cheaper
-   to change before the page has traction than after.
+1. **`CANONICAL_URL` is still `''`** (`index.html`). Resolved in principle: point
+   it at the Pages mirror, which is what makes a challenge link survive the next
+   upload. Empty is not broken - it falls back to the itch.zone URL of
+   `index.html`, so the query string does reach the game - but itch regenerates
+   that URL every upload, so links rot on each release.
+2. **The name.** Wired is a Conde Nast trademark, and "Wired game" is unsearchable
+   whatever the legal position. Renaming is a display-layer change; the table in
+   `store/itch-page.md` lists the four identifiers that must keep the old name or
+   they wipe saves, break the settings migration, move every daily board, and
+   break all three node tools.
 
 Then the cover's finishing pass (`store/README.md`) and the upload settings already
 written out in `store/itch-page.md`.

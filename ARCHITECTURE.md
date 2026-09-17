@@ -278,6 +278,7 @@ browsers strip the query string, which kills `?test=1`.
 | icons | `node make-icons.mjs` |
 | screenshots | `node shots.mjs` |
 | release | `node build.js` |
+| publish | `node publish.mjs` (`--dry-run` to check without pushing) |
 | audit the gates | `node mutate.js` (`--list`, `--verbose`) |
 
 **The release needs PowerShell 7.** Windows PowerShell 5.1's `Compress-Archive`

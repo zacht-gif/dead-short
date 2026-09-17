@@ -58,8 +58,8 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
 
 ### Built to be played anywhere
 
-One HTML file. No install, no account, no tracking, no network calls of any kind — the page is about
-63 KB over the wire and works offline once loaded. Plays with mouse, touch, or entirely by keyboard.
+One HTML file, no account, no tracking, and no network calls of any kind — the page is about 63 KB
+over the wire. Plays with mouse, touch, or entirely by keyboard.
 
 **Accessibility** is shipped, not planned: every wire carries a distinct shape *and* a distinct dash
 pattern for all players, so colour is never the only signal. There's a colourblind palette verified

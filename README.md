@@ -5,7 +5,8 @@ the components soldered to the board, and get each trace energized before a patr
 out. Nothing in the game is random: every spark path, every board, and every tick of the clock is fixed
 and repeatable, so two players facing the same board face the identical challenge.
 
-Plays in any modern browser. Installable as a PWA and fully playable offline.
+Plays in any modern browser. Installable as a PWA and fully playable offline **when served from a page
+of its own** — see `Where it is published` below, because the itch build is the exception.
 
 ## Repository layout
 
@@ -20,6 +21,7 @@ Plays in any modern browser. Installable as a PWA and fully playable offline.
 | `shots.mjs` / `chrome.mjs` | Captures `store/screenshots/` from the real game |
 | `LICENSE` | All rights reserved — see below |
 | `build.js` | Packages `dist/wired-<version>.zip` for upload |
+| `publish.mjs` | Runs every gate, then pushes to itch with butler |
 | `test.js` / `harness.js` | Headless runner for the in-page test suite |
 | `solve.js` | Proves every level routes and verifies its par |
 | `codemap.js` | Generates `CODE-MAP.md`; `--check` proves it is current |
@@ -79,6 +81,28 @@ it:
 - the finished zip is malformed — a nested path stored with a backslash, or a file missing.
 
 `node mutate.js` audits those gates by introducing each defect and checking something goes red.
+
+## Where it is published
+
+```bash
+node publish.mjs --dry-run   # every gate, stage the tree, push nothing
+node publish.mjs             # every gate, then butler push
+```
+
+itch.io is canonical. A GitHub Pages mirror serves the same files and is deliberately kept out of this
+README, every announcement and every link that is handed to anyone: itch ranks partly on plays and
+views, so a play that lands on the mirror is a discovery signal itch never sees. The mirror exists for
+durable share links and for the install path below, not for traffic.
+
+Uploading by hand is the step where a rebuild stops being a deploy — the repo can be clean, the tests
+green, and the thing players load a month old, because nothing in git touches what itch serves. So the
+upload is one command, and it refuses to run on a game that does not pass all eight gates.
+
+**The PWA does not work inside the itch embed.** The install prompt does not fire in a third-party
+iframe, and the service worker is unreliable under third-party storage partitioning — so on itch,
+`manifest.json` and the PNG icons are inert and offline play should not be promised. Both work normally
+on the mirror, which is the only place the install is real. They still ship in the zip because the same
+files serve both hosts and the cost is a few KB.
 
 ## Running it
 

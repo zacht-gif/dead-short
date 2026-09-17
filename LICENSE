@@ -1,48 +1,88 @@
-Copyright © 2026 Zach Thornsbury. All rights reserved.
+Wired
 
-Wired — including but not limited to its source code, level designs, puzzle
-content, name, wordmark, visual identity, and audio design — is proprietary
-work owned by the copyright holder.
+Copyright (c) 2026 Zach Thornsbury
+All rights reserved.
 
-WHAT YOU MAY DO
+This software and its accompanying assets, level designs, puzzle content,
+name, wordmark, visual identity, audio design, and documentation (the "Work")
+are proprietary. No licence is granted, expressly or by implication, except as
+stated below.
 
-You may play Wired, free of charge, wherever it is published. You may read
-this repository's source code for personal study. You may record, stream, and
-publish video or screenshots of the game, including monetized video, without
-seeking further permission.
+PERMITTED
 
-WHAT YOU MAY NOT DO
+  You may play the Work, free of charge, through a distribution channel
+  authorised by the copyright holder, and make one copy for personal backup.
 
-Without prior written permission from the copyright holder, you may not:
+  You may read this repository's source code for personal study.
 
-  - copy, redistribute, host, mirror, or re-publish the game or its source,
-    in whole or in part, including to any game portal, app store, or website;
-  - modify the game or create derivative works from it;
-  - reuse its source code, level designs, or visual identity in another
-    project, commercial or otherwise;
-  - sell, license, sublicense, or rent it, or bundle it with any product;
-  - remove, obscure, or alter this notice or any attribution within the game.
+  You may record, stream, and publish video or screenshots of the Work,
+  including monetised video, without seeking further permission.
+
+NOT PERMITTED
+
+  Without the prior written permission of the copyright holder, you may not:
+
+  1. copy, publish, host, mirror, or otherwise redistribute the Work, in whole
+     or in part, in original or modified form, including to any game portal,
+     app store, or website;
+  2. modify, adapt, translate, reskin, or create derivative works from it,
+     including reuse of its level designs, artwork, source code, or visual
+     identity;
+  3. sublicense, rent, lease, sell, or otherwise commercially exploit it, or
+     bundle it with any product;
+  4. remove, obscure, or alter this notice, any copyright notice within the
+     Work, or any attribution within the Work;
+  5. use it, in whole or in part, to train machine learning models.
+
+  Nothing here restricts any right that cannot lawfully be restricted,
+  including rights of fair dealing or fair use where they apply.
 
 PLAYER-CREATED LEVELS
 
-Levels authored with the game's built-in editor and shared as level codes
-belong to the players who create them. Such levels are exchanged directly
-between players as text; they are not uploaded to, hosted by, reviewed by, or
-endorsed by the copyright holder.
-
-NO WARRANTY
-
-This software is provided "as is", without warranty of any kind, express or
-implied, including but not limited to the warranties of merchantability,
-fitness for a particular purpose, and noninfringement. In no event shall the
-copyright holder be liable for any claim, damages, or other liability, whether
-in an action of contract, tort, or otherwise, arising from, out of, or in
-connection with the software or its use.
+  Levels authored with the Work's built-in editor and shared as level codes
+  belong to the players who create them. Such levels are exchanged directly
+  between players as text; they are not uploaded to, hosted by, reviewed by,
+  or endorsed by the copyright holder.
 
 TRADEMARK NOTICE
 
-"Wired" is used here as the title of this game. Any other trademarks referred
-to in this repository remain the property of their respective owners, and no
-affiliation with or endorsement by those owners is claimed or implied.
+  "Wired" is used here as the title of this game. Any other trademarks
+  referred to in this repository remain the property of their respective
+  owners, and no affiliation with or endorsement by those owners is claimed or
+  implied.
+
+NO WARRANTY
+
+  THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+  IN CONNECTION WITH THE WORK OR ITS USE.
 
 Permission requests: zacht@sitedesign-inc.com
+
+
+A NOTE ON WHAT THIS DOES AND DOESN'T DO
+---------------------------------------
+
+This is a plain-language summary, not legal advice, and it isn't part of the
+licence terms above.
+
+A browser game's source is fully readable by anyone who loads it. Opening the
+page hands over the entire work: the levels, the solver, the artwork. This
+notice gives you legal recourse against copying; it provides no technical
+protection whatsoever, and there is no way to add any.
+
+Minifying or obfuscating before publishing raises the effort required to reuse
+the code, but a determined person still gets everything. Treat that as a speed
+bump, not a lock.
+
+Publishing this repository publicly changes none of the above. The source was
+already readable to anyone who loaded the game; a public repo only makes the
+history and the tooling readable too, and neither carries a licence to reuse
+them.
+
+If the commercial stakes here become meaningful, have a lawyer review this
+before you rely on it. It was written to state your intent clearly, not to
+survive a dispute.
