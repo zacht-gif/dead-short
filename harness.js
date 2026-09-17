@@ -25,6 +25,12 @@ function ctxStub(){
   });
 }
 
+// One focus owner for the whole stub document, so el.focus() and reads of
+// document.activeElement agree. Without this, focus() was a no-op and every
+// question about what is focused answered "nothing" - which the game would
+// have read as "the board is not focused", quietly and wrongly.
+const focusState = { el: null };
+
 function makeEl(tag){
   return {
     tagName: String(tag || 'div').toUpperCase(),
@@ -51,7 +57,9 @@ function makeEl(tag){
     querySelectorAll(){ return []; },
     getBoundingClientRect(){ return { left:0, top:0, right:100, bottom:100, width:100, height:100 }; },
     getContext(){ return ctxStub(); },
-    focus(){}, blur(){}, click(){}
+    focus(){ focusState.el = this; },
+    blur(){ if(focusState.el === this) focusState.el = null; },
+    click(){}
   };
 }
 
@@ -60,6 +68,10 @@ function makeDocument(){
   return {
     documentElement: makeEl('html'),
     body: makeEl('body'),
+    // Readable and assignable: the game reads it to decide whether the board
+    // owns Tab, and the suite writes it to place focus without a real DOM.
+    get activeElement(){ return focusState.el; },
+    set activeElement(v){ focusState.el = v; },
     getElementById(id){
       if(!byId[id]) byId[id] = makeEl('div');
       return byId[id];

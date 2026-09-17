@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dead Short — a circuit routing puzzle</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -21,10 +21,14 @@
     --bg:            #0a0e17;
     --bg-pattern:    #16324a; /* circuit-trace background pattern color */
     --panel:         #10151f;
-    --panel-border:  #24344a;
-    --grid-line:     #1b2740;
+    --panel-border:  #45648e;
+    --grid-line:     #405d98;
     /* Canvas-facing tokens — read by draw() so a skin reskins the play field,
-       not just the surrounding menu chrome. */
+       not just the surrounding menu chrome. --grid-line and --panel-border are
+       read by draw() too (the PCB grid, and the component chips' outline and
+       pins), so they carry a contrast obligation on the board and not just in
+       the menu chrome. Their cssVar() fallbacks repeat the literals below, so build.js's
+       checkCanvasTokenFallbacks() is what stops the two copies drifting. */
     --board-bg:      #080c14;
     --spark:         #fff2b8;
 
@@ -46,6 +50,26 @@
     --shadow:        rgba(0,0,0,.45);
   }
   *{box-sizing:border-box;}
+
+  /* Focus indicator (WCAG 2.4.7, and 2.4.11's 3:1 against adjacent colour).
+     The OFFSET is the load-bearing part, not the colour. --accent-2 measures
+     10.8:1 against a panel and 11.4:1 against the page, but the same cyan
+     sitting ON the gold primary button is 1.04:1 - so a ring drawn inside the
+     button's own fill would vanish on exactly the buttons that matter most
+     (Play, Share result, Verify, Next). outline-offset puts the ring on the
+     dark surface behind the control instead, which is what every control here
+     sits on. Browsers' own default was doing the inside-the-fill thing: it
+     came out at 1.36:1 on a Play button, which is why none was visible.
+     :focus-visible rather than :focus, so clicking a button with a mouse does
+     not leave a ring behind it. */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible{
+    outline:2px solid var(--accent-2);
+    outline-offset:2px;
+  }
   html,body{
     margin:0; padding:0; height:100%;
     color:var(--text);
@@ -75,6 +99,15 @@
   #app{
     display:flex; flex-direction:column; align-items:center;
     min-height:100%; padding:16px 12px 40px;
+    /* viewport-fit=cover lets the background run under the notch and the home
+       indicator, which is the point - but it lets the CONTENT run under them
+       too. Reclaim the vertical insets, which is the common phone case.
+       Horizontal insets are deliberately NOT taken: the left/right budget is
+       mirrored by hand in computeCellSize(), and moving one without the other
+       is the exact desync its comment warns about. A landscape notch is a
+       real gap, and it wants a device to test on rather than a guess. */
+    padding-top:max(16px, env(safe-area-inset-top));
+    padding-bottom:max(40px, env(safe-area-inset-bottom));
   }
   /* On a 320px-wide phone a 7-column board lands at 41px per cell with the
      normal gutters, under the 44px touch-target guideline. Giving the board
@@ -86,6 +119,14 @@
   }
   .screen{ width:100%; max-width:640px; position:relative; }
   .hidden{ display:none !important; }
+  /* Visible to assistive tech, no layout footprint. Used for help text that
+     would be noise on screen but is the only way a non-sighted player learns
+     the board's keys - including how to get back out of it. */
+  .srOnly{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%);
+    white-space:nowrap; border:0;
+  }
 
   /* ---------- Menu screen ---------- */
   header{ text-align:center; margin-bottom:22px; }
@@ -118,7 +159,7 @@
     background:var(--bg); color:var(--text); border:1px solid var(--panel-border);
     border-radius:8px; padding:8px 10px;
   }
-  .textInput:focus{ outline:none; border-color:var(--accent-2); }
+  .textInput:focus{ border-color:var(--accent-2); }
   #settingsCredits{ text-align:center; font-size:11px; color:var(--text-dim); margin-top:4px; }
 
   .skinRow{
@@ -183,7 +224,7 @@
   #menuBanner b{ color:var(--text); }
 
   /* ---------- Play screen ---------- */
-  #playTop{
+  .playTop{
     display:flex; align-items:center; justify-content:space-between;
     margin-bottom:10px;
   }
@@ -198,8 +239,8 @@
     background:var(--panel); color:var(--text); border:1px solid var(--panel-border);
     border-radius:8px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer;
   }
-  #playLevelName{ font-size:16px; font-weight:700; }
-  #playLevelName .bolt{ color:var(--accent); margin-right:4px; }
+  .playLevelName{ font-size:16px; font-weight:700; }
+  .playLevelName .bolt{ color:var(--accent); margin-right:4px; }
 
   #hud{
     width:100%;
@@ -251,7 +292,7 @@
   }
   canvas{ display:block; }
 
-  #controls{
+  .controls{
     display:flex; flex-wrap:wrap; gap:8px;
     margin-top:14px;
   }
@@ -260,11 +301,24 @@
     background:var(--panel); color:var(--text);
     border:1px solid var(--panel-border); border-radius:8px;
     padding:9px 14px; cursor:pointer;
+    /* Kills double-tap-to-zoom and the 300ms tap delay that comes with it,
+       without blocking a deliberate pinch the way user-scalable=no did.
+       These two changes are a pair, not two independent tidy-ups: dropping
+       user-scalable=no from the viewport is only safe for a game you tap
+       repeatedly if the buttons opt out of the gesture locally. Borrowed from
+       cut-and-fill, which worked the pairing out first. */
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
   }
   button:hover{ border-color:var(--accent-2); }
   button.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:0 0 14px var(--glow); }
   button.primary:hover{ filter:brightness(1.08); }
-  button:disabled{ opacity:0.4; cursor:not-allowed; }
+  /* 0.4 measured 3.55:1 against the page. Disabled controls are exempt from
+     the contrast rules, but cut-and-fill settled this one already: too faint
+     reads as broken rather than as temporarily unavailable, and the editor
+     shows two disabled buttons ("Play it", "Copy code") before you have done
+     anything at all. 0.6 measures 6.59:1. */
+  button:disabled{ opacity:0.6; cursor:not-allowed; }
   button:disabled:hover{ border-color:var(--panel-border); }
 
   #banner{
@@ -297,7 +351,7 @@
     background:var(--bg); color:var(--text); border:1px solid var(--panel-border);
     border-radius:8px; padding:9px 10px; resize:vertical; word-break:break-all;
   }
-  #shareBox:focus{ outline:none; border-color:var(--accent-2); }
+  #shareBox:focus{ border-color:var(--accent-2); }
   #shareStatus{ font-size:11px; color:var(--good); min-height:15px; margin:7px 0 11px; }
   #shareCard .row{ display:flex; gap:8px; justify-content:center; }
 
@@ -309,14 +363,17 @@
   #winCard{
     background:var(--panel); border:1px solid var(--panel-border);
     border-radius:14px; padding:26px 30px; text-align:center;
-    max-width:340px;
+    /* 340px could not fit four buttons on one line, so "Next" and its chevron
+       were breaking across two. Wider, and allowed to wrap as a row rather
+       than inside a label. */
+    max-width:380px;
   }
   #winCard h2{ margin:0 0 6px; color:var(--good); }
   #winCard .score{ font-size:36px; font-weight:700; margin:10px 0 2px; font-variant-numeric: tabular-nums; }
   #winCard .breakdown{ font-size:12px; color:var(--text-dim); margin-bottom:4px; }
   #winCard .best-line{ font-size:12px; color:var(--text-dim); margin-bottom:6px; }
   #winCard .earn-line{ font-size:12px; color:var(--accent); margin-bottom:16px; min-height:16px; }
-  #winCard .row{ display:flex; gap:8px; justify-content:center; }
+  #winCard .row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   .zap-flash{ animation: flash 0.35s ease-out; }
   @keyframes flash{
     0%{ filter:brightness(2.4); }
@@ -421,6 +478,12 @@
     #playBody{
       flex-direction:row; align-items:flex-start; gap:14px;
       max-height:calc(100vh - 90px);
+      /* dvh, not vh: on a phone, vh keeps counting the retracted URL bar, so
+         the column could be taller than what you can actually see. The JS half
+         of this layout already measures window.innerHeight, which is the dvh
+         number - so this makes the two agree rather than diverge. The vh line
+         above stays as the fallback for browsers without dvh. */
+      max-height:calc(100dvh - 90px);
     }
     #playMain{ flex:none; }
     #playTopStats, #playBottom{
@@ -429,7 +492,7 @@
     }
     #hud{ flex-direction:column; align-items:stretch; gap:8px; }
     #hud .stat{ flex-direction:row; justify-content:space-between; min-width:0; }
-    #controls{ flex-direction:column; }
+    .controls{ flex-direction:column; }
     #banner{ display:none; } /* the long instructional text is the first thing to drop when space is tight */
   }
 </style>
@@ -437,7 +500,7 @@
 <body>
 
 <!-- ================= INTRO / SPLASH SCREEN ================= -->
-<div id="introScreen">
+<div id="introScreen" aria-hidden="true">
   <svg id="introTraces" viewBox="0 0 100 100" preserveAspectRatio="none">
     <line x1="50" y1="-10" x2="50" y2="50"/>
     <line x1="110" y1="50" x2="50" y2="50"/>
@@ -476,9 +539,9 @@
 
   <!-- ================= PLAY SCREEN ================= -->
   <div id="playScreen" class="screen hidden">
-    <div id="playTop">
+    <div class="playTop">
       <button id="menuBtn">‹ Menu</button>
-      <div id="playLevelName"><span class="bolt">⚡</span><span id="playLevelNameText">Apprentice</span></div>
+      <div class="playLevelName"><span class="bolt">⚡</span><span id="playLevelNameText">Apprentice</span></div>
       <div style="width:64px"></div>
     </div>
 
@@ -491,7 +554,7 @@
           <div class="stat"><div class="label">Best</div><div class="value" id="bestVal">—</div></div>
         </div>
         <div id="challengeTargetBar" class="hidden"></div>
-        <div id="sealedBar" class="hidden">
+        <div id="sealedBar" class="hidden" role="alert">
           <div><b>Board sealed.</b> <span id="sealedText"></span></div>
           <button id="sealedRestart">Restart</button>
         </div>
@@ -499,12 +562,18 @@
 
       <div id="playMain">
         <div id="boardWrap" class="boardFrame">
-          <canvas id="board"></canvas>
+          <canvas id="board" tabindex="0" role="application"
+                  aria-label="Circuit board" aria-describedby="boardKeys"></canvas>
         </div>
+        <p id="boardKeys" class="srOnly">
+          Tab and Shift Tab choose a wire. Arrow keys or W A S D extend its route
+          one cell. Backspace steps back. Press Escape to leave the board and
+          reach the Restart, Trace and Share buttons.
+        </p>
       </div>
 
       <div id="playBottom">
-        <div id="controls">
+        <div class="controls">
           <button id="restartBtn">Restart</button>
           <button id="previewBtn">Trace ⚡</button>
           <button id="shareBtn" class="primary">Share result</button>
@@ -517,6 +586,7 @@
           unlimited, so scout all you want before you commit.
           <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD draw its route one cell at a
           time, Backspace steps back, Enter/Space grabs a wire if none is selected.
+          <b>Esc</b> leaves the board and moves to the buttons.
         </div>
       </div>
     </div>
@@ -524,9 +594,9 @@
 
   <!-- ================= EDITOR SCREEN ================= -->
   <div id="editorScreen" class="screen hidden">
-    <div id="playTop">
+    <div class="playTop">
       <button id="editorBackBtn">‹ Menu</button>
-      <div id="playLevelName"><span class="bolt">⚡</span><span>Board Editor</span></div>
+      <div class="playLevelName"><span class="bolt">⚡</span><span>Board Editor</span></div>
       <div style="width:64px"></div>
     </div>
 
@@ -542,9 +612,9 @@
       <canvas id="editorCanvas"></canvas>
     </div>
 
-    <div id="editorVerdict">Place a pair of matching pads, then <b>Verify</b>.</div>
+    <div id="editorVerdict" role="status" aria-live="polite">Place a pair of matching pads, then <b>Verify</b>.</div>
 
-    <div id="controls" style="margin-top:10px">
+    <div class="controls" style="margin-top:10px">
       <button id="editorVerify" class="primary">Verify</button>
       <button id="editorPlay" disabled>Play it</button>
       <button id="editorCopy" disabled>Copy code</button>
@@ -564,9 +634,9 @@
 
   <!-- ================= SETTINGS SCREEN ================= -->
   <div id="settingsScreen" class="screen hidden">
-    <div id="playTop">
+    <div class="playTop">
       <button id="settingsBackBtn">‹ Menu</button>
-      <div id="playLevelName"><span class="bolt">⚡</span><span>Settings</span></div>
+      <div class="playLevelName"><span class="bolt">⚡</span><span>Settings</span></div>
       <div style="width:64px"></div>
     </div>
 
@@ -643,12 +713,12 @@
 
 </div>
 
-<div id="shareModal">
+<div id="shareModal" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
   <div id="shareCard">
     <h2 id="shareTitle">Share</h2>
     <p id="shareBlurb">Copy this and paste it anywhere.</p>
     <textarea id="shareBox" readonly rows="3"></textarea>
-    <div id="shareStatus"></div>
+    <div id="shareStatus" role="status" aria-live="polite"></div>
     <div class="row">
       <button id="shareCopyBtn" class="primary">Copy</button>
       <button id="shareCloseBtn">Close</button>
@@ -656,9 +726,9 @@
   </div>
 </div>
 
-<div id="winModal">
+<div id="winModal" role="dialog" aria-modal="true" aria-labelledby="winTitle">
   <div id="winCard">
-    <h2>Circuit complete!</h2>
+    <h2 id="winTitle">Circuit complete!</h2>
     <div class="score" id="winScore">0.0s</div>
     <div class="breakdown" id="winBreakdown"></div>
     <div class="best-line" id="winBestLine"></div>
@@ -1235,15 +1305,15 @@
     { id:'insulated', name:'Insulated', flavor:'Not one short. The board runs cool.',
       cond:'Finish any level with zero shorts.',
       unlocked:()=> LEVELS.some(lv=>hasCleanClear(lv)),
-      tokens:{ '--bg-pattern':'#163a2e', '--grid-line':'#1c3d33', '--good':'#37e6a0' } },
+      tokens:{ '--bg-pattern':'#163a2e', '--grid-line':'#306857', '--good':'#37e6a0' } },
     { id:'full-board', name:'Full Board', flavor:'Every socket populated. Nothing left breadboarded.',
       cond:'Clear every level at least once.',
       unlocked:()=> LEVELS.every(lv=>getBest(lv)!==null),
-      tokens:{ '--accent-2':'#7df9ff', '--panel-border':'#2b5a7a', '--bg-pattern':'#123049' } },
+      tokens:{ '--accent-2':'#7df9ff', '--panel-border':'#31678c', '--bg-pattern':'#123049' } },
     { id:'zero-shorts', name:'Zero Shorts', flavor:'The board that never sparked.',
       cond:'Earn a zap-free clean clear on every level.',
       unlocked:()=> LEVELS.every(lv=>hasCleanClear(lv)),
-      tokens:{ '--accent':'#ffd75a', '--bg-pattern':'#2a1f0d', '--grid-line':'#33270f' }, badge:'⚡ ZERO SHORTS' },
+      tokens:{ '--accent':'#ffd75a', '--bg-pattern':'#2a1f0d', '--grid-line':'#755a23' }, badge:'⚡ ZERO SHORTS' },
   ];
   const ALL_SKIN_TOKEN_KEYS = [...new Set(SKINS.flatMap(s=>Object.keys(s.tokens)))];
   function getEquippedSkinId(){ return localStorage.getItem(STORE_PREFIX + 'skin') || 'default'; }
@@ -1308,12 +1378,33 @@
   // anything; it just quietly stops finding the settings it exists to rescue.
   const LEGACY_SETTINGS_KEY = 'wired-v2-settings';
 
+  /* A function DECLARATION, not a const: loadSettings() runs during module
+     init and calls this, so hoisting removes the ordering question entirely.
+     Defensive about matchMedia because harness.js boots this file against a
+     stub DOM - a missing API has to read as "no preference stated" rather
+     than throwing on the way in. */
+  function prefersReducedMotion(){
+    return typeof matchMedia === 'function' &&
+           !!matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
   function loadSettings(){
     try{
       const raw = localStorage.getItem(SETTINGS_KEY) || localStorage.getItem(LEGACY_SETTINGS_KEY) || '{}';
-      return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(raw));
+      const stored = JSON.parse(raw);
+      const defaults = Object.assign({}, SETTINGS_DEFAULTS);
+      /* The system preference seeds the DEFAULT; it never overrides a choice.
+         Someone who has already asked their OS for less motion should not have
+         to come and ask this game separately - but someone who has explicitly
+         ticked the box OFF here has said something more specific than the OS
+         did, and gets to keep it. That is why this tests for the key being
+         absent rather than for the value being false. */
+      if(!('reduceMotion' in stored) && prefersReducedMotion()) defaults.reduceMotion = true;
+      return Object.assign(defaults, stored);
     } catch(e){
-      return Object.assign({}, SETTINGS_DEFAULTS);
+      const defaults = Object.assign({}, SETTINGS_DEFAULTS);
+      if(prefersReducedMotion()) defaults.reduceMotion = true;
+      return defaults;
     }
   }
   let settings = loadSettings();
@@ -1537,6 +1628,12 @@
     settingsScreen.classList.add('hidden');
     editorScreen.classList.add('hidden');
     playScreen.classList.remove('hidden');
+    /* preventScroll because focusing the board should not yank the page down
+       to it on a phone. Focusing at all is what keeps keyboard play feeling
+       the way it did before Tab stopped being captured globally: the board
+       already has the keyboard when the level opens, so nobody has to find it
+       first. A mouse player sees no ring - the style is :focus-visible. */
+    if(canvas.focus) canvas.focus({ preventScroll:true });
 
     if(pendingChallenge && pendingChallenge.level.slug === level.slug){
       const cName = pendingChallenge.name ? escapeHtml(pendingChallenge.name) : 'Someone';
@@ -1595,6 +1692,50 @@
   const sealedBar = document.getElementById('sealedBar');
   const sealedText = document.getElementById('sealedText');
   const winModal = document.getElementById('winModal');
+
+  /* Modal focus. A dialog nobody can tab into is a dialog a keyboard player
+     cannot answer, and the win modal is the one holding "Next" - so without
+     this the campaign ends at level one however the play screen behaves.
+     Three parts, all required: move focus in on open, keep Tab inside while
+     open, and put focus back where it came from on close. */
+  let modalReturnFocus = null;
+  function focusablesIn(el){
+    const sel = 'button, [href], input, select, textarea, [tabindex]';
+    return Array.from(el.querySelectorAll(sel)).filter(n =>
+      !n.disabled && n.getClientRects && n.getClientRects().length > 0);
+  }
+  function openModal(el, firstFocus){
+    modalReturnFocus = document.activeElement || null;
+    el.classList.add('show');
+    const target = firstFocus || focusablesIn(el)[0];
+    if(target && target.focus) target.focus();
+  }
+  function closeModal(el){
+    el.classList.remove('show');
+    const back = modalReturnFocus;
+    modalReturnFocus = null;
+    if(back && back.focus) back.focus();
+  }
+  document.addEventListener('keydown', e=>{
+    const share = document.getElementById('shareModal');
+    const open = winModal.classList.contains('show') ? winModal
+               : share.classList.contains('show') ? share : null;
+    if(!open) return;
+    /* Escape closes the share sheet, which has a Close button and already
+       closes on a backdrop click. It deliberately does NOT close the win
+       modal: that one has no cancel - you pick Retry, Menu, Share or Next -
+       and dismissing it would leave a finished board with no way back to it. */
+    if(e.key === 'Escape'){
+      if(open === share){ e.preventDefault(); closeModal(share); }
+      return;
+    }
+    if(e.key !== 'Tab') return;
+    const items = focusablesIn(open);
+    if(!items.length) return;
+    const first = items[0], last = items[items.length-1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  });
   const winScoreEl = document.getElementById('winScore');
   const winBreakdownEl = document.getElementById('winBreakdown');
   const winBestLineEl = document.getElementById('winBestLine');
@@ -2173,34 +2314,74 @@
     planTo(w.intent[w.intent.length-2]);
   }
 
-  window.addEventListener('keydown', e=>{
-    if(screen !== 'play') return;
-    if(performance.now() < previewUntil) return;
+  /* The canvas is a role="application" region, so while IT holds focus it owns
+     Tab, Enter and Space. Everywhere else on the play screen those three keys
+     belong to the browser.
+
+     They used to be captured unconditionally, on window, and that made the play
+     screen a keyboard trap (WCAG 2.1.2, Level A). Focus could never reach
+     Restart, Trace, Share result or Menu; and because winning does not change
+     `screen` - the win modal is just a class on a div - it could not reach
+     Retry, Menu, Share or Next either, so the campaign could not be finished
+     without a mouse. The sharpest version was the Board Sealed warning: the
+     game correctly detects that the board is unwinnable, offers a Restart
+     button, and a keyboard player could not press it.
+
+     Arrows, WASD and Backspace stay global on purpose. They are not focus
+     navigation, so capturing them steals nothing - it only stops the page
+     scrolling mid-run - and keeping them global is what preserves the feel of
+     picking up the arrows without clicking the board first.
+
+     Escape is the documented way back out, which is what makes capturing the
+     other three legitimate rather than a trap. It is named twice on screen:
+     in #boardKeys for screen readers, and in the Keyboard line of the banner. */
+  function boardHasFocus(){ return document.activeElement === canvas; }
+  function anyModalOpen(){
+    return winModal.classList.contains('show') ||
+           document.getElementById('shareModal').classList.contains('show');
+  }
+
+  /* Split out of the listener so the suite can call it directly. harness.js
+     boots this file against a stub DOM that cannot dispatch a real keydown,
+     and this is the one function where getting it wrong locks a keyboard
+     player inside the play screen with no way to press a button. Returns true
+     when the game consumed the key - which is exactly the thing worth
+     asserting, because "consumed" is the same as "focus cannot move". */
+  function handlePlayKey(e){
+    if(screen !== 'play') return false;
+    if(anyModalOpen()) return false;   // a dialog on top owns the keyboard
+    if(performance.now() < previewUntil) return false;
     const key = e.key;
-    if(key === 'Tab'){
+    if(key === 'Escape'){
+      if(!boardHasFocus()) return false;
       e.preventDefault();
-      cycleActiveColor(e.shiftKey ? -1 : 1);
-      return;
+      const out = document.getElementById('restartBtn');
+      if(out && out.focus) out.focus();
+      return true;
+    }
+    if(key === 'Tab' || key === 'Enter' || key === ' '){
+      if(!boardHasFocus()) return false;
+      e.preventDefault();
+      if(key === 'Tab') cycleActiveColor(e.shiftKey ? -1 : 1);
+      else if(activeColor === null) cycleActiveColor(1);
+      return true;
     }
     if(key === 'Backspace'){
       e.preventDefault();
       keyboardBack();
-      return;
-    }
-    if(key === 'Enter' || key === ' '){
-      e.preventDefault();
-      if(activeColor === null) cycleActiveColor(1);
-      return;
+      return true;
     }
     let dc=0, dr=0;
     if(key==='ArrowUp' || key==='w' || key==='W') dr=-1;
     else if(key==='ArrowDown' || key==='s' || key==='S') dr=1;
     else if(key==='ArrowLeft' || key==='a' || key==='A') dc=-1;
     else if(key==='ArrowRight' || key==='d' || key==='D') dc=1;
-    else return;
+    else return false;
     e.preventDefault();
     keyboardStep(dc, dr);
-  });
+    return true;
+  }
+  window.addEventListener('keydown', e=>{ handlePlayKey(e); });
 
   function checkWin(){
     if(won) return;
@@ -2244,7 +2425,7 @@
       winEarnLineEl.textContent = earnLine;
       const next = nextLevelAfter(level);
       winNextBtn.textContent = next ? 'Next: ' + next.name + ' ›' : 'Menu';
-      winModal.classList.add('show');
+      openModal(winModal, winNextBtn);
       updateHud();
     }
   }
@@ -2412,10 +2593,10 @@
   function draw(tick, frac){
     const tAnim = tick + frac;
     const boardW = level.cols*CELL, boardH = level.rows*CELL;
-    const traceColor = cssVar('--grid-line', '#1b2740');
+    const traceColor = cssVar('--grid-line', '#405d98');
     const boardBg = cssVar('--board-bg', '#080c14');
     const sparkColor = cssVar('--spark', '#fff2b8');
-    const panelBorder = cssVar('--panel-border', '#24344a');
+    const panelBorder = cssVar('--panel-border', '#45648e');
 
     // Board substrate — a darker panel than the page so the play field reads
     // as a physical board sitting on the desk, not just more page background.
@@ -2914,8 +3095,8 @@
       okCopy ? done() : failed();
     }
   };
-  document.getElementById('shareCloseBtn').onclick = ()=>shareModal.classList.remove('show');
-  shareModal.addEventListener('click', e=>{ if(e.target === shareModal) shareModal.classList.remove('show'); });
+  document.getElementById('shareCloseBtn').onclick = ()=>closeModal(shareModal);
+  shareModal.addEventListener('click', e=>{ if(e.target === shareModal) closeModal(shareModal); });
 
   function doShare(){
     const text = shareText();
@@ -3893,13 +4074,13 @@
     const W = edCols*C, H = edRows*C;
     edCtx.fillStyle = cssVar('--board-bg', '#080c14');
     edCtx.fillRect(0,0,W,H);
-    edCtx.strokeStyle = cssVar('--grid-line', '#1b2740');
+    edCtx.strokeStyle = cssVar('--grid-line', '#405d98');
     edCtx.lineWidth = 1;
     for(let c=0;c<=edCols;c++){ edCtx.beginPath(); edCtx.moveTo(c*C,0); edCtx.lineTo(c*C,H); edCtx.stroke(); }
     for(let r=0;r<=edRows;r++){ edCtx.beginPath(); edCtx.moveTo(0,r*C); edCtx.lineTo(W,r*C); edCtx.stroke(); }
 
     const spark = cssVar('--spark', '#fff2b8');
-    const border = cssVar('--panel-border', '#24344a');
+    const border = cssVar('--panel-border', '#45648e');
 
     edPatrols.forEach(p=>{
       const path = loopPath(p.waypoints);
@@ -4473,6 +4654,107 @@
         ok(lv.slug + ': ordinary play never beats par', finalScore >= sol.par,
            'score=' + finalScore + ' par=' + sol.par);
       });
+
+      // --- The play screen is not a keyboard trap ----------------------------
+      // Tab, Enter and Space used to be preventDefault()ed on window for the
+      // whole play screen, so focus could never reach Restart, Trace, Share
+      // result or Menu - and since winning only adds a class, it could not
+      // reach Retry/Menu/Share/Next either. WCAG 2.1.2, Level A, and it made
+      // the campaign unfinishable without a mouse.
+      //
+      // "Consumed the key" and "focus cannot move" are the same statement, so
+      // that return value is what these assert on. The board keeps the keys
+      // while it is focused; everywhere else they belong to the browser.
+      (function(){
+        const savedScreen = screen, savedActive = document.activeElement;
+        const savedPreview = previewUntil;
+        previewUntil = 0;
+        load(plainLevel());
+        screen = 'play';
+        const press = (key, opts)=>{
+          let prevented = false;
+          const ev = Object.assign({ key, shiftKey:false,
+            preventDefault(){ prevented = true; } }, opts || {});
+          const consumed = handlePlayKey(ev);
+          return { consumed, prevented };
+        };
+
+        document.activeElement = canvas;
+        ok('the board owns Tab while it is focused', press('Tab').consumed === true);
+        ok('the board owns Enter while it is focused', press('Enter').consumed === true);
+        ok('the board owns Space while it is focused', press(' ').consumed === true);
+
+        document.activeElement = document.getElementById('restartBtn');
+        ok('Tab reaches the buttons when the board is not focused',
+           press('Tab').consumed === false);
+        ok('Enter fires a focused button rather than the board',
+           press('Enter').consumed === false);
+        ok('Space fires a focused button rather than the board',
+           press(' ').consumed === false);
+
+        // Arrows stay global on purpose - they are not focus navigation, so
+        // capturing them costs a keyboard player nothing and keeps the feel of
+        // picking up the arrows without clicking the board first.
+        ok('arrows still play the board from anywhere',
+           press('ArrowRight').consumed === true);
+        ok('WASD still plays the board from anywhere',
+           press('d').consumed === true);
+
+        // Escape is what makes capturing the other three legitimate.
+        document.activeElement = canvas;
+        const esc = press('Escape');
+        ok('Escape is consumed when the board has focus', esc.consumed === true);
+        ok('Escape moves focus off the board', document.activeElement !== canvas);
+        document.activeElement = document.getElementById('restartBtn');
+        ok('Escape does nothing when the board is not focused',
+           press('Escape').consumed === false);
+
+        // A dialog on top owns the keyboard outright, or its own focus trap
+        // would be fighting this handler for every Tab.
+        document.activeElement = canvas;
+        winModal.classList.add('show');
+        ok('an open dialog takes the keyboard from the board',
+           press('Tab').consumed === false);
+        winModal.classList.remove('show');
+
+        screen = savedScreen;
+        document.activeElement = savedActive;
+        previewUntil = savedPreview;
+      })();
+
+      // --- The system motion preference seeds the default, never overrides ---
+      // Someone who has asked their OS for less motion should not have to ask
+      // this game separately. Someone who has ticked the box OFF here has said
+      // something more specific, and keeps it.
+      (function(){
+        const hadMM = 'matchMedia' in globalThis, realMM = globalThis.matchMedia;
+        const savedRaw = localStorage.getItem(SETTINGS_KEY);
+        const setMM = (on)=>{ globalThis.matchMedia = ()=>({ matches:on }); };
+
+        setMM(true);
+        ok('a stated reduced-motion preference is detected', prefersReducedMotion() === true);
+        setMM(false);
+        ok('no stated preference reads as no preference', prefersReducedMotion() === false);
+        delete globalThis.matchMedia;
+        ok('a DOM without matchMedia is not a motion preference',
+           prefersReducedMotion() === false);
+
+        setMM(true);
+        localStorage.removeItem(SETTINGS_KEY);
+        ok('with nothing saved, the OS preference turns Reduce Motion on',
+           loadSettings().reduceMotion === true);
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ reduceMotion:false }));
+        ok('an explicit "off" outranks the OS preference',
+           loadSettings().reduceMotion === false);
+        setMM(false);
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ reduceMotion:true }));
+        ok('an explicit "on" survives an OS that says nothing',
+           loadSettings().reduceMotion === true);
+
+        if(savedRaw === null) localStorage.removeItem(SETTINGS_KEY);
+        else localStorage.setItem(SETTINGS_KEY, savedRaw);
+        if(hadMM) globalThis.matchMedia = realMM; else delete globalThis.matchMedia;
+      })();
 
       // --- Progression is keyed by identity, not position ---------------------
       ok('every level except the last has a next one',

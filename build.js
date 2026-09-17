@@ -143,6 +143,178 @@ function checkIconArt(){
   });
 }
 
+// ---------- Accessibility gates -----------------------------------------
+// Each of these guards something the suite physically cannot see, because
+// selfTest() runs against a stub DOM with no CSS and no layout. They are all
+// source-text or arithmetic checks on index.html for that reason.
+
+function readTokenBlock(html){
+  // Every --name: #hex in the file, wherever it is declared - the :root block
+  // AND the SKINS[] overrides, which matter just as much: three skins override
+  // the two tokens the contrast gate below is about, so checking :root alone
+  // would pass a build where most skins failed.
+  const out = {};
+  // The optional quote before the colon is the whole point: :root writes
+  //   --grid-line: #405d98;
+  // but a SKINS[] entry writes
+  //   '--grid-line':'#306857'
+  // and requiring the colon to follow the name directly matched only the
+  // first. The gate then claimed to check skins while reading nothing but
+  // :root - caught by the skin-contrast-regressed mutation, which is exactly
+  // the job that mutation exists to do.
+  const re = /(--[a-z0-9-]+)['"]?\s*:\s*['"]?(#[0-9a-fA-F]{3,8})['"]?/g;
+  let m;
+  while((m = re.exec(html)) !== null){
+    (out[m[1]] = out[m[1]] || []).push(m[2]);
+  }
+  return out;
+}
+
+function readRootTokens(html){
+  // Only the :root block. The fallback check compares against the DEFAULT
+  // value, and now that readTokenBlock() also sees the skins, taking "the
+  // first declaration" would have meant "whichever comes first in the file" -
+  // true today, and a silent trap the day a skin moves above :root.
+  const m = html.match(/:root\s*\{([\s\S]*?)\}/);
+  if(!m) fail('no :root block found in index.html');
+  const out = {};
+  const re = /(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})/g;
+  let d;
+  while((d = re.exec(m[1])) !== null) out[d[1]] = d[2];
+  return out;
+}
+
+function srgbLuminance(hex){
+  const h = hex.replace('#','');
+  const full = h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h.slice(0,6);
+  const ch = [0,2,4].map(i => parseInt(full.slice(i,i+2),16)/255)
+    .map(c => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4));
+  return 0.2126*ch[0] + 0.7152*ch[1] + 0.0722*ch[2];
+}
+
+function contrastRatio(a, b){
+  const la = srgbLuminance(a), lb = srgbLuminance(b);
+  return (Math.max(la,lb) + 0.05) / (Math.min(la,lb) + 0.05);
+}
+
+function checkAccessibleViewport(){
+  // user-scalable=no / maximum-scale=1 blocks pinch-zoom outright, which is a
+  // WCAG 1.4.4 failure and the single most common one on a mobile game. The
+  // gesture it was really there to suppress is double-tap-to-zoom, and
+  // touch-action:manipulation on the buttons suppresses exactly that without
+  // taking deliberate zoom away from anyone.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const m = html.match(/<meta\s+name="viewport"[^>]*>/i);
+  if(!m) fail('no viewport meta found in index.html');
+  const tag = m[0];
+  ['user-scalable=no', 'user-scalable = no', 'maximum-scale'].forEach(bad=>{
+    if(tag.toLowerCase().indexOf(bad) !== -1){
+      fail('the viewport meta blocks pinch-zoom (' + bad + '), which fails WCAG 1.4.4.\n' +
+           '        Drop it; buttons already carry touch-action:manipulation.');
+    }
+  });
+  if(html.indexOf('touch-action:manipulation') === -1){
+    fail('touch-action:manipulation is gone from the buttons.\n' +
+         '        It is the half of the pair that keeps taps fast once\n' +
+         '        user-scalable=no is no longer suppressing double-tap zoom.');
+  }
+}
+
+function checkFocusVisible(){
+  // Every control here styles :hover. Until 2026-09-17 none styled :focus, so
+  // keyboard users got the browser default - which on the gold primary buttons
+  // measured 1.36:1 and was invisible. The offset is the load-bearing part:
+  // it puts the ring on the dark surface behind the control instead of inside
+  // the control's own fill, where cyan-on-gold is 1.04:1.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  if(html.indexOf(':focus-visible') === -1){
+    fail('no :focus-visible rule in index.html - keyboard focus is invisible.');
+  }
+  const block = html.match(/:focus-visible\s*\{[^}]*\}/);
+  if(!block) fail('found :focus-visible but no rule body to check.');
+  if(!/outline\s*:\s*\d/.test(block[0])){
+    fail('the :focus-visible rule does not set a visible outline width.');
+  }
+  if(!/outline-offset\s*:\s*\d/.test(block[0])){
+    fail('the :focus-visible rule has no outline-offset.\n' +
+         '        Without it the ring sits inside the button fill, where it\n' +
+         '        measures 1.04:1 on the gold primary buttons.');
+  }
+  if(/outline\s*:\s*none/.test(html.replace(/outline\s*:\s*none\s*;?\s*\}/g, ''))){
+    // a bare "outline:none" anywhere that is not immediately closing a rule
+    // is usually someone suppressing focus again.
+  }
+}
+
+function checkContrastTokens(){
+  // WCAG 1.4.11: a UI component's boundary and a graphical object needed to
+  // understand the content both want 3:1. This MEASURES rather than pinning
+  // hex literals, so retuning the palette is checked too instead of only this
+  // one set of values being frozen.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const tokens = readTokenBlock(html);
+  const need = 3.0;
+
+  // The two backgrounds these are judged against must stay single-valued, or
+  // "which background" stops having one answer and this gate quietly measures
+  // the wrong pair.
+  // Each foreground below is judged against ONE background. If a skin ever
+  // overrides one of those backgrounds, "which background" stops having a
+  // single answer and this gate would quietly measure the wrong pair - so it
+  // fails loudly and asks to be taught, rather than carrying on.
+  ['--panel', '--board-bg'].forEach(name=>{
+    const vals = tokens[name] || [];
+    if(vals.length !== 1){
+      fail(name + ' is declared ' + vals.length + ' times; this gate assumes 1.\n' +
+           '        A skin now overrides it - teach checkContrastTokens which\n' +
+           '        background each override should be measured against.');
+    }
+  });
+  const panel = tokens['--panel'][0];
+  const boardBg = tokens['--board-bg'][0];
+
+  const pairs = [
+    ['--panel-border', panel,   'the boundary of every button, card and input'],
+    ['--grid-line',    boardBg, 'the board grid and the component chips'],
+  ];
+  pairs.forEach(([name, bg, what])=>{
+    const vals = tokens[name] || [];
+    if(!vals.length) fail(name + ' is no longer declared anywhere in index.html.');
+    vals.forEach(v=>{
+      const r = contrastRatio(v, bg);
+      if(r < need){
+        fail(name + ' = ' + v + ' measures ' + r.toFixed(2) + ':1 against ' + bg + '\n' +
+             '        (needs ' + need.toFixed(1) + ':1 - it draws ' + what + ').\n' +
+             '        Every declaration counts, including the SKINS[] overrides.');
+      }
+    });
+  });
+}
+
+function checkCanvasTokenFallbacks(){
+  // draw() reads these tokens through cssVar(name, fallback), so each fallback
+  // is a second copy of a value declared in CSS. If they drift, a browser that
+  // returns nothing for the custom property paints the old colour - and the
+  // contrast gate above, which reads the CSS, would still be green.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const rootTokens = readRootTokens(html);
+  const re = /cssVar\(\s*'(--[a-z0-9-]+)'\s*,\s*'(#[0-9a-fA-F]{3,8})'\s*\)/g;
+  let m, checked = 0;
+  while((m = re.exec(html)) !== null){
+    const [, name, fallback] = m;
+    const declared = rootTokens[name];
+    if(!declared) fail('cssVar() falls back for ' + name + ', which is not declared in CSS.');
+    if(declared.toLowerCase() !== fallback.toLowerCase()){
+      fail('cssVar fallback for ' + name + ' is ' + fallback + ' but CSS declares ' + declared + '.\n' +
+           '        These are two copies of one value; make them agree.');
+    }
+    checked++;
+  }
+  // An empty result here would mean "nothing searched" just as easily as
+  // "nothing wrong", and this file has been bitten by that before.
+  if(checked < 3) fail('checkCanvasTokenFallbacks matched only ' + checked + ' cssVar() calls; the pattern is wrong.');
+}
+
 function checkShippedAssets(){
   // A manifest or a cache list can name a file the zip never contained. Nothing
   // about that is visible while developing — the file is right there on disk —
@@ -275,6 +447,14 @@ function main(){
   checkIconArt();
   console.log('  checking every referenced asset ships…');
   checkShippedAssets();
+  console.log('  checking the viewport still allows zoom…');
+  checkAccessibleViewport();
+  console.log('  checking keyboard focus is visible…');
+  checkFocusVisible();
+  console.log('  checking non-text contrast…');
+  checkContrastTokens();
+  console.log('  checking canvas token fallbacks…');
+  checkCanvasTokenFallbacks();
   console.log('  running tests…');
   runTests();
   console.log('  solving every level…');

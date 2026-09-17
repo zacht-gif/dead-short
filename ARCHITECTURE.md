@@ -119,6 +119,10 @@ invisible in a browser until a player hits it.
 | the icon art still matches | `make-icons.mjs`'s bolt path or palette drifted from `icon.svg` |
 | every referenced asset ships | the manifest, `sw.js` or a `<link>` names a file not in `RUNTIME_FILES` |
 | the zip is well-formed | a nested path was stored with a backslash, or a file is missing |
+| the viewport still allows zoom | `user-scalable=no` / `maximum-scale` is back, or the buttons lost `touch-action:manipulation` |
+| keyboard focus is visible | no `:focus-visible` rule, no outline width, or no outline-offset |
+| non-text contrast holds | `--panel-border` or `--grid-line` measures under 3:1 — in `:root` **or** in any `SKINS[]` override |
+| the canvas fallbacks agree | a `cssVar(name, '#hex')` fallback no longer equals the CSS token it duplicates |
 | the suite passes | `node test.js` |
 | every level still solves and replays | `node solve.js` |
 
@@ -138,6 +142,21 @@ that is clearing, not switching.
 contract test missed the bug above because `replaySolution` issues explicit switch
 actions, which *did* charge. The one path under test was the one path already
 correct.
+
+**The board owns Tab, Enter and Space only while it has focus.** `handlePlayKey()`
+is split out of the keydown listener precisely so the suite can call it — the stub
+DOM cannot dispatch a real key — and it returns whether the game consumed the key,
+because *consumed* and *focus cannot move* are the same statement. Capturing those
+three unconditionally is what made the play screen a keyboard trap. Arrows, WASD
+and Backspace stay global on purpose: they are not focus navigation, so capturing
+them costs nothing and keeps the feel of picking up the arrows without clicking the
+board first. **Escape is what makes the capture legitimate**, so it is named on
+screen twice — `#boardKeys` for screen readers, and the banner's Keyboard line.
+
+**Focus is part of the DOM contract now**, so `harness.js` models it: `el.focus()`
+records an owner and `document.activeElement` reads it back. It was a no-op before,
+which would have answered "the board is not focused" forever — a silently wrong
+result, which is the one thing that stub exists to avoid.
 
 **A test that has never failed with the defect present has not been shown to detect
 anything.** `node mutate.js` does this for you: it applies each catalogued defect,

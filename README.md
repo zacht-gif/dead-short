@@ -67,7 +67,8 @@ Writes `dist/dead-short-<version>.zip` with `index.html` at the **root** — itc
 upload plays as a file listing instead of a game. Only runtime files ship.
 
 The build refuses to package if any of these fail, because each one is invisible until a player hits
-it:
+it (twelve gates now, the last four of them accessibility ones the test suite physically cannot see —
+`selfTest()` runs against a stub DOM with no CSS and no layout):
 
 - the test suite doesn't pass, or any level stops solving;
 - `sw.js`'s `CACHE_NAME` doesn't match `GAME_VERSION` (a stale cache serves returning players the old
@@ -78,6 +79,11 @@ it:
 - `make-icons.mjs`'s copy of the art has drifted from `icon.svg`;
 - the manifest, `sw.js` or a `<link>` names a file that is not in `RUNTIME_FILES`, so the zip would
   ship without it;
+- the viewport meta blocks pinch-zoom, or the buttons have lost `touch-action:manipulation`;
+- there is no `:focus-visible` rule, or it has no outline-offset to lift the ring off the button fill;
+- `--panel-border` or `--grid-line` measures under 3:1 against what it sits on, in `:root` or in any
+  skin — computed, not pinned;
+- a `cssVar()` fallback in the canvas code disagrees with the CSS token it duplicates;
 - the finished zip is malformed — a nested path stored with a backslash, or a file missing.
 
 `node mutate.js` audits those gates by introducing each defect and checking something goes red.
@@ -96,7 +102,7 @@ durable share links and for the install path below, not for traffic.
 
 Uploading by hand is the step where a rebuild stops being a deploy — the repo can be clean, the tests
 green, and the thing players load a month old, because nothing in git touches what itch serves. So the
-upload is one command, and it refuses to run on a game that does not pass all eight gates.
+upload is one command, and it refuses to run on a game that does not pass all twelve gates.
 
 **The PWA does not work inside the itch embed.** The install prompt does not fire in a third-party
 iframe, and the service worker is unreliable under third-party storage partitioning — so on itch,
@@ -207,8 +213,26 @@ These are shipped features, not aspirations, and changes should preserve them:
 - **Colorblind palette** verified distinguishable *pairwise* under deuteranopia, protanopia, and
   tritanopia — not merely one color at a time.
 - **Reduce Motion** genuinely disables the pulsing, flashing, and intro animation rather than softening
-  them.
-- **Full keyboard play** — Tab/Shift+Tab select a wire, arrows or WASD extend it, Backspace steps back.
+  them, and it starts switched on for anyone whose *system* already asks for reduced motion. That is a
+  default, not an override: ticking it off here outranks the OS, because it is the more specific
+  statement of the two.
+- **Full keyboard play, including the buttons.** Tab/Shift+Tab select a wire, arrows or WASD extend it,
+  Backspace steps back — and **Esc leaves the board** for Restart, Trace, Share and Menu. The board is a
+  `role="application"` region, so it only owns those keys while it holds focus; everywhere else they do
+  the ordinary browser thing. Until 2026-09-17 they were captured for the whole play screen, which meant
+  focus could never reach any button on it and the win dialog's **Next** was unreachable — so the game
+  could not be finished without a mouse. That was a real WCAG 2.1.2 failure and this line used to
+  describe it as a feature.
+- **Focus is visible.** A 2px ring, offset so it lands on the surface behind the control rather than
+  inside its own fill — cyan on the gold primary buttons is 1.04:1, which is why the browser default
+  (1.36:1 there) could not be seen at all.
+- **Pinch-zoom works.** The viewport does not set `user-scalable=no`; the gesture that actually needed
+  suppressing was double-tap-to-zoom, and `touch-action:manipulation` on the buttons does that without
+  taking zoom away from anyone. The two are a pair — dropping one without adding the other gives every
+  button a 300ms tap delay back.
+- **Component boundaries and the board grid clear 3:1.** `build.js` measures this from the tokens rather
+  than pinning hex literals, and it measures the `SKINS[]` overrides too — three skins override exactly
+  the two tokens involved, so checking `:root` alone would pass a build where most skins failed.
 
 ## License
 

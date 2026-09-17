@@ -71,7 +71,7 @@ what this line used to say.
 
 ## The rules that are not style preferences
 
-**`build.js` is the enforcer, not a packager.** Eight gates now, each because
+**`build.js` is the enforcer, not a packager.** Twelve gates now, each because
 that failure is invisible in a browser until a player hits it: the suite, every
 level still solving, `CACHE_NAME` containing `GAME_VERSION`, `index.html` staying
 self-contained, no debug scaffolding, `CODE-MAP.md` being current, the icon art
@@ -192,6 +192,51 @@ plays as a file listing instead of a game.
 - **`dist/` is gitignored, so the zip never travels between machines.** The
   recurring shape from the root `CLAUDE.md`: git can call this repo clean while
   the artifact you would upload is missing or stale. `node build.js` remakes it.
+- **A key handler scoped by screen instead of by focus is a keyboard trap.**
+  `Tab`, `Enter` and `Space` were `preventDefault()`ed on `window` for the whole
+  play screen, so focus could never reach Restart, Trace, Share result or Menu -
+  and because winning does not change `screen` (the win modal is just a class on
+  a div), it could not reach Retry/Menu/Share/**Next** either. The campaign was
+  unfinishable without a mouse. Three things about the shape are worth keeping:
+  the game's own safety feature was the sharpest victim - **Board sealed** is
+  detected correctly, names the stranded pair, and offers a Restart button the
+  affected player cannot press; the README described the bug as a shipped
+  feature ("Full keyboard play"), so the docs were evidence *for* it; and nothing
+  went red, because the suite never dispatched a key. Fixed by giving the board
+  `tabindex`/`role="application"` and gating those three keys on it actually
+  having focus, with `Esc` as the documented way out. Arrows and WASD stayed
+  global - they are not focus navigation, so capturing them costs nobody
+  anything.
+- **Fixing a token in `:root` is not fixing the token, and the gate that says
+  it checks more can be wrong.** Three `SKINS[]` entries override
+  `--panel-border` or `--grid-line` - the exact two being repaired for contrast
+  - so a `:root`-only fix would have left most skins failing while every check
+  passed. The contrast gate was written to measure *every* declaration in the
+  file and its comment said so. It did not. `:root` writes
+  `--grid-line: #405d98;` but a skin writes `'--grid-line':'#306857'`, with a
+  quote **between the name and the colon**, and the pattern required the colon
+  to follow the name directly - so it matched `:root` and nothing else. Caught
+  by `skin-contrast-regressed`, the mutation written for no other purpose than
+  to test that claim, on the first run of the audit. Exactly the allowlist hole
+  again, in a new place: **a gate's comment is not evidence, and the thing that
+  turns it into evidence is a mutation aimed at the claim itself.**
+- **A value duplicated as a fallback has to be fixed everywhere at once.**
+  `draw()` and the editor read the canvas-facing tokens through
+  `cssVar(name, '#literal')`, so each one is a second copy of a CSS value. The
+  contrast fix updated three of the four and the new
+  `checkCanvasTokenFallbacks()` gate caught the fourth on its very first run -
+  which is the gate earning its place before the commit that added it. Note what
+  the miss would have cost: nothing visible here, and the wrong colour on any
+  browser that returns empty for a custom property, with the contrast gate still
+  green because it reads the CSS.
+- **Writing code through a shell heredoc failed again, differently.** Not
+  backslashes this time - a long quoted heredoc simply would not parse
+  (`unexpected EOF while looking for matching`), and nothing was written. The
+  lesson is not better quoting, it is that this repo has now lost time to the
+  shell-as-code-transport six times; write the file with a file-writing tool and
+  run it. The patch scripts used for this work assert that every anchor matches
+  **exactly once** and write nothing at all if one does not, which is what
+  turned one bad anchor into a clean abort rather than a half-applied edit.
 - **Empty search results.** Same as everywhere: prove the search matched
   something before trusting a clean result.
 
@@ -199,9 +244,15 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-17: **324/324 assertions pass**, all ten shipped
+On `main`, verified 2026-09-17: **342/342 assertions pass**, all ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**19/19 mutations caught** by `node mutate.js`. v2.0.0, `dist/dead-short-2.0.0.zip`.
+**28/28 mutations caught** by `node mutate.js`. Twelve build gates.
+v2.0.0, `dist/dead-short-2.0.0.zip`.
+
+The accessibility pass landed the same day: the play screen was a keyboard trap,
+focus was invisible, pinch-zoom was disabled, and component borders measured
+1.45:1. All fixed, all gated, all mutated. The text palette needed nothing - it
+already cleared AA everywhere, most of it comfortably.
 
 The store assets are done and are **generated, not hand-captured**: `node shots.mjs`
 rebuilds all six from the real game, byte-reproducibly. Every in-game position
@@ -216,7 +267,7 @@ that lands on the mirror is a discovery signal itch never sees. The mirror stays
 out of the README, out of announcements, and out of anything handed to a player.
 It exists for two things - share links that survive a re-upload, and the PWA.
 
-**`node publish.mjs` is the upload.** It runs all eight gates and refuses to push
+**`node publish.mjs` is the upload.** It runs all twelve gates and refuses to push
 a game that fails any of them. Uploading by hand through the dashboard is the step
 where a rebuild stops being a deploy: the repo can be clean, the suite green, and
 what players load a month old, because nothing in git touches what itch serves.

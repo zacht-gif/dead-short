@@ -64,7 +64,13 @@ over the wire. Plays with mouse, touch, or entirely by keyboard.
 **Accessibility** is shipped, not planned: every wire carries a distinct shape *and* a distinct dash
 pattern for all players, so colour is never the only signal. There's a colourblind palette verified
 pairwise under deuteranopia, protanopia and tritanopia — not just one colour at a time — plus a
-Reduce Motion option that genuinely disables the pulsing and flashing rather than toning it down.
+Reduce Motion option that genuinely disables the pulsing and flashing rather than toning it down,
+and that switches itself on if your system already asks for less motion.
+
+The whole game is playable from the keyboard, buttons included: Esc hands focus back from the board,
+and focus is always visibly ringed. Pinch-zoom is not disabled. Contrast is measured rather than
+asserted — every piece of text clears WCAG AA, and the component outlines and board grid clear the
+3:1 non-text bar, in every unlockable skin as well as the default.
 
 ---
 
@@ -79,6 +85,7 @@ Reduce Motion option that genuinely disables the pulsing and flashing rather tha
 | **Arrows or WASD** | Extend its route one cell |
 | **Backspace** | Step back |
 | **Enter / Space** | Grab a wire if none is selected |
+| **Esc** | Leave the board and move to the buttons |
 
 The board stays frozen until your first move, so plan as long as you like.
 
@@ -145,7 +152,7 @@ The board stays frozen until your first move, so plan as long as you like.
 
    </details>
 
-2. **Re-run `node build.js`** so the zip matches whatever you last changed. Eight gates have to pass
+2. **Re-run `node build.js`** so the zip matches whatever you last changed. Twelve gates have to pass
    before it will package anything — see README, `Building for release`.
 3. **Re-run `node shots.mjs`** if the UI moved at all. The screenshots and the cover are generated
    from the real game, so a UI change makes them stale in exactly the way a build goes stale. Upload
