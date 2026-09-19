@@ -72,7 +72,7 @@ Writes `dist/dead-short-<version>.zip` with `index.html` at the **root** — itc
 upload plays as a file listing instead of a game. Only runtime files ship.
 
 The build refuses to package if any of these fail, because each one is invisible until a player hits
-it (fourteen gates now, the last six of them accessibility and architecture ones the test suite
+it (sixteen gates now, the last eight of them accessibility and architecture ones the test suite
 physically cannot see — `selfTest()` runs against a stub DOM with no CSS and no layout):
 
 - the test suite doesn't pass, or any level stops solving;
@@ -94,6 +94,12 @@ physically cannot see — `selfTest()` runs against a stub DOM with no CSS and n
 - the `Wait` control is gone, unwired, free, or left out of the board's landscape height budget — on a
   touch screen it is the only way to let a spark pass, so losing it makes half the game unreachable
   with the board still looking perfectly playable;
+- anything the simulation can see reads the wall clock — `stepTick`, `propagateActiveWire`,
+  `currentScore`, `cellIsHot` and `obstacleCellAt` are checked function by function, because even the
+  time trial below drives the board through the tick count and never through the clock itself;
+- the metronome stops beating at a fixed rate — `TRIAL_HZ` must stay a plain number and the interval
+  must come from it, or the time trial runs at a different speed on every machine and no two times
+  mean the same thing;
 - the finished zip is malformed — a nested path stored with a backslash, or a file missing.
 
 `node mutate.js` audits those gates by introducing each defect and checking something goes red.
@@ -112,7 +118,7 @@ durable share links and for the install path below, not for traffic.
 
 Uploading by hand is the step where a rebuild stops being a deploy — the repo can be clean, the tests
 green, and the thing players load a month old, because nothing in git touches what itch serves. So the
-upload is one command, and it refuses to run on a game that does not pass all fourteen gates.
+upload is one command, and it refuses to run on a game that does not pass all sixteen gates.
 
 **The PWA does not work inside the itch embed.** The install prompt does not fire in a third-party
 iframe, and the service worker is unreliable under third-party storage partitioning — so on itch,
@@ -202,6 +208,52 @@ The position is derived from the recorded bests rather than saved beside them.
 There is no pointer to migrate and no way for one to disagree with the cards — and
 clearing a later board out of order cannot carry the button past one you have never
 played, which is what a high-water mark would do.
+
+## The time trial
+
+Off by default, in Settings, and it is a **second game** rather than a second readout. Turn it on and
+the board stops waiting for you: your first move starts a clock at `TRIAL_HZ` — three moves a second —
+and from then on the current flows a cell and every spark takes one step of its patrol three times a
+second, whether you act or not. Your record on a level becomes your time.
+
+**Drawing still costs nothing.** This is the part that keeps it a puzzle. Under the metronome a drag
+only *plans* the route; the clock is the sole thing that spends moves, so a flick and a careful drag
+cost exactly the same and no amount of hand speed buys anything. If both the clock and the input
+advanced the board it would be an APM contest, and the accessibility pass would be undone.
+
+**A short costs seconds, not points.** `ZAP_PENALTY_TICKS` is already written in ticks, and under the
+metronome a tick *is* `1000/TRIAL_HZ` milliseconds — so the penalty is not a new rule, it is the
+existing one said in the unit the trial scores in: five ticks at 3/sec is **1.67s**, added straight
+onto your time the instant the wire dies, and then you pay again to rebuild it. Without that, shorting
+would be free in the one mode where only the clock counts, and the fastest line through a hot cell
+would be to walk into it — which inverts the entire point of the hazard. The banner computes the
+figure from the two constants rather than stating it, because a hard-coded "1.67s" becomes a lie the
+day either one moves. The `Score` stat is hidden here: under the clock it is neither the score nor
+anything you can act on, and `Time` already carries both halves.
+
+**The clock never touches the simulation.** The metronome calls `stepTick()`, which still knows
+nothing but `tickCount`; sparks patrol "on the clock" only because the clock advances that counter.
+So `obstacleCellAt` and `cellIsHot` stay pure functions of the tick, the daily is still the same
+puzzle for everybody, and the gate sealing those five functions needs no exception carved into it.
+
+**The rate is gated because it is the whole defence.** 3/sec has to be 3/sec on a gaming desktop and
+on a five-year-old phone, or the level is a different level on each and nobody's time means anything.
+`TRIAL_HZ` must stay a plain literal, the interval must derive from it, and the render loop is barred
+from calling the metronome — a board stepping once per painted frame runs at 144/sec on a good monitor
+and 30 on a phone, which is the old accumulator bug wearing a new name.
+
+Two things follow that are easy to miss. **Waiting is the default, not a move**, so the `Wait` button
+is hidden — a live control with no job is its own kind of bug. And **the play screen's rules banner is
+swapped for a different one**, because every sentence of the turn-based banner ("nothing moves until
+you do") is false under the clock, and this game has already lost a week to rules that drifted out of
+date in a place nobody remembered to look.
+
+The clock arithmetic came wholesale from cut-and-fill, including the two parts that are easy to get
+wrong: elapsed time is a pure function (`playedMs`) so the suite can check it against made-up stamps
+instead of trying to steer `performance.now()`, and it clamps at zero because three independent
+subtractions can go negative and a negative time would be written down as somebody's fastest. Hidden
+stretches are banked on `visibilitychange` rather than `blur`, and the metronome refuses to beat while
+the tab is hidden — glancing at another window should not hand you back a wrecked board.
 
 ## The board-sealed warning
 

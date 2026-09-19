@@ -64,6 +64,11 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
   whoever's machine opens it.
 - **Challenge links** that greet a friend with your time as the target.
 - **Unlockable board skins**, earned by clean clears.
+- **An optional time trial.** Off by default, because the game is about thinking and nothing here is
+  timed. Switch it on and the board stops waiting for you: the current flows and the sparks patrol at
+  three steps a second whether you act or not, and your record becomes your time. Drawing still costs
+  nothing, so it is a test of reading the board, never of how fast you can swipe — but a short adds
+  1.67s to your clock on top of the wire it destroys.
 
 ### Built to be played anywhere
 
@@ -166,7 +171,7 @@ slow.
 
    </details>
 
-2. **Re-run `node build.js`** so the zip matches whatever you last changed. Fourteen gates have to pass
+2. **Re-run `node build.js`** so the zip matches whatever you last changed. Sixteen gates have to pass
    before it will package anything — see README, `Building for release`.
 3. **Re-run `node shots.mjs`** if the UI moved at all. The screenshots and the cover are generated
    from the real game, so a UI change makes them stale in exactly the way a build goes stale. Upload

@@ -157,6 +157,8 @@ invisible in a browser until a player hits it.
 | the canvas fallbacks agree | a `cssVar(name, '#hex')` fallback no longer equals the CSS token it duplicates |
 | the render loop cannot spend a move | `tick(now)` calls `stepTick`/`takeTurn`, `takeTurn()` stopped calling `stepTick`, or `MS_PER_TICK`/`tickAccum` reappeared |
 | the Wait control is reachable | `#waitBtn` missing or unwired, `waitMove()` no longer takes a turn, or `computeCellSize()` stopped reserving `MOVE_ROW_PX` |
+| the clock cannot reach the simulation | `stepTick`, `propagateActiveWire`, `currentScore`, `cellIsHot` or `obstacleCellAt` mentions wall-clock time |
+| the metronome beats at a fixed rate | `TRIAL_HZ` is not a plain literal, the interval stops deriving from it, or `tick(now)` calls `metronomeTick` |
 | the suite passes | `node test.js` |
 | every level still solves and replays | `node solve.js` |
 
@@ -209,6 +211,33 @@ played the moment you cleared a later one from the catalogue.
 hubs reach both sub-screens. `enterLevel()` must only record when `screen` is
 `home` or `menu`: it is also how the win modal's **Next** moves through the
 campaign, and that call arrives with `screen` already `play`.
+
+**There are two drivers, and the render loop is neither.** A player action (`takeTurn`) or the
+metronome (`setInterval` at `TRIAL_HZ`), and nothing else. `checkTurnBasedDriver()` bars `stepTick`,
+`takeTurn` and `metronomeTick` from the body of `tick(now)`, because the claim that survives both
+modes is that **the frame rate is not difficulty** — a board stepping once per paint runs at 144/sec
+on a monitor and 30 on a phone.
+
+**The clock still never reaches the simulation.** `settings.timeTrial` changes who calls `stepTick()`,
+not what `stepTick()` can see: it still knows only `tickCount`, so sparks patrol "on the clock" purely
+because the clock advances that counter. `checkClockIsMeasureOnly()` enforces that per function rather
+than file-wide, because the clock legitimately exists — `updateHud` renders it, `checkWin` freezes it,
+`shareText` quotes it. What must never happen is the simulation consulting it.
+
+**Under the clock, input must stay free.** `takeTurn()` returns without stepping when the trial is on;
+the metronome spends the moves. If both did, hand speed would be skill. That one branch is the entire
+difference between a puzzle with a timer and an action game.
+
+**The short penalty is applied in exactly one place.** `trialTimeMs()` is the only function that adds
+`zapPenaltyMs()`, and both the live HUD readout and the frozen win time come through it. Two additions
+of the same penalty would be two places for it to go missing independently, and a run where the HUD
+and the recorded best disagree about your time is worse than either being wrong alone.
+
+Two guards keep a machine-staged run from recording a time, and they are tested **separately**:
+`checkWin` refuses a run with `runStartMs === null` (replay and staging set `running` directly and
+never start a clock), and `setBestTimeIfBetter` refuses a non-positive time. Either alone is enough,
+which is exactly why a mutation aimed at either one survived the first audit — the other covered for
+it. Defence in depth reads like an untested claim from outside.
 
 **Wait has to exist as a control.** Under a clock you waited by doing nothing,
 which needs no input at all. When the world moves only on your action, "let the

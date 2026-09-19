@@ -71,7 +71,7 @@ what this line used to say.
 
 ## The rules that are not style preferences
 
-**`build.js` is the enforcer, not a packager.** Fourteen gates now, each because
+**`build.js` is the enforcer, not a packager.** Sixteen gates now, each because
 that failure is invisible in a browser until a player hits it: the suite, every
 level still solving, `CACHE_NAME` containing `GAME_VERSION`, `index.html` staying
 self-contained, no debug scaffolding, `CODE-MAP.md` being current, the icon art
@@ -299,6 +299,31 @@ plays as a file listing instead of a game.
   paths report 358/358. Two lessons, one bug: a suite that stops early still
   prints a total, and the environment a test never runs in is the environment its
   assumptions rot in.
+- **The suite inherited the player's settings instead of stating them.** node
+  reported 382/382 while the browser reported **355/381**, because `harness.js`
+  starts settings at the defaults every run and a real browser at `?test=1`
+  carries whatever the player last chose - the time trial, in this case, so 26
+  turn-based assertions correctly observed a board that no longer waits. Nothing
+  was broken; the suite was reporting a setting. `selfTest()` now snapshots
+  `settings`, forces `SETTINGS_DEFAULTS`, and restores in its `finally`. This was
+  latent for every setting, not just the new one - it only became reachable the
+  day a setting changed how the board behaves. Third time this exact split has
+  bitten: **the environment a test never runs in is where its assumptions rot.**
+- **`document.hidden` is getter-only, and the preview pane is always hidden.**
+  Writing it in a test is the `document.activeElement` bug again, one property
+  over. Worse, the browser pane reports `visibilityState: 'hidden'` even when
+  fronted, so a metronome that (correctly) refuses to beat in a hidden tab did
+  nothing there, and four assertions failed in the browser while node called them
+  green. The fix is not to fake the property but to **state the case**:
+  `metronomeTick(hidden)` takes it as a parameter with a live default, so the
+  test says `metronomeTick(false)` for a visible tab exactly as it says `(true)`
+  for a hidden one. Same shape as `playedMs` taking its stamps.
+- **Looking at the win card caught what 58 mutations did not.** The trial card
+  printed `14.66s` as the headline and `Best: 14 moves` beneath it - two numbers
+  reading 14, meaning entirely different things, side by side. No check can have
+  an opinion about that. Fourth entry in this file found by *looking at the
+  picture*, after the cover, the dead space beside the board, and the banner that
+  went on promising "nothing moves until you do" while the clock ran.
 - **Empty search results.** Same as everywhere: prove the search matched
   something before trusting a clean result.
 
@@ -306,12 +331,56 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-18: **358/358 assertions pass under node AND in the
+On `main`, verified 2026-09-19: **386/386 assertions pass under node AND in the
 browser at `?test=1`** - the two had disagreed since the accessibility pass and
 nobody could tell, see above. All ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**38/38 mutations caught** by `node mutate.js`. Fourteen build gates.
+**62/62 mutations caught** by `node mutate.js`. Sixteen build gates.
 v2.0.0, `dist/dead-short-2.0.0.zip`.
+
+**The optional TIME TRIAL landed 2026-09-19**, off by default, in Settings. Turn
+it on and a metronome at `TRIAL_HZ` (3/sec) drives the board: the current flows
+and the sparks patrol whether you act or not, and your record on a level becomes
+your time. Off, the game is exactly the turn-based one and every shipped par is
+untouched.
+
+**The one branch that makes it a puzzle rather than an action game** is in
+`takeTurn()`: under the clock it returns WITHOUT stepping, so drawing only plans
+and the metronome is the sole thing that spends moves. A flick and a careful drag
+cost the same. If both the clock and the input advanced the board, hand speed
+would be skill - that single `return true` is the whole difference.
+
+**A short costs 1.67s, and that is the same penalty, not a new one.**
+`ZAP_PENALTY_TICKS` is written in ticks and a tick under the metronome is
+`1000/TRIAL_HZ` ms, so five ticks converts to 1.67s at 3/sec. Added in ONE place
+(`trialTimeMs()`), which both the live readout and the frozen win time go
+through - two additions would be two places for it to go missing, and a HUD that
+disagrees with the recorded best about your own time is worse than either being
+wrong alone. Verified in a browser by routing a wire into Breadboard's gate: at
+beat 10 the zap counter went 0 to 1 and the clock went 0.00s to 1.67s in the same
+instant, the played time being 0.00s because a hidden tab is correctly not
+counted. Without it, shorting is FREE in the one mode where only the clock
+counts, and the fastest line through a hot cell is to walk into it.
+
+**The clock still never reaches the simulation**, which is why this cost almost
+nothing to add. The metronome calls `stepTick()`, which knows only `tickCount`;
+sparks patrol "on the clock" purely because the clock advances that counter. So
+`checkClockIsMeasureOnly()` passed unchanged, the daily is still the same puzzle
+for everybody, and `obstacleCellAt`/`cellIsHot` stayed pure.
+
+**A prediction this build disproved, kept because the shape is worth more than
+being right.** This file said, on the morning of the 19th, that hazards on a wall
+clock "would have deleted par's definition, turned the game into an action game
+and undone the accessibility pass," and used cut-and-fill as the evidence. All
+three were wrong, and each for its own reason: par is untouched because the trial
+does not score on par at all; it is not an action game because input stays free;
+and the accessibility pass survives because nothing became time-pressured that a
+player has to *do*. Cut-and-fill genuinely has no tick rate to copy - its `step(s,
+dir)` resolves one turn per input, traffic is `vPos(v, t)`, and its only
+`setInterval` is a 50ms repaint for the stopwatch digits - but "the other game
+does not do this" was read as "this cannot be done", which is a different claim
+and was never checked. **Look up what a reference implementation DOES; do not
+promote its silence into an argument.**
 
 **The game is turn-based as of 2026-09-18.** A tick fires on a player action and
 at no other moment; the render loop cannot advance the simulation, and a gate
@@ -345,7 +414,7 @@ that lands on the mirror is a discovery signal itch never sees. The mirror stays
 out of the README, out of announcements, and out of anything handed to a player.
 It exists for two things - share links that survive a re-upload, and the PWA.
 
-**`node publish.mjs` is the upload.** It runs all fourteen gates and refuses to push
+**`node publish.mjs` is the upload.** It runs all sixteen gates and refuses to push
 a game that fails any of them. Uploading by hand through the dashboard is the step
 where a rebuild stops being a deploy: the repo can be clean, the suite green, and
 what players load a month old, because nothing in git touches what itch serves.

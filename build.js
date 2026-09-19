@@ -316,11 +316,16 @@ function checkCanvasTokenFallbacks(){
 }
 
 function checkTurnBasedDriver(){
-  // The game is turn-based, and the single thing that makes it so is that the
-  // render loop cannot advance the simulation. That is an architectural claim,
-  // not a value, so this gate reads the shape rather than measuring an output:
-  // the body of tick(now) must not mention stepTick, and takeTurn() - the one
-  // place a player action becomes a tick - must.
+  // THE FRAME RATE IS NOT DIFFICULTY. That is the claim, and it survives the
+  // time trial: there are two drivers now - a player action, and the metronome
+  // at a fixed TRIAL_HZ - and the render loop is neither of them. A board that
+  // stepped on requestAnimationFrame would run at whatever rate the machine
+  // happened to paint, which is the thing the turn-based rewrite existed to
+  // kill and the thing a 3/sec interval deliberately does not reintroduce.
+  //
+  // This gate used to say the game was turn-based FULL STOP, which stopped
+  // being true the day the metronome landed. A gate's comment is not evidence;
+  // one that describes a world the code left is worse than none.
   //
   // It is a gate rather than a test because nothing goes red when it breaks.
   // Put the accumulator back and every assertion still passes, every level still
@@ -341,11 +346,16 @@ function checkTurnBasedDriver(){
   if(end === -1) fail('could not find the end of tick(now).');
   const body = html.slice(start, end);
 
-  if(/\bstepTick\s*\(/.test(body) || /\btakeTurn\s*\(/.test(body)){
+  // metronomeTick is in this list because it is the NEW way to smuggle the
+  // simulation into the paint loop - call it from tick(now) and the board
+  // advances once per frame, which is 144/sec on a good monitor and 30 on a
+  // phone. Same defect as the old accumulator, wearing the new name.
+  if(/\bstepTick\s*\(/.test(body) || /\btakeTurn\s*\(/.test(body) ||
+     /\bmetronomeTick\s*\(/.test(body)){
     fail('the render loop advances the simulation.\n' +
-         '        tick(now) calls stepTick/takeTurn, so the board moves on a clock\n' +
-         '        again and thinking costs the player moves. The loop renders; the\n' +
-         '        player spends the ticks.');
+         '        tick(now) calls stepTick/takeTurn/metronomeTick, so the board moves\n' +
+         '        at whatever rate this machine paints. The loop renders; a player\n' +
+         '        action or the metronome spends the ticks.');
   }
   if(/\bMS_PER_TICK\b|\btickAccum\b/.test(html)){
     fail('a fixed-timestep accumulator is back in index.html.\n' +
@@ -357,6 +367,109 @@ function checkTurnBasedDriver(){
   if(takeTurn === -1) fail('takeTurn() is gone - nothing turns a player action into a tick.');
   if(!/function takeTurn\(\)\{[\s\S]{0,800}?stepTick\(\)/.test(html)){
     fail('takeTurn() no longer calls stepTick().');
+  }
+}
+
+// Brace-matches a function body out of the source. Shared by the two gates that
+// have to reason about what a particular function can see, rather than about
+// whether a string appears somewhere in a 5,000-line file.
+function bodyOf(html, signature){
+  const start = html.indexOf(signature);
+  if(start === -1) return null;
+  let depth = 0;
+  for(let i = html.indexOf('{', start); i < html.length; i++){
+    if(html[i] === '{') depth++;
+    else if(html[i] === '}'){ depth--; if(depth === 0) return html.slice(start, i); }
+  }
+  return null;
+}
+
+function checkMetronomeIsFixedRate(){
+  // The time trial's whole defence is that its clock is the SAME clock for
+  // everybody. 3/sec on a gaming desktop and 3/sec on a five-year-old phone, or
+  // the level is a different level on each and nobody's time means anything.
+  //
+  // Read as a shape, because nothing goes red when it breaks: derive the
+  // interval from a frame delta and every assertion still passes, every level
+  // still solves, and the game quietly becomes harder on slower hardware.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+
+  const m = html.match(/const TRIAL_HZ = (\d+(?:\.\d+)?);/);
+  if(!m){
+    fail('TRIAL_HZ is gone, or is no longer a plain number literal.\n' +
+         '        The time-trial rate has to be a constant somebody can read and\n' +
+         '        change. Computed from the device, it is not a rate, it is a\n' +
+         '        handicap nobody asked for.');
+  }
+  const hz = parseFloat(m[1]);
+  if(!(hz > 0 && hz <= 20)){
+    fail('TRIAL_HZ is ' + hz + ', which is not a playable rate.\n' +
+         '        Zero or negative stops the world; past about 20 the board\n' +
+         '        outruns any human hand and the trial is a coin toss.');
+  }
+
+  if(!/setInterval\(metronomeTick,\s*Math\.round\(1000 \/ TRIAL_HZ\)\)/.test(html)){
+    fail('the metronome no longer beats at TRIAL_HZ.\n' +
+         '        Its interval must come from that constant and nothing else -\n' +
+         '        not a frame delta, not a literal that can drift away from the\n' +
+         '        number the settings screen promises the player.');
+  }
+
+  const body = bodyOf(html, 'function metronomeTick(');
+  if(body === null) fail('metronomeTick is gone - the time trial has no driver.');
+  if(!/\bstopMetronome\s*\(/.test(body)){
+    fail('metronomeTick can no longer stop itself.\n' +
+         '        It is the only thing holding the interval, so a beat that cannot\n' +
+         '        clear it keeps stepping a finished board forever.');
+  }
+  if(!/\bwon\b/.test(body) || !/\brunning\b/.test(body)){
+    fail('metronomeTick no longer checks whether the run is live.\n' +
+         '        It would keep spending moves after the win, or before the\n' +
+         '        player has made a single one.');
+  }
+  if(!/hidden/.test(body)){
+    fail('metronomeTick no longer checks for a hidden tab.\n' +
+         '        Alt-tabbing would burn the board down while the player is in\n' +
+         '        another window - and the stopwatch banks that gap, so they would\n' +
+         '        come back to a wreck with a good time on it.');
+  }
+}
+
+function checkClockIsMeasureOnly(){
+  // The stopwatch is a second number beside the score. That is safe only for as
+  // long as nothing in the simulation can see it: the moment a hazard, a tick or
+  // the score reads wall-clock time, two players making the identical moves get
+  // different results, par stops having a definition, and the daily stops being
+  // the same puzzle for everybody.
+  //
+  // Checked per function rather than file-wide, because the clock legitimately
+  // exists - updateHud renders it, checkWin freezes it, shareText quotes it.
+  // What must never happen is the simulation consulting it.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const FORBIDDEN = /\b(clockNow|elapsedSeconds|playedMs|runStartMs|finishedMs|pausedMs|hiddenAt|timeTrial)\b|performance\s*\.\s*now|Date\s*\.\s*now/;
+  const SEALED = [
+    'function stepTick(){',
+    'function propagateActiveWire(){',
+    'function currentScore(){',
+    'function cellIsHot(',
+    'function obstacleCellAt(',
+  ];
+  let checked = 0;
+  SEALED.forEach(sig => {
+    const body = bodyOf(html, sig);
+    if(body === null) fail('checkClockIsMeasureOnly cannot find ' + sig + ' - the gate is stale.');
+    const hit = body.match(FORBIDDEN);
+    if(hit){
+      fail(sig.replace(/[({].*$/, '') + ' reads the wall clock (' + hit[0] + ').\n' +
+           '        The simulation must be a pure function of the move count, or\n' +
+           '        par has no definition and the daily is a different puzzle for\n' +
+           '        every player. The clock measures; it never decides.');
+    }
+    checked++;
+  });
+  // An empty result would mean "nothing searched" as readily as "nothing wrong".
+  if(checked !== SEALED.length){
+    fail('checkClockIsMeasureOnly checked ' + checked + ' of ' + SEALED.length + ' functions.');
   }
 }
 
@@ -535,6 +648,10 @@ function main(){
   checkTurnBasedDriver();
   console.log('  checking the Wait control is reachable…');
   checkWaitControl();
+  console.log('  checking the clock cannot reach the simulation…');
+  checkClockIsMeasureOnly();
+  console.log('  checking the metronome beats at a fixed rate…');
+  checkMetronomeIsFixedRate();
   console.log('  running tests…');
   runTests();
   console.log('  solving every level…');

@@ -624,8 +624,9 @@
         <div id="hud">
           <div class="stat"><div class="label">Moves</div><div class="value" id="moveCount">0</div></div>
           <div class="stat"><div class="label">Zaps</div><div class="value" id="zapCount">0</div></div>
-          <div class="stat"><div class="label">Score</div><div class="value" id="scoreVal">0</div></div>
+          <div class="stat" id="scoreStat"><div class="label">Score</div><div class="value" id="scoreVal">0</div></div>
           <div class="stat"><div class="label">Best</div><div class="value" id="bestVal">—</div></div>
+          <div class="stat hidden" id="timeStat"><div class="label">Time</div><div class="value" id="timeVal">0.00s</div></div>
         </div>
         <div id="challengeTargetBar" class="hidden"></div>
         <div id="sealedBar" class="hidden" role="alert">
@@ -669,6 +670,23 @@
           <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD extend its route one cell per
           press, Backspace steps back, Space or <b>.</b> waits.
           <b>Esc</b> leaves the board and moves to the buttons.
+        </div>
+        <!-- The SAME rules, for the other driver. Kept as a second element rather
+             than patched in JS because every word of the banner above is false
+             under the clock, and the project notes already record what happens
+             when the rules live in more places than you remember: Settings went
+             on describing a clock for a week after it was deleted. Two banners,
+             one toggle, and an assertion that exactly one of them is showing. -->
+        <div id="bannerTrial" class="hidden">
+          <b>The clock runs at 3 moves a second.</b> Your first move starts it; after that the current
+          flows a cell and every spark takes one step of its patrol, three times a second, whether you
+          act or not. Drawing only <i>plans</i> the route — a flick and a careful drag cost exactly the
+          same, so this is never a test of how fast you can swipe.
+          <br><b>Your score is the clock.</b> A short destroys the wire <i>and</i> adds
+          <span id="trialZapCost">…</span> straight onto your time — then you pay again to rebuild it.
+          <b>Trace</b> is free, stays on, and shows where every spark will be for the next three moves.
+          <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD extend its route one cell
+          per press, Backspace steps back. <b>Esc</b> leaves the board and moves to the buttons.
         </div>
       </div>
     </div>
@@ -774,6 +792,21 @@
     </div>
 
     <div class="settingsSection">
+      <h3>Time trial</h3>
+      <div class="toggleRow">
+        <div>
+          <div class="toggleLabel">Show a stopwatch</div>
+          <div class="toggleDesc">Off by default. Turns the game into a time trial: once your first
+          move starts the run, the current advances and the sparks patrol on a fixed clock at 3 steps a
+          second, whether you act or not. Drawing only plans the route — a fast drag and a slow one cost
+          the same, so this is a test of reading the board, never of how quickly you can swipe. Your
+          record on a level becomes your time instead of your moves.</div>
+        </div>
+        <input type="checkbox" id="timeTrialToggle">
+      </div>
+    </div>
+
+    <div class="settingsSection">
       <h3>Sharing</h3>
       <p style="margin-bottom:8px;">Optional name or initials to attach when you share a challenge link — purely cosmetic text, no account needed.</p>
       <input type="text" id="playerNameInput" maxlength="20" placeholder="e.g. Alex" class="textInput">
@@ -817,6 +850,7 @@
     <div class="score" id="winScore">0 moves</div>
     <div class="breakdown" id="winBreakdown"></div>
     <div class="best-line" id="winBestLine"></div>
+    <div class="best-line" id="winTimeLine"></div>
     <div class="earn-line" id="winEarnLine"></div>
     <div class="row">
       <button id="winRestart">Retry</button>
@@ -889,6 +923,12 @@
   // How many moves ahead Trace shows. It used to be three SECONDS ahead, which
   // was 18 ticks — half a level.
   const TRACE_AHEAD = 3;
+
+  // THE TIME-TRIAL RATE: ticks per second the metronome spends once a run is
+  // live. A starting number to play against rather than a measured one —
+  // cut-and-fill has no equivalent to copy, because its world moves one step
+  // per input and it owns no tick rate at all. Tuned by feel, from here.
+  const TRIAL_HZ = 3;
 
   // ---------- Level definitions ----------
   // Schema notes:
@@ -1378,6 +1418,28 @@
     return false;
   }
 
+  // Best TIME is stored beside best score, never instead of it. Two axes, two
+  // records: the score says how well you solved the board, the time says how
+  // fluently you can replay it. Same fingerprinted key, so redesigning a board
+  // drops both together rather than leaving a time attached to a puzzle that no
+  // longer exists.
+  function bestTimeKey(lv){ return STORE_PREFIX + 'besttime-' + levelKey(lv); }
+  function getBestTime(lv){
+    const v = localStorage.getItem(bestTimeKey(lv));
+    if(v === null) return null;
+    const n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+  function setBestTimeIfBetter(lv, ms){
+    if(!(ms > 0)) return false;
+    const cur = getBestTime(lv);
+    if(cur === null || ms < cur){
+      localStorage.setItem(bestTimeKey(lv), String(Math.round(ms)));
+      return true;
+    }
+    return false;
+  }
+
   // Tracks whether a level has EVER been cleared with zero shorts.
   function cleanClearKey(lv){ return STORE_PREFIX + 'clean-' + levelKey(lv); }
   function hasCleanClear(lv){ return localStorage.getItem(cleanClearKey(lv)) === '1'; }
@@ -1482,10 +1544,17 @@
   const playLevelNameText = document.getElementById('playLevelNameText');
   const colorblindToggle = document.getElementById('colorblindToggle');
   const reduceMotionToggle = document.getElementById('reduceMotionToggle');
+  const timeTrialToggle = document.getElementById('timeTrialToggle');
+  const waitBtnEl = document.getElementById('waitBtn');
+  const bannerEl = document.getElementById('banner');
+  const bannerTrialEl = document.getElementById('bannerTrial');
+  const scoreStatEl = document.getElementById('scoreStat');
+  const trialZapCostEl = document.getElementById('trialZapCost');
   const muteToggle = document.getElementById('muteToggle');
   const playerNameInput = document.getElementById('playerNameInput');
 
-  const SETTINGS_DEFAULTS = {colorblind:false, reduceMotion:false, muted:false, playerName:''};
+  const SETTINGS_DEFAULTS = {colorblind:false, reduceMotion:false, muted:false, playerName:'',
+                             timeTrial:false};
   const SETTINGS_KEY = STORE_PREFIX + 'settings';
   // Scores from v2 are deliberately dropped (different scoring rules), but
   // settings are carried across: silently resetting somebody's colorblind or
@@ -1563,7 +1632,12 @@
     colorblindToggle.checked = settings.colorblind;
     reduceMotionToggle.checked = settings.reduceMotion;
     muteToggle.checked = settings.muted;
+    timeTrialToggle.checked = settings.timeTrial;
     playerNameInput.value = settings.playerName;
+    // The stat is removed from the HUD rather than blanked: four numbers already
+    // fill the row on a narrow phone, and a fifth empty one would push them to
+    // wrap for a player who never asked for a clock.
+    if(timeStatEl) timeStatEl.classList.toggle('hidden', !settings.timeTrial);
   }
   colorblindToggle.addEventListener('change', ()=>{
     settings.colorblind = colorblindToggle.checked;
@@ -1577,6 +1651,11 @@
   });
   muteToggle.addEventListener('change', ()=>{
     settings.muted = muteToggle.checked;
+    saveSettings();
+    applySettings();
+  });
+  timeTrialToggle.addEventListener('change', ()=>{
+    settings.timeTrial = timeTrialToggle.checked;
     saveSettings();
     applySettings();
   });
@@ -1841,9 +1920,68 @@
   let pendingSwitchTicks = 0; // re-seating the probe onto another color costs a tick
   let stepAnimUntil = 0;      // wall clock, cosmetic only — see STEP_ANIM_MS
 
+  /* THE STOPWATCH. A second number beside the score, and nothing else: the
+     simulation never reads it, cannot read it, and a build gate says so. The
+     board is turn-based whether this is on or off - what it adds is something
+     to chase on a board you have already solved, without making thinking cost
+     you anything.
+
+     Borrowed from cut-and-fill, including the two parts that are easy to get
+     wrong. pausedMs banks the stretches where the tab was hidden and hiddenAt
+     marks one still open, because a player who alt-tabs mid-run should not come
+     back to a ruined time - and it is visibilitychange rather than blur,
+     because glancing at another window is not leaving the game. */
+  let runStartMs = null;      // wall clock at the first move, or null before it
+  let pausedMs = 0;           // hidden stretches that have ended
+  let hiddenAt = null;        // start of a hidden stretch still open
+  let finishedMs = null;      // frozen elapsed at the win, so the card stops counting
+
+  /* Kept as a pure function so the suite can check the arithmetic against made-up
+     stamps instead of trying to steer performance.now(). Clamped at zero: the
+     three subtractions are independent, and a negative time would be written
+     down as somebody's best. */
+  function playedMs(now, start, paused, hiddenSince){
+    if(start === null || start === undefined) return 0;
+    const stillHidden = (hiddenSince === null || hiddenSince === undefined) ? 0 : now - hiddenSince;
+    return Math.max(0, now - start - paused - stillHidden);
+  }
+  function clockNow(){
+    return (typeof performance === 'object' && performance.now) ? performance.now() : Date.now();
+  }
+  /* A SHORT COSTS TIME. ZAP_PENALTY_TICKS is already written in ticks, and under
+     the metronome a tick IS 1000/TRIAL_HZ milliseconds - so this is not a new
+     penalty, it is the existing one said in the unit the trial scores in. Five
+     ticks at 3/sec is 1.67s, the same cost the turn-based game charges as five
+     moves.
+
+     Without it, shorting is FREE in the one mode where only the clock counts:
+     the wire dies, but dying costs nothing you are scored on, and the fastest
+     line through a hot cell becomes "walk into it". That inverts the whole
+     point of the hazard. */
+  function zapPenaltyMs(){
+    return zapCount * ZAP_PENALTY_TICKS * (1000 / TRIAL_HZ);
+  }
+
+  /* The single place the penalty is applied. Both the live readout and the
+     frozen win time come through here, because two additions of the same
+     penalty is two places for it to go missing - and a run where the HUD and
+     the recorded best disagree about your time is worse than either being
+     wrong on its own. */
+  function trialTimeMs(){
+    return playedMs(clockNow(), runStartMs, pausedMs, hiddenAt) + zapPenaltyMs();
+  }
+
+  function elapsedSeconds(){
+    if(finishedMs !== null) return finishedMs / 1000;
+    return trialTimeMs() / 1000;
+  }
+  function fmtSeconds(s){ return s.toFixed(2) + 's'; }
+
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
   const moveCountEl = document.getElementById('moveCount');
+  const timeStatEl = document.getElementById('timeStat');
+  const timeValEl = document.getElementById('timeVal');
   const bestValEl = document.getElementById('bestVal');
   const zapCountEl = document.getElementById('zapCount');
   const scoreValEl = document.getElementById('scoreVal');
@@ -1899,6 +2037,7 @@
   const winScoreEl = document.getElementById('winScore');
   const winBreakdownEl = document.getElementById('winBreakdown');
   const winBestLineEl = document.getElementById('winBestLine');
+  const winTimeLineEl = document.getElementById('winTimeLine');
   const winEarnLineEl = document.getElementById('winEarnLine');
 
   // Sizes the board to fit the viewport (phones can't show an 8-column board
@@ -1942,6 +2081,19 @@
     if(screen === 'play') resizeCanvasForLevel();
   });
 
+  /* visibilitychange, not blur: glancing at another window is not leaving the
+     game, and a run should not be ruined by a notification stealing focus for a
+     second. Only the stopwatch cares - the simulation is turn-based and did not
+     advance while you were away, which is the whole reason this is safe to do. */
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){
+      if(hiddenAt === null) hiddenAt = clockNow();
+    } else if(hiddenAt !== null){
+      pausedMs += clockNow() - hiddenAt;
+      hiddenAt = null;
+    }
+  });
+
   function currentScore(){ return tickCount + zapCount * ZAP_PENALTY_TICKS; }
 
   function resetPuzzle(){
@@ -1952,6 +2104,11 @@
     tickCount = 0;
     pendingSwitchTicks = 0;
     stepAnimUntil = 0;
+    stopMetronome();
+    runStartMs = null;
+    pausedMs = 0;
+    hiddenAt = null;
+    finishedMs = null;
     running = false;
     won = false;
     zapCount = 0;
@@ -1972,7 +2129,13 @@
   // a switch while a run is live: the first color you pick is free, every one
   // after it costs a move.
   function startRunIfIdle(){
-    if(!running && !won) running = true;
+    if(!running && !won){
+      running = true;
+      // On the FIRST move, not on entering the level: studying a frozen board is
+      // free, and the stopwatch has to agree with that or it contradicts the one
+      // promise the play screen makes.
+      if(runStartMs === null){ runStartMs = clockNow(); pausedMs = 0; hiddenAt = null; }
+    }
   }
 
   function updateHud(){
@@ -1981,8 +2144,29 @@
     zapCountEl.textContent = zapCount;
     zapCountEl.className = 'value ' + (zapCount>0 ? 'hasZaps' : '');
     scoreValEl.textContent = fmtCount(currentScore());
-    const best = getBest(level);
-    bestValEl.textContent = best!==null ? fmtCount(best) : '—';
+    // In a time trial the record IS the time, so BEST has to show that or the
+    // player is being asked to beat a number the mode no longer scores.
+    if(settings.timeTrial){
+      const bt = getBestTime(level);
+      bestValEl.textContent = bt !== null ? fmtSeconds(bt / 1000) : '—';
+    } else {
+      const best = getBest(level);
+      bestValEl.textContent = best!==null ? fmtCount(best) : '—';
+    }
+    if(settings.timeTrial && timeValEl) timeValEl.textContent = fmtSeconds(elapsedSeconds());
+    // Under the metronome the world moves whether you act or not, so waiting is
+    // the default rather than a move. A live button that does nothing is its own
+    // kind of bug — the same shape as a control the affected player cannot reach.
+    if(waitBtnEl) waitBtnEl.classList.toggle('hidden', settings.timeTrial);
+    // Exactly one set of rules on screen, and it has to be the true one.
+    if(bannerEl) bannerEl.classList.toggle('hidden', settings.timeTrial);
+    if(bannerTrialEl) bannerTrialEl.classList.toggle('hidden', !settings.timeTrial);
+    // SCORE is moves + 5 per short. Under the clock that is neither the score
+    // nor a number the player can act on - TIME already carries both halves.
+    if(scoreStatEl) scoreStatEl.classList.toggle('hidden', settings.timeTrial);
+    // Computed, never typed. Hard-coding "1.67s" here would make the banner lie
+    // the day either constant moves, which is this file's most repeated bug.
+    if(trialZapCostEl) trialZapCostEl.textContent = fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ);
   }
 
   // ---------- Geometry helpers ----------
@@ -2441,11 +2625,56 @@
     }
   }
 
-  /* THE ONLY THING THAT ADVANCES THE WORLD DURING PLAY.
-     One player action, one tick. Everything that costs a move goes through
-     here, and nothing else calls stepTick() on the play path, so "how many
-     turns did that input take" is answerable by reading the call sites rather
-     than by reasoning about a clock.
+  /* THE METRONOME — the time-trial driver, and the only thing besides a player
+     action that can advance the world.
+
+     It is a setInterval at a fixed TRIAL_HZ, deliberately NOT the render loop.
+     A board stepping on requestAnimationFrame would run at whatever rate the
+     machine happened to paint, which is the one thing the turn-based rewrite
+     existed to kill; 3/sec is 3/sec on every machine, and a build gate keeps
+     the rAF loop out of it.
+
+     Note what it does NOT do. It never reads the clock on the simulation's
+     behalf: it calls stepTick(), which still knows nothing but tickCount.
+     Sparks patrol "on the clock" purely because the clock advances tickCount,
+     so obstacleCellAt() and cellIsHot() stay pure functions of the tick and
+     checkClockIsMeasureOnly() needs no exception carved into it. */
+  let metronomeId = null;
+
+  function startMetronome(){
+    if(metronomeId !== null || !settings.timeTrial) return;
+    metronomeId = setInterval(metronomeTick, Math.round(1000 / TRIAL_HZ));
+  }
+
+  function stopMetronome(){
+    if(metronomeId === null) return;
+    clearInterval(metronomeId);
+    metronomeId = null;
+  }
+
+  /* Split out so the suite can fire beats by hand. harness.js stubs setInterval
+     to a no-op that returns 0, so a test which waited for real time would pass
+     by never running — the empty-search trap wearing a timer. */
+  function metronomeTick(hidden){
+    if(screen !== 'play' || won || !running || !settings.timeTrial){ stopMetronome(); return; }
+    // A hidden tab is not a played one. The stopwatch already banks the gap;
+    // burning the board down while the player is in another window would hand
+    // them back a corpse for glancing away.
+    //
+    // Passed in rather than read, ONLY so the suite can state the case: document
+    // .hidden is getter-only in a real browser, and assigning it in a test is the
+    // document.activeElement bug from the project notes, which split the node and
+    // browser suites for a week with both totals reading as a pass. setInterval
+    // calls this with no arguments, so live play always takes the default.
+    if(hidden === undefined ? document.hidden : hidden) return;
+    stepTick();
+    stepAnimUntil = clockNow() + STEP_ANIM_MS;
+  }
+
+  /* WHAT A PLAYER ACTION COSTS.
+     Turn-based: one action, one tick, and nothing else calls stepTick() on the
+     play path. Time trial: nothing — the metronome above spends the moves, and
+     this only makes sure it is running.
 
      The tooling deliberately does NOT go through it: replaySolution(),
      stageSolution(), stageSealDemo() and selfTest drive stepTick() directly,
@@ -2459,6 +2688,11 @@
   function takeTurn(){
     if(won) return false;
     startRunIfIdle();
+    /* TIME TRIAL: the input plans, the clock spends. A fast drag and a careful
+       one cost exactly the same, which is the whole point — if BOTH the clock
+       and the input advanced the world, the game would be an APM contest and
+       the accessibility pass would be undone. */
+    if(settings.timeTrial){ startMetronome(); return true; }
     stepTick();
     // Cosmetic catch-up for the renderer. Set after the step, so the frame
     // that follows draws FROM the previous tick TO this one.
@@ -2643,6 +2877,11 @@
     if(allLocked){
       won = true;
       running = false;
+      stopMetronome();   // the world stops the instant the board is solved
+      // Freeze the stopwatch FIRST, before anything below can read it. The win
+      // card sits on screen for as long as the player leaves it there, and a
+      // clock still counting behind it would write a worse time every second.
+      finishedMs = trialTimeMs();
       sfx.win();
       haptic([40,30,40]);
       bumpCounter(STORE_PREFIX + 'stats-plays');
@@ -2672,11 +2911,41 @@
       }
       applySkin(); // a fresh clear/clean-run may just have unlocked a cosmetic
 
-      winScoreEl.textContent = fmtTicks(score) + (medal ? ' ' + MEDAL_ICON[medal] : '');
+      /* STRICTLY TIME TRIAL: when the metronome is driving, the clock is what
+         you are chasing, so the card ranks on it — no medal, no par talk. The
+         move count stays in the breakdown because at a fixed 3/sec it is a
+         consequence of how long you took, not a second score. */
+      if(settings.timeTrial){
+        winScoreEl.textContent = fmtSeconds(finishedMs / 1000);
+        earnLine = '';
+      } else {
+        winScoreEl.textContent = fmtTicks(score) + (medal ? ' ' + MEDAL_ICON[medal] : '');
+      }
       winBreakdownEl.textContent = zapCount
         ? `${tickCount} moves + ${zapCount} short${zapCount===1?'':'s'} × ${ZAP_PENALTY_TICKS}`
         : `${tickCount} moves, no shorts`;
-      winBestLineEl.textContent = improved ? 'New personal best!' : ('Best: ' + fmtTicks(getBest(level)));
+      /* Not on the trial card. The time line below already carries the record
+         this mode scores, and printing a move best beside a time put two
+         different 14s next to each other meaning different things - found by
+         looking at the card, which is how the cover and the dead space beside
+         the board were found too. The move best is still RECORDED, so Start
+         still knows which levels have been played. */
+      winBestLineEl.textContent = settings.timeTrial ? ''
+        : (improved ? 'New personal best!' : ('Best: ' + fmtTicks(getBest(level))));
+
+      /* The second axis, and only when it was asked for. runStartMs is null on
+         any run the tooling staged rather than played - replaySolution and
+         stageSolution set `running` directly and never touch the stopwatch - so
+         this also keeps a machine-made run from writing a time no human set. */
+      if(settings.timeTrial && runStartMs !== null && finishedMs > 0){
+        const fasterThanEver = setBestTimeIfBetter(level, finishedMs);
+        const bt = getBestTime(level);
+        winTimeLineEl.textContent = fmtSeconds(finishedMs / 1000) +
+          (fasterThanEver ? ' — fastest yet'
+                          : (bt !== null ? ' · fastest ' + fmtSeconds(bt / 1000) : ''));
+      } else {
+        winTimeLineEl.textContent = '';
+      }
       winEarnLineEl.textContent = earnLine;
       const next = nextLevelAfter(level);
       winNextBtn.textContent = next ? 'Next: ' + next.name + ' ›' : 'Menu';
@@ -3305,6 +3574,12 @@
     const score = currentScore();
     const best = getBest(level);
     let out = `⚡ Dead Short — ${level.name}\nScore ${fmtTicks(score)} (best ${fmtTicks(best!==null?best:score)}), ${zapCount} short${zapCount===1?'':'s'}.`;
+    // Only when the sender actually ran a clock. Appending "0.00s" to every
+    // share would advertise a mode most players have switched off, and invite a
+    // recipient to compare against a number that was never measured.
+    if(settings.timeTrial && finishedMs !== null && finishedMs > 0){
+      out += `\nIn ${fmtSeconds(finishedMs / 1000)}.`;
+    }
     // A shipped level can be found from its name alone. A custom board cannot -
     // it exists nowhere but in this string. CANONICAL_URL is the itch store page
     // and itch drops query strings on the way into the embed, so the ?board=
@@ -4645,6 +4920,19 @@
       blocked:[], obstacles:[]
     });
 
+    /* THE SUITE STATES ITS OWN PRECONDITIONS. harness.js starts settings at the
+       defaults every run, so this was invisible under node; a real browser at
+       ?test=1 inherits whatever the player last chose, and with the time trial
+       on, 26 turn-based assertions failed. The board really was behaving
+       differently - exactly as designed - so the suite was reporting the
+       player's settings, not a defect.
+
+       Same family as the metronomeTick(false) fix: a test that reads a condition
+       out of its environment only ever tests the environment it happened to run
+       in, and the project notes already record a week of node and the browser
+       disagreeing with both totals reading as a pass. */
+    const savedSettings = Object.assign({}, settings);
+    Object.assign(settings, SETTINGS_DEFAULTS);
     try{
       // --- The first frame of a patrol level renders ------------------------
       // draw() samples the spark's trail from earlier ticks, so frame zero asks
@@ -5124,6 +5412,201 @@
         tracing = savedTracing;
       })();
 
+      // --- The stopwatch measures; it never decides --------------------------
+      // Time is a SECOND number beside the score, not part of it. The board is
+      // turn-based whether the clock is running or not, which is the property
+      // that makes it safe to add at all - and the property that stops being
+      // true the first time something in the simulation reads it.
+      //
+      // The arithmetic is a pure function on purpose, so it can be checked
+      // against made-up stamps rather than by trying to steer performance.now()
+      // - the same trick cut-and-fill uses, and the reason its hidden-tab
+      // handling is testable at all.
+      (function(){
+        ok('playedMs is zero before the first move',
+           playedMs(5000, null, 0, null) === 0);
+        ok('playedMs measures the gap from the start',
+           playedMs(5000, 1000, 0, null) === 4000);
+        ok('playedMs subtracts a finished hidden stretch',
+           playedMs(5000, 1000, 1500, null) === 2500);
+        ok('playedMs subtracts a hidden stretch still open',
+           playedMs(5000, 1000, 0, 4000) === 3000);
+        // Three independent subtractions, so the result can go negative if a
+        // clock steps backwards - and a negative time would be written down as
+        // somebody's fastest.
+        ok('playedMs never returns a negative time',
+           playedMs(1000, 5000, 0, null) === 0);
+      })();
+
+      (function(){
+        const savedTT = settings.timeTrial;
+
+        ok('the stopwatch is off until asked for',
+           SETTINGS_DEFAULTS.timeTrial === false);
+
+        settings.timeTrial = true;
+        load(plainLevel());
+        ok('entering a level does not start the clock', runStartMs === null,
+           'start=' + runStartMs);
+        onPointerDown([0,0]);
+        ok('the first move starts the clock', runStartMs !== null);
+
+        /* THE TIME-TRIAL BARGAIN, stated as a comparison rather than argued.
+           Turn-based, the drag spends a move per cell. Under the metronome it
+           spends NOTHING and the whole route lands in intent to wait for the
+           clock. That difference IS the feature: a flick and a careful drag cost
+           the same, so input speed is never skill.
+
+           This assertion used to read "the stopwatch cannot change the board",
+           which was the right claim for a measure-only stopwatch and the wrong
+           one for a driver. The guarantee underneath it - that how fast you move
+           your hand cannot buy you anything - is the line below, inverted. */
+        const script = ()=>{
+          load(plainLevel());
+          onPointerDown([0,0]);
+          planTo([0,3]);
+          return [tickCount, wires[0].cells.length, wires[0].intent.length];
+        };
+        settings.timeTrial = false; const turnBased = script();
+        settings.timeTrial = true;  const trial     = script();
+        ok('turn-based, a drawn cell costs a move',
+           turnBased[0] === 4 && turnBased[1] === 4,
+           'ticks=' + turnBased[0] + ' cells=' + turnBased[1]);
+        ok('under the clock, drawing spends nothing',
+           trial[0] === 0 && trial[1] === 0 && trial[2] === 4,
+           'ticks=' + trial[0] + ' cells=' + trial[1] + ' intent=' + trial[2]);
+
+        // replaySolution and stageSolution set `running` directly and never go
+        // near startRunIfIdle, so runStartMs stays null through a staged run and
+        // the win writes no time. Without that, every call to solve.js or
+        // shots.mjs would leave a 0.00s "fastest" nobody played.
+        // TWO guards, tested SEPARATELY on purpose. checkWin refuses to record a
+        // run that never started a clock, and setBestTimeIfBetter refuses a
+        // non-positive time - and because each one alone is enough, a mutation
+        // aimed at either survived: the other quietly covered for it. Defence in
+        // depth reads exactly like an untested claim from outside, so each layer
+        // gets its own assertion rather than one that goes through the win.
+        const lv = LEVELS[0];
+        localStorage.removeItem(bestTimeKey(lv));
+        ok('a zero time is never recorded as a best',
+           setBestTimeIfBetter(lv, 0) === false && getBestTime(lv) === null,
+           'best=' + getBestTime(lv));
+
+        localStorage.removeItem(bestTimeKey(lv));
+        const sol = solveLevel(lv);
+        if(sol.status === 'solved') replaySolution(lv, sol);
+        ok('a staged run writes no best time', getBestTime(lv) === null,
+           'best=' + getBestTime(lv));
+        ok('a staged win shows no time on the card',
+           winTimeLineEl.textContent === '',
+           'line=' + winTimeLineEl.textContent);
+
+        /* THE METRONOME, fired by hand. harness.js stubs setInterval to a no-op
+           returning 0, so a test that waited for real time would pass by never
+           running at all - the empty-search trap wearing a timer. Beating it
+           directly is the only way this claim is ever actually exercised. */
+        const savedScreen = screen;
+        screen = 'play';
+        settings.timeTrial = true;
+        load(plainLevel());
+        onPointerDown([0,0]);
+        planTo([0,3]);
+        ok('the clock is the only thing that spends moves', tickCount === 0,
+           'ticks=' + tickCount);
+        // Visibility is STATED, not inherited. The browser pane runs ?test=1 in
+        // a hidden tab, so a bare beat here was a no-op and four assertions failed
+        // in the browser while node reported a clean 378 - the node/browser split
+        // from the project notes, same week, different door.
+        metronomeTick(false);
+        ok('one beat spends exactly one move',
+           tickCount === 1 && wires[0].cells.length === 1,
+           'ticks=' + tickCount + ' cells=' + wires[0].cells.length);
+
+        const beforeHidden = tickCount;
+        metronomeTick(true);
+        ok('a hidden tab does not burn the board', tickCount === beforeHidden,
+           'ticks=' + tickCount);
+
+        let beats = 0;
+        while(!won && beats++ < 50) metronomeTick(false);
+        ok('the metronome carries a run to the win', won === true,
+           'beats=' + beats + ' ticks=' + tickCount);
+        // The card sits on screen for as long as the player leaves it there, so
+        // a clock still running behind it writes a worse time every second.
+        ok('winning freezes the stopwatch', finishedMs !== null,
+           'finished=' + finishedMs);
+        ok('the win stops the metronome', metronomeId === null,
+           'id=' + metronomeId);
+        // "Strictly time trial and not par": the headline on the card is the
+        // clock. Checked as a shape rather than a literal because the elapsed
+        // time under the harness is whatever the run took.
+        /* The banner is the third place the rules are written down, and the
+           project notes record the last time that drifted: Settings described a
+           clock for a week after the clock was deleted. Under the metronome every
+           sentence of the turn-based banner is false, including the one naming a
+           button that is now hidden. */
+        settings.timeTrial = true;  updateHud();
+        const trialRules = !bannerTrialEl.classList.contains('hidden') &&
+                            bannerEl.classList.contains('hidden');
+        settings.timeTrial = false; updateHud();
+        const turnRules  = !bannerEl.classList.contains('hidden') &&
+                            bannerTrialEl.classList.contains('hidden');
+        settings.timeTrial = true;  updateHud();
+        ok('exactly one set of rules is on screen', trialRules && turnRules,
+           'trial=' + trialRules + ' turn=' + turnRules);
+        ok('the Wait button is hidden under the clock',
+           waitBtnEl.classList.contains('hidden'));
+
+        // BEST has to show what the mode actually scores, or the player is being
+        // asked to beat a number nothing in front of them is measuring.
+        localStorage.setItem(bestTimeKey(level), '4200');
+        settings.timeTrial = true;  updateHud(); const trialBest = bestValEl.textContent;
+        settings.timeTrial = false; updateHud(); const turnBest  = bestValEl.textContent;
+        settings.timeTrial = true;  updateHud();
+        ok('BEST shows the time record under the clock',
+           trialBest === '4.20s' && turnBest !== trialBest,
+           'trial=' + trialBest + ' turn=' + turnBest);
+
+        /* The penalty has to reach the number the player is actually scored on.
+           Checked through the helper AND through elapsedSeconds, because a
+           penalty that exists but never reaches the clock is the same as no
+           penalty at all, and only the second of those two looks wrong. */
+        const savedZaps = zapCount;
+        zapCount = 0; const cleanCost = zapPenaltyMs();
+        zapCount = 2; const shortCost = zapPenaltyMs();
+        zapCount = savedZaps;
+        ok('a short costs the clock its penalty',
+           cleanCost === 0 && shortCost === 2 * ZAP_PENALTY_TICKS * (1000 / TRIAL_HZ),
+           'clean=' + cleanCost + ' shorted=' + shortCost);
+
+        load(plainLevel());          // clears finishedMs so the live path is read
+        zapCount = 3; const withPenalty = elapsedSeconds();
+        zapCount = 0; const withoutPenalty = elapsedSeconds();
+        zapCount = savedZaps;
+        // 3 shorts x 5 ticks / 3 ticks a second = 5 seconds, exactly.
+        ok('the penalty reaches the scored time',
+           withoutPenalty === 0 && Math.abs(withPenalty - 5) < 1e-9,
+           'with=' + withPenalty + ' without=' + withoutPenalty);
+
+        settings.timeTrial = true; updateHud();
+        ok('the banner names the real short cost',
+           trialZapCostEl.textContent === fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ),
+           'text=' + trialZapCostEl.textContent);
+        ok('SCORE is hidden when the clock is the score',
+           scoreStatEl.classList.contains('hidden'));
+
+        ok('the trial card shows no move record',
+           winBestLineEl.textContent === '', 'line=' + winBestLineEl.textContent);
+        ok('the trial card ranks on the clock, not on par',
+           winScoreEl.textContent.indexOf('move') === -1 &&
+           /\d\.\d\ds$/.test(winScoreEl.textContent),
+           'card=' + winScoreEl.textContent);
+        screen = savedScreen;
+
+        settings.timeTrial = savedTT;
+        load(plainLevel());
+      })();
+
       // --- The automatic handoff costs what a manual one costs ---------------
       // When a wire finishes, advanceToNextPlanned() hands the current to the
       // next wire that still has somewhere to go. That handoff once assigned
@@ -5569,6 +6052,7 @@
     } catch(err){
       results.push({ name:'selfTest threw', pass:false, detail: String(err && err.stack || err) });
     } finally {
+      Object.assign(settings, savedSettings);
       level = savedLevel;
       resetPuzzle();
     }
