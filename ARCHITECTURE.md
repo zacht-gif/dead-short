@@ -15,15 +15,39 @@ names shapes rather than line numbers, so it does not rot when the file moves ar
 
 ## The mental model, in one paragraph
 
-Drawing a route is **free and instant** — planning is a puzzle activity, not a
-dexterity one. Current is **slow**: exactly one cell per tick, down exactly one wire
-at a time. So every wire carries two paths — `intent` (what you drew) and `cells`
-(how far the current actually got). The active wire spends each tick reconciling
-`cells` one step toward `intent`. That single rule is why a frantic drag cannot
-finish a wire inside one frame, and it is the whole game.
+**The game is turn-based: a tick fires when the player acts, and at no other
+moment.** One action is one tick, and a tick advances everything by one step — the
+current flows one cell, every spark takes one step of its patrol. Between two
+actions the board is frozen for as long as you like, so planning is a puzzle
+activity and never a dexterity one.
 
-`TICK_HZ = 6`, so a tick is ~167 ms. Scores are counted in **ticks**, never
-milliseconds — the engine is deterministic and wall-clock never enters the model.
+Every wire still carries two paths — `intent` (what you drew) and `cells` (how far
+the current actually got) — and the active wire spends each tick reconciling
+`cells` one step toward `intent`. `intent` can still run ahead: draw into a live
+gate and the current holds at its edge while your plan keeps going, then catches up
+a cell per move once the way is clear.
+
+There is no ticks-per-second constant any more, because there is no rate. Scores
+are counted in **moves**, which is what a tick now is.
+
+### Where a tick comes from
+
+`takeTurn()` is the only thing that spends one during play, and the render loop
+cannot. That split is the entire architecture:
+
+| | calls | why |
+|---|---|---|
+| player input | `takeTurn()` → `stepTick()` | pointer, keyboard, and the Wait button |
+| `tick(now)` | nothing | renders; a build gate fails if it touches `stepTick` |
+| `replaySolution` / `stageSolution` / `selfTest` | `stepTick()` directly | issuing the solver's own actions; there is no player |
+
+The turn goes **inside** `planTo()`'s unit-step walk, not once per input event.
+`planTo` walks the gap between two pointer samples itself, so charging per event
+would let a flick that skips four cells pay for one — a fast hand buying moves,
+which is the exact exploit the old fixed-timestep accumulator existed to prevent.
+
+This used to be driven by an accumulator fed from `requestAnimationFrame`'s delta.
+The model was always turn-based; the metronome was the only thing hiding it.
 
 ---
 
@@ -131,6 +155,8 @@ invisible in a browser until a player hits it.
 | keyboard focus is visible | no `:focus-visible` rule, no outline width, or no outline-offset |
 | non-text contrast holds | `--panel-border` or `--grid-line` measures under 3:1 — in `:root` **or** in any `SKINS[]` override |
 | the canvas fallbacks agree | a `cssVar(name, '#hex')` fallback no longer equals the CSS token it duplicates |
+| the render loop cannot spend a move | `tick(now)` calls `stepTick`/`takeTurn`, `takeTurn()` stopped calling `stepTick`, or `MS_PER_TICK`/`tickAccum` reappeared |
+| the Wait control is reachable | `#waitBtn` missing or unwired, `waitMove()` no longer takes a turn, or `computeCellSize()` stopped reserving `MOVE_ROW_PX` |
 | the suite passes | `node test.js` |
 | every level still solves and replays | `node solve.js` |
 
@@ -146,10 +172,53 @@ scheduler are playing by different rules. That exact bug let ordinary play come 
 two ticks under par on Mainframe. Assigning `activeColor = null` directly is fine —
 that is clearing, not switching.
 
+**The charge is `if(running)`, not `if(activeColor !== null && running)`**, and the
+difference is a bug that has now happened twice. `scheduleSolve()` emits `'F'` for
+the first wire it picks up and `'S'` for every wire after — so *the first selection
+of a run is free and every later one costs a move*, including picking up a fresh
+wire after one finished. The narrower condition looks like the same rule but has a
+hole in it: `advanceToNextPlanned()` clears `activeColor` to `null` when a wire
+locks with nothing else planned, so the next pick-up read as a first selection.
+Under the old clock a player who drew ahead never reached that branch; turn-based
+play reaches it on every handoff, and ordinary play came in at 20 against a par of
+28. The mirror of this lives in `applyAction`: `'F'` must clear
+`pendingSwitchTicks` as well as assign, because `replaySolution` sets `running`
+before issuing anything, so a switch is already queued by the time the action
+declares itself free.
+
 **When a model and an engine have to agree, test the path a *player* takes.** The
 contract test missed the bug above because `replaySolution` issues explicit switch
 actions, which *did* charge. The one path under test was the one path already
 correct.
+
+**`home` is the root screen; `menu` is the level catalogue.** There are five:
+`home | menu | play | settings | editor`. The home screen is one Start/Continue
+button plus Daily, Levels, Editor and a collapsed How to play; the catalogue it
+replaced is still there, one button away, and still holds the challenge banner —
+which is why a `?challenge=` or `?board=` link boots to `menu` rather than `home`.
+Drop that line at boot and a shared link opens the game with its invitation
+silently discarded.
+
+The campaign position is **derived**, not stored: `nextUnplayedLevel()` is the
+first level with no recorded best, falling back to the last so the button is never
+dead. A saved pointer would be a second source of truth that can disagree with the
+scores on the cards — and a high-water mark would carry you past a board you never
+played the moment you cleared a later one from the catalogue.
+
+`playReturn` and `settingsReturn` record which hub you arrived from, because both
+hubs reach both sub-screens. `enterLevel()` must only record when `screen` is
+`home` or `menu`: it is also how the win modal's **Next** moves through the
+campaign, and that call arrives with `screen` already `play`.
+
+**Wait has to exist as a control.** Under a clock you waited by doing nothing,
+which needs no input at all. When the world moves only on your action, "let the
+spark pass" is a move and needs a way to make it — `Space` or `.` on the keyboard,
+and `#waitBtn` on the board. The button is not the convenient version, it is the
+*only* version on a touch screen, which is why a build gate owns it. The same gate
+watches `MOVE_ROW_PX`: the Wait/Trace row shares the board's column in the
+landscape layout, and the board's height budget is computed in JS — leave the row
+out of it and the row is pushed off the bottom of a phone, with the board still
+looking perfectly playable.
 
 **The board owns Tab, Enter and Space only while it has focus.** `handlePlayKey()`
 is split out of the keydown listener precisely so the suite can call it — the stub
@@ -305,7 +374,7 @@ browsers strip the query string, which kills `?test=1`.
 | play | `http://localhost:8000/` |
 | self test in browser | `http://localhost:8000/?test=1` |
 | suite | `node test.js` (`--verbose` lists passing assertions) |
-| levels | `node solve.js` (or one slug) |
+| levels | `node solve.js` (or one slug) — par is in moves |
 | propose levels | `node candidates.js` (`--rung`, `--tries`, `--seed`, `--json`) |
 | map | `node codemap.js` (`--check` to verify) |
 | icons | `node make-icons.mjs` |

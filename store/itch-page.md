@@ -12,22 +12,31 @@ still needs your finishing pass (see `store/README.md`).
 ## Short description / tagline
 *(itch's one-line field, shown in listings — keep it under ~140 chars)*
 
-> Route every pair without crossing, then time the current past the sparks. No randomness anywhere — the only variable is you.
+> A turn-based circuit puzzle. Nothing moves until you move — then everything moves one step. No randomness anywhere, no clock, no reflexes: the only variable is you.
 
 ---
 
 ## Page body
 
-**Dead Short is a circuit puzzle that never rolls a die.**
+**Dead Short is a turn-based circuit puzzle that never rolls a die.**
 
-Drag a route from each solder pad to its matching pair. Drawing is free and instant — but current
-flows one cell at a time, down one route at a time, and the clock is running while it does. Routes
-can't cross each other or the components soldered to the board, so the order you energize them
-decides what's still possible.
+Nothing on the board moves until you move. Then everything moves exactly one step: the current flows
+one cell further along the wire you are working on, and every spark takes one step of its patrol.
+There is no clock, no timer and nothing to react to — between two moves the board holds still for as
+long as you want it to.
+
+Drag a route from each solder pad to its matching pair, or tap your way there cell by cell. Every
+cell is one move. Only one wire carries current at a time, so switching to another colour is a move
+of its own — and the half-built wire you left behind is still live. Routes can't cross each other or
+the components soldered to the board, so the order you run them in decides what's still possible.
 
 Sparks patrol fixed, repeating tracks. The cell a spark is sitting on is outlined, and that outline
 is the hitbox exactly — no guessing, no pixel-perfect margins. Let live current touch it and that
 wire shorts out. Your drawn route survives; only the current is lost.
+
+Your score is simply the moves you spent, which is why the shortest route is not always the cheapest
+one — sometimes the answer is to go the long way round, and sometimes it is to stand still and let a
+spark go past.
 
 ### Every level is machine-proved
 
@@ -35,8 +44,8 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
 
 - **No board ships unless a solver proves every pair connectable.** That includes the daily and
   anything made in the editor.
-- **Par isn't a designer's guess.** It's a schedule the game replays through its own engine before
-  showing it to you. Gold is set at par, so gold is always reachable.
+- **Par isn't a designer's guess.** It's a move-by-move schedule the game replays through its own
+  engine before showing it to you. Gold is set at par, so gold is always reachable.
 - **Difficulty is measured, not asserted.** Levels are ordered by how much routing and timing they
   actually demand — which is not the same as how long they take. The finale has a *lower* par than
   the level before it.
@@ -59,7 +68,8 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
 ### Built to be played anywhere
 
 One HTML file, no account, no tracking, and no network calls of any kind — the page is about 63 KB
-over the wire. Plays with mouse, touch, or entirely by keyboard.
+over the wire. Plays with mouse, touch, or entirely by keyboard. It opens on a single button, so you
+are playing rather than choosing; the full level list is one tap away when you want it.
 
 **Accessibility** is shipped, not planned: every wire carries a distinct shape *and* a distinct dash
 pattern for all players, so colour is never the only signal. There's a colourblind palette verified
@@ -67,10 +77,12 @@ pairwise under deuteranopia, protanopia and tritanopia — not just one colour a
 Reduce Motion option that genuinely disables the pulsing and flashing rather than toning it down,
 and that switches itself on if your system already asks for less motion.
 
-The whole game is playable from the keyboard, buttons included: Esc hands focus back from the board,
-and focus is always visibly ringed. Pinch-zoom is not disabled. Contrast is measured rather than
-asserted — every piece of text clears WCAG AA, and the component outlines and board grid clear the
-3:1 non-text bar, in every unlockable skin as well as the default.
+Being turn-based is itself an accessibility property: nothing here is timed, so no part of the game
+is gated behind reaction speed or how fast you can drag. The whole of it is playable from the
+keyboard, buttons included: Esc hands focus back from the board, and focus is always visibly ringed.
+Pinch-zoom is not disabled. Contrast is measured rather than asserted — every piece of text clears
+WCAG AA, and the component outlines and board grid clear the 3:1 non-text bar, in every unlockable
+skin as well as the default.
 
 ---
 
@@ -78,16 +90,18 @@ asserted — every piece of text clears WCAG AA, and the component outlines and 
 
 | | |
 |---|---|
-| **Mouse / touch** | Drag from a pad to its matching pair to lay a route. Tap cell by cell if you prefer. |
-| **Tap a colour** | Hand the current to that wire immediately |
-| **Trace** | Shows where every spark will be 1, 2 and 3 seconds from now — free, unlimited |
+| **Mouse / touch** | Drag from a pad to its matching pair to lay a route. Tap cell by cell if you prefer. Each cell is one move. |
+| **Tap a colour** | Hand the current to that wire — costs one move |
+| **Wait** | Spend a move without moving the current, and let a spark go past |
+| **Trace** | Shows where every spark will be for the next three moves — free, unlimited, and it stays on |
 | **Tab / Shift+Tab** | Select a wire |
-| **Arrows or WASD** | Extend its route one cell |
+| **Arrows or WASD** | Extend its route one cell per press |
 | **Backspace** | Step back |
-| **Enter / Space** | Grab a wire if none is selected |
+| **Space or .** | Wait a move |
 | **Esc** | Leave the board and move to the buttons |
 
-The board stays frozen until your first move, so plan as long as you like.
+The board is frozen between moves, so plan as long as you like — there is no such thing as being too
+slow.
 
 ---
 
@@ -152,7 +166,7 @@ The board stays frozen until your first move, so plan as long as you like.
 
    </details>
 
-2. **Re-run `node build.js`** so the zip matches whatever you last changed. Twelve gates have to pass
+2. **Re-run `node build.js`** so the zip matches whatever you last changed. Fourteen gates have to pass
    before it will package anything — see README, `Building for release`.
 3. **Re-run `node shots.mjs`** if the UI moved at all. The screenshots and the cover are generated
    from the real game, so a UI change makes them stale in exactly the way a build goes stale. Upload

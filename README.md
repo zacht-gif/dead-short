@@ -1,9 +1,13 @@
 # Dead Short
 
-A real-time circuit-wiring puzzle. Connect every pair of terminals without crossing paths, route around
-the components soldered to the board, and get each trace energized before a patrolling spark shorts it
-out. Nothing in the game is random: every spark path, every board, and every tick of the clock is fixed
-and repeatable, so two players facing the same board face the identical challenge.
+A turn-based circuit-wiring puzzle. Connect every pair of terminals without crossing paths, route around
+the components soldered to the board, and get each trace energized without a patrolling spark shorting it
+out. **Nothing on the board moves until you move**, and then everything moves exactly one step: the
+current flows one cell, and every spark takes one step of its patrol. Nothing is random either, so two
+players facing the same board face the identical puzzle and thinking about it is free.
+
+Your score is the number of moves you spent. One cell of route is a move, switching to another color is
+a move, and `Wait` is a move.
 
 Plays in any modern browser. Installable as a PWA and fully playable offline **when served from a page
 of its own** — see `Where it is published` below, because the itch build is the exception.
@@ -68,8 +72,8 @@ Writes `dist/dead-short-<version>.zip` with `index.html` at the **root** — itc
 upload plays as a file listing instead of a game. Only runtime files ship.
 
 The build refuses to package if any of these fail, because each one is invisible until a player hits
-it (twelve gates now, the last four of them accessibility ones the test suite physically cannot see —
-`selfTest()` runs against a stub DOM with no CSS and no layout):
+it (fourteen gates now, the last six of them accessibility and architecture ones the test suite
+physically cannot see — `selfTest()` runs against a stub DOM with no CSS and no layout):
 
 - the test suite doesn't pass, or any level stops solving;
 - `sw.js`'s `CACHE_NAME` doesn't match `GAME_VERSION` (a stale cache serves returning players the old
@@ -85,6 +89,11 @@ it (twelve gates now, the last four of them accessibility ones the test suite ph
 - `--panel-border` or `--grid-line` measures under 3:1 against what it sits on, in `:root` or in any
   skin — computed, not pinned;
 - a `cssVar()` fallback in the canvas code disagrees with the CSS token it duplicates;
+- the render loop can advance the simulation, or a fixed-timestep accumulator has reappeared — put
+  either back and nothing goes red, the game simply starts playing itself again while you think;
+- the `Wait` control is gone, unwired, free, or left out of the board's landscape height budget — on a
+  touch screen it is the only way to let a spark pass, so losing it makes half the game unreachable
+  with the board still looking perfectly playable;
 - the finished zip is malformed — a nested path stored with a backslash, or a file missing.
 
 `node mutate.js` audits those gates by introducing each defect and checking something goes red.
@@ -103,7 +112,7 @@ durable share links and for the install path below, not for traffic.
 
 Uploading by hand is the step where a rebuild stops being a deploy — the repo can be clean, the tests
 green, and the thing players load a month old, because nothing in git touches what itch serves. So the
-upload is one command, and it refuses to run on a game that does not pass all twelve gates.
+upload is one command, and it refuses to run on a game that does not pass all fourteen gates.
 
 **The PWA does not work inside the itch embed.** The install prompt does not fire in a third-party
 iframe, and the service worker is unreliable under third-party storage partitioning — so on itch,
@@ -135,6 +144,24 @@ engine. `node solve.js --contract` emits the solution contract; `PAR_CONTRACT` i
 committed numbers, and the test suite re-derives par and asserts it still matches — so retuning a level
 or changing a rule breaks loudly instead of silently moving par.
 
+**Par is in moves, and it is the same number it always was.** Turn-based play changed who spends a tick,
+not what a tick costs: `scheduleSolve()` has always searched a list of turns, and `replaySolution()` has
+always driven the engine one action at a time. Every shipped par came through the change unchanged.
+
+Par charges for three things, and the engine has to charge for all three or the two disagree:
+
+| | cost |
+|---|---|
+| one cell of wire | 1 move |
+| selecting a wire, **after the first** | 1 move |
+| a hold — waiting rather than advancing | 1 move |
+
+That middle row is the one that keeps going wrong. It has now been mis-charged twice, both times on the
+automatic handoff when a wire finishes, and both times with par, every replay and the whole contract test
+staying green — because `replaySolution()` issues the solver's own action list and so tests the
+scheduler's arithmetic against itself. The suite plays the **pointer** path now, and a hazard-free clone
+of every shipped board asserts that a real run costs exactly `totalCells + pairs - 1`.
+
 **Par is achievable, not proven minimal.** The schedule search only considers building each wire
 contiguously, while the game also allows parking a half-built wire to run another, so a player can beat
 par. That's the safe direction: every par ships with a witness we replay, so gold is always attainable. A
@@ -144,9 +171,9 @@ Boards are scored on three measured axes, and a level with zero on all of them i
 with no decisions in it:
 
 - **detour** — wire cells beyond the straight-line minimum, so routing around something is really required.
-- **holds** — ticks spent waiting, so the hazards constrain the run. This is a *band*, not a maximum:
-  tuning found placements scoring 56 holds, which is a wire sitting idle for nine seconds — not a hard
-  level, a boring one.
+- **holds** — moves spent waiting, so the hazards constrain the run. This is a *band*, not a maximum:
+  tuning found placements scoring 56 holds, which is 56 moves of pressing Wait — not a hard level, a
+  boring one.
 - **trap** — share of plausible routes that seal the board. Finishing a wire is irreversible, so a
   wire completed along the wrong route can strand another pair permanently.
 
@@ -156,6 +183,25 @@ have buried the finale in the middle.
 
 A capped route enumeration reports *no* trap number rather than a low one, because routes that were never
 generated would silently count as safe and drag the figure toward zero.
+
+## The front door
+
+The game opens on one button. `Start` on a fresh save, `Continue` after that,
+pointing at the first level with no recorded best — plus `Daily`, `Levels`,
+`Editor`, and the rules folded into a `How to play` disclosure.
+
+It used to open on the level catalogue: ten cards each carrying a grid size, a pair
+count, a component count, a spark count, a best score and a gold target, plus a
+daily card, an editor card and a seven-line paragraph of rules. Roughly forty
+numbers to read, and the first thing asked of a new player was a choice they had no
+basis for making. The catalogue is unchanged and one button away, for when picking a
+specific board is the thing you actually want; it is also still where a challenge
+link lands, since that is where the banner offering it lives.
+
+The position is derived from the recorded bests rather than saved beside them.
+There is no pointer to migrate and no way for one to disagree with the cards — and
+clearing a later board out of order cannot carry the button past one you have never
+played, which is what a high-water mark would do.
 
 ## The board-sealed warning
 
@@ -250,8 +296,14 @@ These are shipped features, not aspirations, and changes should preserve them:
   them, and it starts switched on for anyone whose *system* already asks for reduced motion. That is a
   default, not an override: ticking it off here outranks the OS, because it is the more specific
   statement of the two.
+- **Waiting is a control, not an absence.** The world only moves when the player does, so "let the spark
+  go past" needs an input. `Wait` is a button on the board and `Space` or `.` on the keyboard. On touch
+  there is no keyboard to fall back on, which makes the button the whole of it — a build gate checks it
+  is present, wired, costs a move, and is inside the board's height budget in landscape, because the
+  first version of that row was pushed off the bottom of a phone screen.
 - **Full keyboard play, including the buttons.** Tab/Shift+Tab select a wire, arrows or WASD extend it,
-  Backspace steps back — and **Esc leaves the board** for Restart, Trace, Share and Menu. The board is a
+  Backspace steps back, Space or `.` waits — and **Esc leaves the board** for Restart, Share and Menu.
+  The board is a
   `role="application"` region, so it only owns those keys while it holds focus; everywhere else they do
   the ordinary browser thing. Until 2026-09-17 they were captured for the whole play screen, which meant
   focus could never reach any button on it and the win dialog's **Next** was unreachable — so the game

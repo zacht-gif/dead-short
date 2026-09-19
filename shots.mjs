@@ -66,6 +66,25 @@ const play = (slug, at) => SKIP_INTRO + `
 
 const SHOTS = [
   {
+    id: "00-home",
+    file: "00-home.png",
+    width: 720,
+    // What a new player actually sees first, and the thing the store page has to
+    // establish before anything else: there is one button and no catalogue to get
+    // past. Numbered 00 so it sorts ahead of the mid-run shot without renumbering
+    // the four that were already uploaded.
+    //
+    // A fresh profile shows "Start"; the capture runs against a clean localStorage
+    // every time, so this is the first-run state rather than whatever progress the
+    // capturing machine happens to hold.
+    // Explicit height, not fit: the home screen is short and the page still
+    // reports a tall scroll box, so fitting it framed the content in the top
+    // half of an empty picture. 430 hugs the How to play card.
+    height: 430,
+    setup: SKIP_INTRO + `window.__wiredDev.ui.showHome();`,
+    wait: 300,
+  },
+  {
     id: "01-mid-run",
     file: "01-mid-run.png",
     width: 720, height: 900,

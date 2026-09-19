@@ -315,6 +315,82 @@ function checkCanvasTokenFallbacks(){
   if(checked < 3) fail('checkCanvasTokenFallbacks matched only ' + checked + ' cssVar() calls; the pattern is wrong.');
 }
 
+function checkTurnBasedDriver(){
+  // The game is turn-based, and the single thing that makes it so is that the
+  // render loop cannot advance the simulation. That is an architectural claim,
+  // not a value, so this gate reads the shape rather than measuring an output:
+  // the body of tick(now) must not mention stepTick, and takeTurn() - the one
+  // place a player action becomes a tick - must.
+  //
+  // It is a gate rather than a test because nothing goes red when it breaks.
+  // Put the accumulator back and every assertion still passes, every level still
+  // solves, par is still par; the game simply starts playing itself again while
+  // you think, which is the entire thing being fixed. The old model failed the
+  // same way in reverse - it looked turn-based in every test, because the tests
+  // drove stepTick() directly and never went near the loop.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+
+  const start = html.indexOf('function tick(now){');
+  if(start === -1) fail('no tick(now) render loop found in index.html.');
+  // Brace-match rather than regex: the body has nested blocks and a try/catch.
+  let depth = 0, end = -1;
+  for(let i = html.indexOf('{', start); i < html.length; i++){
+    if(html[i] === '{') depth++;
+    else if(html[i] === '}'){ depth--; if(depth === 0){ end = i; break; } }
+  }
+  if(end === -1) fail('could not find the end of tick(now).');
+  const body = html.slice(start, end);
+
+  if(/\bstepTick\s*\(/.test(body) || /\btakeTurn\s*\(/.test(body)){
+    fail('the render loop advances the simulation.\n' +
+         '        tick(now) calls stepTick/takeTurn, so the board moves on a clock\n' +
+         '        again and thinking costs the player moves. The loop renders; the\n' +
+         '        player spends the ticks.');
+  }
+  if(/\bMS_PER_TICK\b|\btickAccum\b/.test(html)){
+    fail('a fixed-timestep accumulator is back in index.html.\n' +
+         '        MS_PER_TICK / tickAccum were the metronome. Nothing in a\n' +
+         '        turn-based game needs them.');
+  }
+
+  const takeTurn = html.indexOf('function takeTurn(){');
+  if(takeTurn === -1) fail('takeTurn() is gone - nothing turns a player action into a tick.');
+  if(!/function takeTurn\(\)\{[\s\S]{0,800}?stepTick\(\)/.test(html)){
+    fail('takeTurn() no longer calls stepTick().');
+  }
+}
+
+function checkWaitControl(){
+  // Wait is not a convenience. The world only moves when the player acts, so
+  // letting a spark go past requires an input that spends a move and lays no
+  // wire - and on a touch screen the button IS that input, with no keyboard to
+  // fall back on. Lose it and the timing half of the game becomes unreachable
+  // for every phone player, with nothing failing and the board still playable
+  // enough to look fine. Same shape as the keyboard trap: a game that works,
+  // and a required control the affected player cannot press.
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  if(html.indexOf('id="waitBtn"') === -1){
+    fail('the Wait button is gone from the play screen markup.\n' +
+         '        A touch player has no other way to let a spark pass.');
+  }
+  if(!/getElementById\('waitBtn'\)\.onclick/.test(html)){
+    fail('#waitBtn exists but nothing is wired to it.');
+  }
+  if(!/function waitMove\(\)\{[\s\S]{0,200}?takeTurn\(\)/.test(html)){
+    fail('waitMove() no longer takes a turn, so waiting costs nothing.\n' +
+         '        A free wait makes every hazard avoidable for zero moves.');
+  }
+  // The board and this row share a column in the landscape layout, and the
+  // board's height budget is computed in JS. Leave the row out of that budget
+  // and it is pushed off the bottom of a landscape phone - measured, not
+  // theorised: it happened the first time the row was added.
+  if(!/availableH\s*=[^;]*MOVE_ROW_PX/.test(html)){
+    fail('computeCellSize() no longer reserves height for the Wait/Trace row.\n' +
+         '        In landscape the row shares the board\'s column, so a board\n' +
+         '        sized without it hides the control underneath it.');
+  }
+}
+
 function checkShippedAssets(){
   // A manifest or a cache list can name a file the zip never contained. Nothing
   // about that is visible while developing — the file is right there on disk —
@@ -455,6 +531,10 @@ function main(){
   checkContrastTokens();
   console.log('  checking canvas token fallbacks…');
   checkCanvasTokenFallbacks();
+  console.log('  checking the render loop cannot spend a move…');
+  checkTurnBasedDriver();
+  console.log('  checking the Wait control is reachable…');
+  checkWaitControl();
   console.log('  running tests…');
   runTests();
   console.log('  solving every level…');

@@ -99,15 +99,15 @@ const MUTATIONS = [
     file: 'index.html',
     find: '        setActiveColor(i);\n        return;\n      }\n    }\n    activeColor = null;',
     replace: '        activeColor = i;\n        return;\n      }\n    }\n    activeColor = null;',
-    expect: 'ordinary play never beats par',
+    expect: 'the automatic handoff charges a move',
     note: 'THE Mainframe bug: automatic handoff costs no tick, so ordinary play beats par',
   },
   {
     id: 'free-switch-charges',
     file: 'index.html',
-    find: "      if(kind === 'F') activeColor = i;         // free: no tick is spent",
-    replace: "      if(kind === 'F') { activeColor = i; stepTick(); }",
-    expect: 'replay takes exactly par ticks',
+    find: "        pendingSwitchTicks = 0;",
+    replace: "        pendingSwitchTicks = 0; stepTick();",
+    expect: 'par replays to a win',
     note: 'the model charges for a switch the engine gives away — the same bug mirrored',
   },
   {
@@ -169,10 +169,102 @@ const MUTATIONS = [
     file: 'index.html',
     // The allowlist exempts CANONICAL_URL's exact value. If it were written as
     // a host prefix instead, this would sail through - so prove it does not.
-    find: "  const TICK_HZ = 6;",
-    replace: "  const TICK_HZ = 6; const NOT_THE_CANONICAL_ONE = 'https://zacht-gif.github.io/dead-short/tracker.js';",
+    find: "  const MIN_CELL = 32, MAX_CELL = 64;",
+    replace: "  const MIN_CELL = 32, MAX_CELL = 64; const NOT_THE_CANONICAL_ONE = 'https://zacht-gif.github.io/dead-short/tracker.js';",
     expect: 'an http(s) URL in the document',
     note: 'a second URL on the canonical host slips past the self-contained gate',
+  },
+  {
+    // ---- turn-based: the render loop must not be able to spend a move ----
+    id: 'render-loop-spends-moves',
+    file: 'index.html',
+    find: "  function tick(now){",
+    replace: "  function tick(now){ if(screen === 'play' && running && !won) stepTick();",
+    expect: 'the render loop advances the simulation',
+    note: 'the board plays itself again while you think, and every test still passes',
+  },
+  {
+    id: 'fixed-timestep-accumulator-returns',
+    file: 'index.html',
+    find: "  const ZAP_PENALTY_TICKS = 5;",
+    replace: "  const ZAP_PENALTY_TICKS = 5; const MS_PER_TICK = 1000 / 6;",
+    expect: 'a fixed-timestep accumulator is back',
+    note: 'the metronome creeps back in as a constant nobody notices',
+  },
+  {
+    // The Mainframe bug, third time. advanceToNextPlanned() nulls activeColor
+    // when a wire locks, so this condition makes the next pick-up read as a
+    // FIRST selection and come free - a move par has already charged for.
+    id: 'automatic-handoff-is-free-again',
+    file: 'index.html',
+    find: "    if(running) pendingSwitchTicks = 1;",
+    replace: "    if(activeColor !== null && running) pendingSwitchTicks = 1;",
+    expect: 'player path costs exactly par',
+    note: 'picking up a wire after one finishes is free, so ordinary play beats par',
+  },
+  {
+    // The other direction: replaySolution sets running before issuing actions,
+    // so an 'F' action arrives with a switch already queued and has to clear it.
+    id: 'free-switch-still-owes-a-move',
+    file: 'index.html',
+    find: "        pendingSwitchTicks = 0;",
+    replace: "        ;",
+    expect: 'par replays to a win',
+    note: "the solver's free first selection quietly costs a tick, so every replay misses par",
+  },
+  {
+    // Charge per input EVENT rather than per unit step and a flick that skips
+    // cells between pointer samples buys them. planTo walks the gap itself, so
+    // this is the whole of what keeps a fast hand from being a cheat code.
+    id: 'drag-charged-per-event-not-per-cell',
+    file: 'index.html',
+    find: "      if(!takeTurn()) return;",
+    replace: "      if(guard > 1) continue; if(!takeTurn()) return;",
+    expect: 'a flick and a cell-by-cell drag cost the same',
+    note: 'a fast drag lays several cells for one move; a slow one pays for each',
+  },
+  {
+    id: 'waiting-is-free',
+    file: 'index.html',
+    find: "  function waitMove(){",
+    replace: "  function waitMove(){ return;",
+    expect: 'waiting spends exactly one move',
+    note: 'every hazard becomes dodgeable for nothing, so timing stops being a cost',
+  },
+  {
+    id: 'wait-button-unwired',
+    file: 'index.html',
+    find: "  document.getElementById('waitBtn').onclick = ()=>{ waitMove(); };",
+    replace: "  ;",
+    expect: 'nothing is wired to it',
+    note: 'a touch player has no way to let a spark pass, and nothing goes red',
+  },
+  {
+    id: 'move-row-left-out-of-the-board-budget',
+    file: 'index.html',
+    find: "    const availableH = isLandscapeCompact ? (window.innerHeight - 90 - MOVE_ROW_PX) : Infinity;",
+    replace: "    const availableH = isLandscapeCompact ? (window.innerHeight - 90) : Infinity;",
+    expect: 'no longer reserves height for the Wait/Trace row',
+    note: 'the Wait button falls off the bottom of a landscape phone',
+  },
+  {
+    // A high-water mark instead of the first gap. Clearing a later board from
+    // the catalogue or a challenge link then carries the button past one you
+    // have never played.
+    id: 'campaign-position-is-a-high-water-mark',
+    file: 'index.html',
+    find: "    return LEVELS.find(lv => getBest(lv) === null) || LEVELS[LEVELS.length-1];",
+    replace: "    return LEVELS[LEVELS.filter(lv => getBest(lv) !== null).length] || LEVELS[LEVELS.length-1];",
+    expect: 'does not skip the one before it',
+    note: 'clearing a later board out of order makes Continue skip an unplayed one',
+  },
+  {
+    id: 'next-level-forgets-where-you-came-in',
+    file: 'index.html',
+    find: "    if(screen === 'home' || screen === 'menu') playReturn = screen;",
+    replace: "    playReturn = screen;",
+    expect: 'Next remembers the hub you came from',
+    note: 'Next overwrites the hub with "play", so Menu sends you somewhere you never were',
   },
   {
     id: 'store-prefix-renamed',

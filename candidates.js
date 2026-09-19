@@ -84,7 +84,7 @@ function main(){
   const g = loadGame();
   const dev = g.__wiredDev;
   if(!dev){ console.error('game did not expose __wiredDev'); process.exit(1); }
-  const { solveLevel, TICK_HZ, loopPath, trapMeasure, measurePressure, encodeLevel } = dev;
+  const { solveLevel, loopPath, trapMeasure, measurePressure, encodeLevel } = dev;
 
   for(const name of ['solveLevel','loopPath','trapMeasure','measurePressure','encodeLevel']){
     if(typeof dev[name] !== 'function'){
@@ -285,7 +285,6 @@ function main(){
       blocked: lv.blocked.length,
       hazards: lv.obstacles.length,
       par: sol.par,
-      secs: +(sol.par / TICK_HZ).toFixed(1),
       cells: sol.totalCells,
       detour: pres.detour,
       holds: pres.holds,
@@ -399,7 +398,7 @@ function main(){
       console.log('  [' + (i+1) + '] ' + c.shape.padEnd(10) + c.size +
                   '  ' + c.pairs + ' pairs  ' + c.blocked + ' components  ' +
                   c.hazards + ' hazards');
-      console.log('      par ' + c.par + ' (' + c.secs + 's)   detour ' + c.detour +
+      console.log('      par ' + c.par + ' moves   detour ' + c.detour +
                   '   holds ' + c.holds + '   trap ' + c.trapPct + '%' +
                   '   (' + c.considered + ' routes, ' + c.uncertainShare + '% uncertain)');
       if(c.shortfalls.length){

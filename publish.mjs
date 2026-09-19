@@ -13,7 +13,7 @@
  *
  * WHAT IS DIFFERENT HERE. cut-and-fill ships a single index.html and its
  * publish script re-implements its own self-contained check. Dead Short already has
- * build.js as the enforcer — twelve gates — so this runs that instead of
+ * build.js as the enforcer — fourteen gates — so this runs that instead of
  * duplicating any of it, and stages the same RUNTIME_FILES list build.js zips.
  * There is deliberately no --no-test passthrough: build.js's own comment says
  * not to ship a build you used it on, and the way to honour that is to make it

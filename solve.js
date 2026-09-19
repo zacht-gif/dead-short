@@ -6,6 +6,11 @@
 //   node solve.js mainframe    one level by slug
 //   node solve.js --contract   emit the solution contract as JSON
 //
+// Par is in MOVES. The game is turn-based: one player action is one tick, so a
+// par of 34 is 34 decisions rather than any number of seconds. Nothing about
+// the search changed when the metronome went away, because the schedule it
+// searches was always a list of turns.
+//
 // Par is ACHIEVABLE, not proven minimal — the schedule search only considers
 // building each wire contiguously, while the game also allows parking a
 // half-built wire to run another. A player can therefore beat par. That's the
@@ -18,14 +23,12 @@ const args = process.argv.slice(2);
 const WANT_CONTRACT = args.includes('--contract');
 const slugFilter = args.filter(a => !a.startsWith('--'))[0] || null;
 
-function fmt(ticks, hz){ return (ticks / hz).toFixed(1) + 's'; }
-
 function main(){
   const g = loadGame();
   const dev = g.__wiredDev;
   if(!dev){ console.error('game did not expose __wiredDev'); process.exit(1); }
 
-  const { solveLevel, replaySolution, LEVELS, TICK_HZ, generateDailyLevel } = dev;
+  const { solveLevel, replaySolution, LEVELS, generateDailyLevel } = dev;
 
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
@@ -59,7 +62,7 @@ function main(){
     if(!good) failures++;
 
     console.log(
-      `${lv.slug.padEnd(22)} par ${String(sol.par).padStart(3)} ticks (${fmt(sol.par, TICK_HZ).padStart(6)})` +
+      `${lv.slug.padEnd(22)} par ${String(sol.par).padStart(3)} moves` +
       `  wire ${String(sol.totalCells).padStart(3)} cells` +
       `  ${sol.routingExhaustive ? 'routing proven minimal' : 'routing NOT exhaustive'}` +
       `  replay ${good ? 'OK' : 'MISMATCH won=' + replay.won + ' ticks=' + replay.ticks + ' zaps=' + replay.zaps + (replay.illegal ? ' ' + replay.illegal : '')}` +

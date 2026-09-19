@@ -1,6 +1,6 @@
 # Dead Short — read this before changing anything
 
-A real-time circuit-routing puzzle, one self-contained HTML file plus a PWA
+A turn-based circuit-routing puzzle, one self-contained HTML file plus a PWA
 shell. `C:\dev\CLAUDE.md` above this covers machines, git identity and syncing.
 
 **`README.md` is the design doc and it is a good one** — the zero-dependency
@@ -71,7 +71,7 @@ what this line used to say.
 
 ## The rules that are not style preferences
 
-**`build.js` is the enforcer, not a packager.** Twelve gates now, each because
+**`build.js` is the enforcer, not a packager.** Fourteen gates now, each because
 that failure is invisible in a browser until a player hits it: the suite, every
 level still solving, `CACHE_NAME` containing `GAME_VERSION`, `index.html` staying
 self-contained, no debug scaffolding, `CODE-MAP.md` being current, the icon art
@@ -237,6 +237,68 @@ plays as a file listing instead of a game.
   run it. The patch scripts used for this work assert that every anchor matches
   **exactly once** and write nothing at all if one does not, which is what
   turned one bad anchor into a clean abort rather than a half-applied edit.
+- **The free automatic handoff, for the third time.** `scheduleSolve()` emits
+  `'F'` for the first wire a run picks up and `'S'` for every wire after, so the
+  rule is *first selection free, every later one costs a move* - including picking
+  up a fresh wire once the previous one finished. `setActiveColor` charged on
+  `activeColor !== null && running`, which looks like that rule and has a hole in
+  it: `advanceToNextPlanned()` clears `activeColor` to null when a wire locks with
+  nothing else planned, so the next pick-up read as a *first* selection and came
+  free. The right condition is `running` alone. Under the old clock a player who
+  drew ahead never reached the null branch, so it was nearly unhittable; turn-based
+  play reaches it on every handoff and ordinary play came in at 20 against a par of
+  28. **Par, every replay and the whole contract test stayed green throughout**, for
+  the reason they always do - `replaySolution` issues the solver's own action list,
+  so it tests the scheduler's arithmetic against itself. The fix has a mirror:
+  `applyAction`'s `'F'` branch must now clear `pendingSwitchTicks` as well as
+  assign, because replay sets `running` before issuing anything.
+- **A test can encode the driver instead of the claim.** Fourteen assertions failed
+  the moment the metronome came out, and every one of them was asserting the old
+  *mechanism* - "drawing lays no current", "the clock has not advanced from drawing
+  alone", "a burst costs 0 ticks". The guarantee underneath was never in doubt; only
+  its statement inverted. A burst now costs one move per cell, which is what the same
+  route costs drawn slowly, and that is the same protection said the other way round.
+  Worth spotting the difference before rewriting: a test that describes how a thing
+  is implemented dies with the implementation, and takes its guarantee with it unless
+  somebody notices what it was really for.
+- **A mutation can survive because nothing walks its path any more.** `handoff-is-free`
+  went SURVIVED on the first audit after the change - not because the gate broke, but
+  because turn-based play reconciles each wire as it is drawn, so ordinary play stopped
+  reaching `advanceToNextPlanned()`'s switch branch at all. The defect was as real as
+  ever and nothing was looking at it. It needed a test aimed straight at the branch.
+  Same family as the empty-search rule: coverage that quietly stops covering reports
+  exactly like coverage that passes.
+- **`expect` has to survive the runner's column width.** `test.js` prints assertion
+  names through `pad(name, 54)`, and `mutate.js` matches its `expect` against that
+  output - so three mutations came back "caught (wrong gate)" purely because the
+  assertion name was longer than 54 characters and the string they were looking for
+  had been sliced off. Caught, but unable to say which claim did the catching, which
+  is most of what the audit is for. Keep assertion names under 54 characters.
+- **A new control under the board needs a place in the board's height budget.**
+  `computeCellSize()` reserves `window.innerHeight - 90` in the compact-landscape
+  layout, and the Wait/Trace row shares that column. Added without a matching
+  reserve, the row was pushed clean off the bottom of a landscape phone - and Wait
+  is the only way a touch player can let a spark pass, so it was the keyboard trap's
+  shape again: a board that works perfectly, and a required control the affected
+  player cannot reach. Found by resizing the browser, not by any check.
+- **The rules are written down in a third place.** Settings has its own About and
+  How to play, and it still described current flowing "one cell per tick" with "the
+  clock running" long after the clock was gone. The menu banner and the play banner
+  are the two you remember; that one you do not.
+- **The browser test path had silently stopped running most of the suite.**
+  `index.html?test=1` exists so there is ONE definition of passing rather than
+  two that can drift - and it had drifted since the accessibility pass. The
+  keyboard block wrote `document.activeElement = canvas`, which harness.js's stub
+  allows on purpose and a real browser refuses: `activeElement` is getter-only, so
+  Chrome threw, selfTest's try/catch swallowed it, and the page reported
+  **131/132 passed** while node reported 358/358. Both numbers read as a pass.
+  Fixed by calling `focus()`, which both environments implement - and then four
+  assertions failed for a second reason worth knowing: **`focus()` is a no-op on
+  an element inside a `display:none` subtree**, and `?test=1` runs before any
+  screen is shown. The block now unhides the play screen and puts it back. Both
+  paths report 358/358. Two lessons, one bug: a suite that stops early still
+  prints a total, and the environment a test never runs in is the environment its
+  assumptions rot in.
 - **Empty search results.** Same as everywhere: prove the search matched
   something before trusting a clean result.
 
@@ -244,10 +306,26 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-17: **342/342 assertions pass**, all ten shipped
+On `main`, verified 2026-09-18: **358/358 assertions pass under node AND in the
+browser at `?test=1`** - the two had disagreed since the accessibility pass and
+nobody could tell, see above. All ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**28/28 mutations caught** by `node mutate.js`. Twelve build gates.
+**38/38 mutations caught** by `node mutate.js`. Fourteen build gates.
 v2.0.0, `dist/dead-short-2.0.0.zip`.
+
+**The game is turn-based as of 2026-09-18.** A tick fires on a player action and
+at no other moment; the render loop cannot advance the simulation, and a gate
+fails the build if it ever can again. The model was always turn-based - the
+accumulator fed from `requestAnimationFrame`'s delta was the only real-time thing
+in the file - so par, `PAR_CONTRACT`, the solver, the codec, the daily and the
+trap machinery all came through unchanged, and every shipped par is the number it
+was. Scores read in **moves** now rather than seconds, which is what a tick always
+was. `ZAP_PENALTY_TICKS` went from 18 to 5: three seconds was fine against a score
+that read as seconds and absurd against pars of 14 to 39.
+
+The same day, the front door became one button. `Start`/`Continue` points at the
+first level with no recorded best; the ten-card catalogue it replaced is behind
+`Levels`, unchanged, and is still where a challenge link lands.
 
 The accessibility pass landed the same day: the play screen was a keyboard trap,
 focus was invisible, pinch-zoom was disabled, and component borders measured
@@ -267,7 +345,7 @@ that lands on the mirror is a discovery signal itch never sees. The mirror stays
 out of the README, out of announcements, and out of anything handed to a player.
 It exists for two things - share links that survive a re-upload, and the PWA.
 
-**`node publish.mjs` is the upload.** It runs all twelve gates and refuses to push
+**`node publish.mjs` is the upload.** It runs all fourteen gates and refuses to push
 a game that fails any of them. Uploading by hand through the dashboard is the step
 where a rebuild stops being a deploy: the repo can be clean, the suite green, and
 what players load a month old, because nothing in git touches what itch serves.

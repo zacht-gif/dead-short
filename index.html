@@ -128,15 +128,49 @@
     white-space:nowrap; border:0;
   }
 
+  /* ---------- Home screen ---------- */
+  /* The front door: one obvious action, and everything else secondary to it.
+     This used to open on the level catalogue - ten cards each carrying a grid
+     size, a pair count, a component count, a spark count, a best score and a
+     gold target, plus a daily card, an editor card and a seven-line paragraph
+     of rules. Around forty numbers to read before playing anything, and the
+     first thing asked of a new player was a choice they had no basis to make.
+     The catalogue is all still there, one button away, for when picking a
+     specific board is the thing you actually want. */
+  #homeMain{ text-align:center; margin:30px 0 24px; }
+  #homeStartBtn{ font-size:19px; padding:16px 44px; border-radius:12px; min-width:230px; }
+  #homeStartSub{ margin-top:12px; font-size:13px; color:var(--text-dim); line-height:1.55; }
+  #homeProgress{ margin-top:5px; font-size:12px; color:var(--text-dim); opacity:.85; }
+  .homeRow{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:22px; }
+  .homeRow button{ min-width:104px; }
+  #homeHelp{
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:12px; padding:0 18px; text-align:left;
+    font-size:13px; color:var(--text-dim); line-height:1.65;
+  }
+  #homeHelp b{ color:var(--text); }
+  /* list-style:none plus the webkit rule kills the native disclosure triangle in
+     both engines; the arrow is drawn in ::after so it can sit at the end of the
+     line rather than in front of it. summary stays a real summary, so it keeps
+     its button role, its Enter/Space handling and its focus ring. */
+  #homeHelp summary{
+    cursor:pointer; padding:15px 0; font-weight:600; color:var(--text); list-style:none;
+  }
+  #homeHelp summary::-webkit-details-marker{ display:none; }
+  #homeHelp summary::after{ content:' \25be'; color:var(--text-dim); }
+  #homeHelp[open] summary::after{ content:' \25b4'; }
+  #homeHelp .helpBody{ padding-bottom:18px; }
+
   /* ---------- Menu screen ---------- */
   header{ text-align:center; margin-bottom:22px; }
-  #settingsBtn{
+  #settingsBtn, #homeSettingsBtn{
     position:absolute; top:0; right:0;
     background:var(--panel); border:1px solid var(--panel-border); color:var(--text-dim);
     border-radius:8px; width:36px; height:36px; font-size:16px; line-height:1; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
-  #settingsBtn:hover{ color:var(--text); border-color:var(--accent-2); }
+  #settingsBtn:hover, #homeSettingsBtn:hover{ color:var(--text); border-color:var(--accent-2); }
+  #menuBackBtn{ position:absolute; top:0; left:0; }
 
   /* ---------- Settings screen ---------- */
   .settingsSection{
@@ -216,13 +250,6 @@
   .challengeBanner .acceptBtn{ background:var(--accent-2); color:#03202b; border:none; font-weight:700; }
   .challengeBanner .dismissBtn{ padding:9px 12px; }
 
-  #menuBanner{
-    background:var(--panel); border:1px solid var(--panel-border);
-    border-radius:10px; padding:14px 16px; margin-top:10px;
-    font-size:13px; color:var(--text-dim); line-height:1.6;
-  }
-  #menuBanner b{ color:var(--text); }
-
   /* ---------- Play screen ---------- */
   .playTop{
     display:flex; align-items:center; justify-content:space-between;
@@ -252,8 +279,8 @@
   #hud .stat{ display:flex; flex-direction:column; align-items:center; min-width:64px; }
   #hud .stat .label{ font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.6px; }
   #hud .stat .value{ font-size:18px; font-weight:600; }
-  #timer.running{ color:var(--accent); }
-  #timer.win{ color:var(--good); }
+  #moveCount.running{ color:var(--accent); }
+  #moveCount.win{ color:var(--good); }
   #zapCount.hasZaps{ color:var(--danger); }
 
   #challengeTargetBar{
@@ -295,6 +322,17 @@
   .controls{
     display:flex; flex-wrap:wrap; gap:8px;
     margin-top:14px;
+  }
+  /* Wait and Trace are MOVES, not chrome, so they sit with the board rather
+     than down in the row that holds Restart and Share. Wait especially: on a
+     touch screen it is the only way to let a spark pass, so a player who
+     cannot find it cannot play the timing half of the game at all. */
+  .moveRow{
+    display:flex; gap:8px; justify-content:center; margin-top:10px;
+  }
+  .moveRow button{ min-width:118px; padding:11px 16px; font-size:14px; }
+  #previewBtn[aria-pressed="true"]{
+    border-color:var(--accent-2); color:var(--accent-2);
   }
   button{
     font-family:inherit; font-size:13px; font-weight:600;
@@ -485,7 +523,11 @@
          above stays as the fallback for browsers without dvh. */
       max-height:calc(100dvh - 90px);
     }
-    #playMain{ flex:none; }
+    /* Matches MOVE_ROW_PX in computeCellSize(): the board and the Wait/Trace
+       row share this column, and both halves of that budget have to agree or
+       the row falls off the bottom of the screen. */
+    #playMain{ flex:none; max-height:100%; }
+    .moveRow{ margin-top:8px; }
     #playTopStats, #playBottom{
       flex:1; min-width:150px; max-width:220px;
       max-height:100%; overflow-y:auto;
@@ -493,6 +535,8 @@
     #hud{ flex-direction:column; align-items:stretch; gap:8px; }
     #hud .stat{ flex-direction:row; justify-content:space-between; min-width:0; }
     .controls{ flex-direction:column; }
+    .moveRow{ flex-wrap:wrap; }
+    .moveRow button{ min-width:0; flex:1; }
     #banner{ display:none; } /* the long instructional text is the first thing to drop when space is tight */
   }
 </style>
@@ -517,24 +561,54 @@
 
 <div id="app">
 
-  <!-- ================= MENU SCREEN ================= -->
-  <div id="menuScreen" class="screen">
-    <button id="settingsBtn" aria-label="Settings">⚙</button>
+  <!-- ================= HOME SCREEN ================= -->
+  <div id="homeScreen" class="screen">
+    <button id="homeSettingsBtn" aria-label="Settings">⚙</button>
     <header>
       <h1><span class="bolt">⚡</span> Dead Short</h1>
       <div class="subtitle">Route every pair. Time the current. Nothing is random.</div>
       <div id="menuBadge" class="hidden"></div>
     </header>
-    <div id="menuList"></div>
-    <div id="menuBanner">
-      <b>How to play:</b> drag from a dot to its matching color to lay out a route. Drawing is free and
-      instant — but current only flows one cell at a time, down one route at a time, and the clock is
-      running while it does. Routes can't cross each other or the components on the board, so the order
-      you energize them decides what's still possible. A spark patrols a fixed, repeating track and the
-      cell it's sitting on is outlined: let the current touch it and that wire shorts out (+3s). Your
-      route survives the short; only the current is lost. Finished wires are insulated for good.
-      Hit <b>Trace</b> to see exactly where every spark will be one, two and three seconds from now.
+    <div id="homeMain">
+      <button id="homeStartBtn" class="primary">Start</button>
+      <div id="homeStartSub"></div>
+      <div id="homeProgress"></div>
+      <div class="homeRow">
+        <button id="homeDailyBtn">⚡ Daily</button>
+        <button id="homeLevelsBtn">Levels</button>
+        <button id="homeEditorBtn">🛠 Editor</button>
+      </div>
     </div>
+    <details id="homeHelp">
+      <summary>How to play</summary>
+      <div class="helpBody">
+        <b>The board only moves when you do.</b> Drag from a colored dot toward its matching dot to lay a
+        route. Every cell you draw is one move, and every move steps the whole board once: the current
+        flows one cell further along the wire you are working on, and every spark takes one step of its
+        patrol. Between moves nothing happens at all, so take as long as you like.
+        <br><br>
+        Only one wire carries current at a time, so switching to another color costs a move — and the
+        half-built wire you left behind is still live. If a spark reaches it, that wire shorts out and
+        its current is lost. Your drawn route survives; only the current does, and the short adds 5 to
+        your score. Finished wires are insulated for good and are solid: nothing can cross them or the
+        components on the board, so the order you run them in decides what is still possible.
+        <br><br>
+        <b>Wait</b> spends a move without moving the current, which is how you let a spark go by.
+        <b>Trace</b> is free and shows where every spark will be for the next three moves. Your score is
+        simply the moves you spent, so the shortest route is not always the cheapest one.
+      </div>
+    </details>
+  </div>
+
+  <!-- ================= MENU SCREEN (the level catalogue) ================= -->
+  <div id="menuScreen" class="screen hidden">
+    <button id="menuBackBtn">‹ Back</button>
+    <button id="settingsBtn" aria-label="Settings">⚙</button>
+    <header>
+      <h1><span class="bolt">⚡</span> Levels</h1>
+      <div class="subtitle">Pick any board — nothing is locked.</div>
+    </header>
+    <div id="menuList"></div>
   </div>
 
   <!-- ================= PLAY SCREEN ================= -->
@@ -548,9 +622,9 @@
     <div id="playBody">
       <div id="playTopStats">
         <div id="hud">
-          <div class="stat"><div class="label">Time</div><div class="value" id="timer">0.0s</div></div>
+          <div class="stat"><div class="label">Moves</div><div class="value" id="moveCount">0</div></div>
           <div class="stat"><div class="label">Zaps</div><div class="value" id="zapCount">0</div></div>
-          <div class="stat"><div class="label">Score</div><div class="value" id="scoreVal">0.0s</div></div>
+          <div class="stat"><div class="label">Score</div><div class="value" id="scoreVal">0</div></div>
           <div class="stat"><div class="label">Best</div><div class="value" id="bestVal">—</div></div>
         </div>
         <div id="challengeTargetBar" class="hidden"></div>
@@ -565,27 +639,35 @@
           <canvas id="board" tabindex="0" role="application"
                   aria-label="Circuit board" aria-describedby="boardKeys"></canvas>
         </div>
+        <div class="moveRow">
+          <button id="waitBtn" class="primary">Wait ⏸</button>
+          <button id="previewBtn" aria-pressed="false">Trace ⚡</button>
+        </div>
         <p id="boardKeys" class="srOnly">
-          Tab and Shift Tab choose a wire. Arrow keys or W A S D extend its route
-          one cell. Backspace steps back. Press Escape to leave the board and
-          reach the Restart, Trace and Share buttons.
+          The board only moves when you do. Tab and Shift Tab choose a wire.
+          Arrow keys or W A S D extend its route one cell per press, and each
+          press advances the whole board one move. Backspace steps back. Space
+          or the period key waits a move without moving the current. Press
+          Escape to leave the board and reach the Restart and Share buttons.
         </p>
       </div>
 
       <div id="playBottom">
         <div class="controls">
           <button id="restartBtn">Restart</button>
-          <button id="previewBtn">Trace ⚡</button>
           <button id="shareBtn" class="primary">Share result</button>
         </div>
         <div id="banner">
-          <b>Score</b> = time + 3s per short. Draw as many routes as you like up front; the current runs
-          them one at a time, in order, and moves to the next when one completes. A half-built wire left
-          waiting is still live and still shortable — that's the cost of switching away. Tap any color to
-          jump the queue. The board is frozen until your first move, and <b>Trace</b> is free and
-          unlimited, so scout all you want before you commit.
-          <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD draw its route one cell at a
-          time, Backspace steps back, Enter/Space grabs a wire if none is selected.
+          <b>Nothing moves until you do.</b> One move is one cell of route, a switch to another color, or
+          <b>Wait</b> — and every one of them steps the whole board once: the current flows a cell, and
+          every spark takes one step of its patrol. Between moves the board is frozen, so thinking costs
+          nothing and there is no such thing as being too slow.
+          <br><b>Score</b> = moves + 5 per short, which is why the shortest route is not always the
+          cheapest. A half-built wire left waiting is still live and still shortable — that is what
+          switching away costs. <b>Trace</b> is free, stays on, and shows where every spark will be for
+          the next three moves.
+          <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD extend its route one cell per
+          press, Backspace steps back, Space or <b>.</b> waits.
           <b>Esc</b> leaves the board and moves to the buttons.
         </div>
       </div>
@@ -635,32 +717,35 @@
   <!-- ================= SETTINGS SCREEN ================= -->
   <div id="settingsScreen" class="screen hidden">
     <div class="playTop">
-      <button id="settingsBackBtn">‹ Menu</button>
+      <button id="settingsBackBtn">‹ Back</button>
       <div class="playLevelName"><span class="bolt">⚡</span><span>Settings</span></div>
       <div style="width:64px"></div>
     </div>
 
     <div class="settingsSection">
       <h3>About</h3>
-      <p>Dead Short is a circuit-wiring puzzle that never rolls a die. Every spark's path, every board, every
-      tick of the clock is fixed and repeatable — the only variable in the room is you. Connect the
-      pairs, dodge the current, beat your own best time. No luck to blame for a short, none to thank for
-      a clean run — just better routing and a faster finish.</p>
+      <p>Dead Short is a turn-based circuit-wiring puzzle that never rolls a die. Nothing on the board
+      moves until you move, and then everything moves exactly one step: every spark's path, every board,
+      every consequence is fixed and repeatable, and the only variable in the room is you. Connect the
+      pairs, time the current, beat your own best. No luck to blame for a short, none to thank for a
+      clean run — just better routing and fewer moves.</p>
     </div>
 
     <div class="settingsSection">
       <h3>How to play</h3>
       <p>Drag from a dot to its matching color — or tap your way there cell by cell — to lay out that
-      pair's route. Drawing costs nothing and happens instantly. <b>Current is the slow part:</b> it
-      flows one cell per tick, down one route at a time, and when a wire completes the current moves to
-      the next route you've drawn. No two routes may cross, and neither may pass through a component
-      soldered to the board, so the order things energize decides what's still reachable.</p>
+      pair's route. <b>One cell is one move</b>, and a move steps the entire board: the current flows one
+      cell further, and every spark takes one step of its patrol. Only one wire carries current at a
+      time, so switching to another color costs a move of its own. No two routes may cross, and neither
+      may pass through a component soldered to the board, so the order you run them in decides what is
+      still reachable.</p>
       <p style="margin-top:8px;">Sparks patrol fixed, repeating tracks that are always drawn on the
       board, and the cell a spark occupies right now is outlined — that outline is the hitbox, exactly.
-      Let live current touch it and that wire shorts out for a time penalty; your drawn route survives,
+      Let live current touch it and that wire shorts out for a 5-move penalty; your drawn route survives,
       so it simply starts filling again. A finished wire is insulated and safe for good. Nothing here is
-      random: <b>Trace</b> shows you precisely where every spark lands one, two and three seconds from
-      now, free and as often as you like, and the board stays frozen until your first move.</p>
+      random, and nothing is rushed: <b>Wait</b> spends a move and lets a spark go past, <b>Trace</b>
+      shows you exactly where every spark will be for the next three moves, and between two moves the
+      board holds still for as long as you want it to.</p>
     </div>
 
     <div class="settingsSection">
@@ -729,7 +814,7 @@
 <div id="winModal" role="dialog" aria-modal="true" aria-labelledby="winTitle">
   <div id="winCard">
     <h2 id="winTitle">Circuit complete!</h2>
-    <div class="score" id="winScore">0.0s</div>
+    <div class="score" id="winScore">0 moves</div>
     <div class="breakdown" id="winBreakdown"></div>
     <div class="best-line" id="winBestLine"></div>
     <div class="earn-line" id="winEarnLine"></div>
@@ -750,8 +835,16 @@
   // The whole simulation runs on an integer tick counter, never on wall-clock
   // time. Everything that can affect a score — spark position, wire growth,
   // the penalty for a short — is a pure function of that integer, so a run is
-  // exactly reproducible and a solver can search it. Wall-clock time only ever
-  // decides WHEN a tick fires; it never decides what a tick does.
+  // exactly reproducible and a solver can search it.
+  //
+  // The game is TURN-BASED: a tick fires when the player acts, and at no other
+  // moment. Nothing on this page reads the wall clock to decide what happens,
+  // so a board is frozen for as long as you want to look at it and identical
+  // for everyone who plays the same moves. It used to be driven by an
+  // accumulator fed from requestAnimationFrame's delta, which made it a
+  // real-time game wearing a tick model — the model was always turn-based, and
+  // the metronome was the only thing hiding it. One player action, one tick,
+  // which is exactly the alphabet the solver has always searched over.
   // Bump on every release. build.js checks this against sw.js's CACHE_NAME and
   // refuses to package a mismatch — a stale service worker cache is invisible
   // until players report playing a version you thought you'd replaced.
@@ -780,12 +873,22 @@
   // the deep link turns out to be worth more than the tracking.
   const CANONICAL_URL = 'https://thornsrl.itch.io/dead-short';
 
-  const TICK_HZ = 6;                       // ticks per second
-  const MS_PER_TICK = 1000 / TICK_HZ;
-  const MAX_FRAME_MS = 250;                // clamp after a tab-away so we don't
-                                           // burn through a spiral of catch-up ticks
-  const ZAP_PENALTY_TICKS = 3 * TICK_HZ;   // a short costs 3 seconds
-  const TRACE_MS = 2500;                   // how long a Trace overlay stays up
+  // A short costs five moves. This was 18 (three seconds at the old six ticks
+  // per second), which is fine when a score reads as seconds and absurd when it
+  // reads as moves: shipped pars run 14 to 39, so a single short was between a
+  // third and the whole of a clean run. Five is a real cost on every board and
+  // the end of a run on none of them.
+  const ZAP_PENALTY_TICKS = 5;
+
+  // Purely cosmetic. The turn has already resolved when this starts; it only
+  // decides how long the renderer takes to slide the sparks from where they
+  // were to where they now are, so a move reads as motion instead of a jump.
+  // Nothing in the simulation can see it, and reduce-motion skips it entirely.
+  const STEP_ANIM_MS = 110;
+
+  // How many moves ahead Trace shows. It used to be three SECONDS ahead, which
+  // was 18 ticks — half a level.
+  const TRACE_AHEAD = 3;
 
   // ---------- Level definitions ----------
   // Schema notes:
@@ -1280,9 +1383,16 @@
   function hasCleanClear(lv){ return localStorage.getItem(cleanClearKey(lv)) === '1'; }
   function markCleanClear(lv){ localStorage.setItem(cleanClearKey(lv), '1'); }
 
-  // Ticks are the stored unit; seconds are purely a display concern.
-  function ticksToSeconds(t){ return t / TICK_HZ; }
-  function fmtTicks(t){ return ticksToSeconds(t).toFixed(1) + 's'; }
+  // Ticks are the stored unit and a tick is a move, so a move is what a score
+  // is counted in. This used to render seconds, which was honest while a
+  // metronome was spending the ticks and became a fiction the moment the player
+  // started spending them: 34 ticks is 34 decisions, not 5.7 seconds of
+  // anything. Stored scores did not change unit, so every saved best, every
+  // shared link and PAR_CONTRACT all still mean what they meant.
+  function fmtTicks(t){ return t === 1 ? '1 move' : t + ' moves'; }
+  // The HUD puts a label over every number, so the unit is already on screen
+  // and repeating it four times just makes the numbers harder to read.
+  function fmtCount(t){ return String(t); }
 
   // ---------- Lifetime stats (for the Settings > Stats section) ----------
   function bumpCounter(key){
@@ -1356,7 +1466,14 @@
   }
 
   // ---------- Screen management ----------
-  let screen = 'menu'; // 'menu' | 'play' | 'settings' | 'editor'
+  let screen = 'home'; // 'home' | 'menu' | 'play' | 'settings' | 'editor'
+  /* Where a sub-screen goes when you back out of it. Recorded rather than
+     hard-coded, because both hubs can reach both of them: Levels and Settings
+     are each openable from the home screen and from the catalogue, and sending
+     somebody somewhere they were not is a small thing that feels like a bug. */
+  let playReturn = 'home';
+  let settingsReturn = 'home';
+  const homeScreen = document.getElementById('homeScreen');
   const menuScreen = document.getElementById('menuScreen');
   const playScreen = document.getElementById('playScreen');
   const settingsScreen = document.getElementById('settingsScreen');
@@ -1581,6 +1698,42 @@
     menuList.appendChild(edCard);
   }
 
+  /* The campaign remembers where you are, so the front door can be one button.
+     "First level with no recorded best" rather than a saved pointer: a best
+     score already IS the record that a board was finished, so there is no
+     second source of truth to keep in step, nothing new to migrate, and no way
+     for a pointer to disagree with the scores on the cards. Falls back to the
+     last level, so the button is never dead once the set is done. */
+  function nextUnplayedLevel(){
+    return LEVELS.find(lv => getBest(lv) === null) || LEVELS[LEVELS.length-1];
+  }
+
+  function renderHome(){
+    const cleared = LEVELS.filter(lv => getBest(lv) !== null).length;
+    const lv = nextUnplayedLevel();
+    const allDone = cleared === LEVELS.length;
+    document.getElementById('homeStartBtn').textContent = cleared === 0 ? 'Start' : 'Continue';
+    document.getElementById('homeStartSub').textContent = allDone
+      ? `Every board cleared — replaying ${lv.name}`
+      : `${lv.name} · ${lv.cols}×${lv.rows} · ${describeHazards(lv)}`;
+    const streak = getDailyStreak();
+    document.getElementById('homeProgress').textContent =
+      `${cleared} of ${LEVELS.length} boards cleared` +
+      (streak ? ` · ${streak} day daily streak` : '');
+  }
+
+  function showHome(){
+    screen = 'home';
+    renderHome();
+    winModal.classList.remove('show');
+    shareModal.classList.remove('show');
+    playScreen.classList.add('hidden');
+    settingsScreen.classList.add('hidden');
+    editorScreen.classList.add('hidden');
+    menuScreen.classList.add('hidden');
+    homeScreen.classList.remove('hidden');
+  }
+
   function showMenu(){
     screen = 'menu';
     renderMenu();
@@ -1589,6 +1742,7 @@
     playScreen.classList.add('hidden');
     settingsScreen.classList.add('hidden');
     editorScreen.classList.add('hidden');
+    homeScreen.classList.add('hidden');
     menuScreen.classList.remove('hidden');
   }
 
@@ -1612,6 +1766,7 @@
     screen = 'settings';
     renderSkinList();
     renderStats();
+    homeScreen.classList.add('hidden');
     menuScreen.classList.add('hidden');
     playScreen.classList.add('hidden');
     editorScreen.classList.add('hidden');
@@ -1619,6 +1774,10 @@
   }
 
   function enterLevel(lv){
+    // Only a hub is a place to come back to. enterLevel is also how the win
+    // modal's Next button moves through the campaign, and that call arrives
+    // with screen already 'play'.
+    if(screen === 'home' || screen === 'menu') playReturn = screen;
     level = lv;
     resizeCanvasForLevel();
     playLevelNameText.textContent = level.name;
@@ -1627,6 +1786,7 @@
     menuScreen.classList.add('hidden');
     settingsScreen.classList.add('hidden');
     editorScreen.classList.add('hidden');
+    homeScreen.classList.add('hidden');
     playScreen.classList.remove('hidden');
     /* preventScroll because focusing the board should not yank the page down
        to it on a phone. Focusing at all is what keeps keyboard play feeling
@@ -1666,24 +1826,24 @@
   let dragging = false;      // true only while the pointer/finger is physically down
   let won = false;
   let zapCount = 0;
-  let previewUntil = 0;      // timestamp; while now < previewUntil, the board is locked from input
+  let tracing = false;       // Trace overlay is up (a toggle; it costs nothing and blocks nothing)
   let sealed = false;        // a finished wire has made the board unwinnable
   let justLocked = false;    // a wire locked this tick, so the seal probe is worth running
 
   // ---------- The clock ----------
-  // tickCount is the ONLY thing the simulation reads. It starts at 0 on the
-  // player's first action and advances at a fixed rate while a run is live, so
-  // the spark phase at the start of a run is identical for everybody, every
-  // time — which is the whole basis for comparing two scores on one board.
+  // tickCount is the ONLY thing the simulation reads, and it advances only when
+  // the player acts — one tick per action, through takeTurn(). So the spark
+  // phase at any point of a run is a pure function of the moves played, which
+  // is what makes two scores on one board comparable, and what makes thinking
+  // free.
   let tickCount = 0;
   let running = false;
-  let tickAccum = 0;         // leftover ms between fixed-timestep ticks
-  let lastFrameMs = null;
   let pendingSwitchTicks = 0; // re-seating the probe onto another color costs a tick
+  let stepAnimUntil = 0;      // wall clock, cosmetic only — see STEP_ANIM_MS
 
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
-  const timerEl = document.getElementById('timer');
+  const moveCountEl = document.getElementById('moveCount');
   const bestValEl = document.getElementById('bestVal');
   const zapCountEl = document.getElementById('zapCount');
   const scoreValEl = document.getElementById('scoreVal');
@@ -1753,11 +1913,19 @@
     // sized for one layout while the page is actually rendering the other.
     const isLandscapeCompact = window.matchMedia('(orientation: landscape) and (max-height: 560px) and (max-width: 900px)').matches;
     const reservedForSidebar = isLandscapeCompact ? 200 : 0;
+    // The board shares its column with the Wait/Trace row, which is 46px of
+    // button plus its 10px margin. Left out of this budget, the row is pushed
+    // off the bottom of a landscape phone - and Wait is the ONLY way a touch
+    // player can let a spark go past, so the board would be sized to hide the
+    // control that makes half the game playable. Exactly the shape of the
+    // keyboard trap: a board that works, and a required control the affected
+    // player cannot reach.
+    const MOVE_ROW_PX = 56;
     // Matches the max-width:399px rule above: narrow phones give the board
     // almost the whole width so cells stay at a usable size.
     const gutters = window.innerWidth < 400 ? 12 : 32;
     const availableW = Math.min(window.innerWidth - gutters - reservedForSidebar, 640);
-    const availableH = isLandscapeCompact ? (window.innerHeight - 90) : Infinity;
+    const availableH = isLandscapeCompact ? (window.innerHeight - 90 - MOVE_ROW_PX) : Infinity;
     const bySize = Math.min(availableW / cols, availableH / rows);
     return Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor(bySize)));
   }
@@ -1782,38 +1950,39 @@
     activeColor = null;
     dragging = false;
     tickCount = 0;
-    tickAccum = 0;
-    lastFrameMs = null;
     pendingSwitchTicks = 0;
+    stepAnimUntil = 0;
     running = false;
     won = false;
     zapCount = 0;
-    previewUntil = 0;
+    tracing = false;
     sealed = false;
     justLocked = false;
     sealedBar.classList.add('hidden');
     winModal.classList.remove('show');
+    syncTraceBtn();
     updateHud();
   }
 
-  // The run clock starts on the player's first real action, not on level entry,
-  // so studying a frozen board costs nothing.
+  // The run starts on the player's first real action, not on level entry, so
+  // studying a frozen board costs nothing. Under a turn-based clock that is
+  // true of every moment between moves as well, not just the first one.
+  //
+  // It still matters WHEN this flips, because setActiveColor only charges for
+  // a switch while a run is live: the first color you pick is free, every one
+  // after it costs a move.
   function startRunIfIdle(){
-    if(!running && !won){
-      running = true;
-      tickAccum = 0;
-      lastFrameMs = null;
-    }
+    if(!running && !won) running = true;
   }
 
   function updateHud(){
-    timerEl.textContent = fmtTicks(tickCount);
-    timerEl.className = 'value ' + (won ? 'win' : (running ? 'running' : ''));
+    moveCountEl.textContent = fmtCount(tickCount);
+    moveCountEl.className = 'value ' + (won ? 'win' : (running ? 'running' : ''));
     zapCountEl.textContent = zapCount;
     zapCountEl.className = 'value ' + (zapCount>0 ? 'hasZaps' : '');
-    scoreValEl.textContent = fmtTicks(currentScore());
+    scoreValEl.textContent = fmtCount(currentScore());
     const best = getBest(level);
-    bestValEl.textContent = best!==null ? fmtTicks(best) : '—';
+    bestValEl.textContent = best!==null ? fmtCount(best) : '—';
   }
 
   // ---------- Geometry helpers ----------
@@ -1955,9 +2124,29 @@
   // Only one wire carries current at a time, so moving the probe to another
   // color costs a tick. That's what makes "which color do I run first, and how
   // far do I get before I have to leave it exposed" an actual decision.
+  /* THE FIRST SELECTION OF A RUN IS FREE; EVERY ONE AFTER IT COSTS A MOVE.
+     That is the solver's rule, written out where the engine can obey it:
+     scheduleSolve() emits 'F' for the first wire it picks up and 'S' for every
+     wire after, and par counts the S actions. `running` is exactly "the first
+     selection has already happened", because takeTurn() is what sets it.
+
+     This condition used to be `activeColor !== null && running`, which is the
+     same rule with a hole in it. advanceToNextPlanned() clears activeColor to
+     null when a wire locks and nothing else has a plan, so picking up the next
+     wire read as a first selection and came free — the engine skipping a tick
+     the scheduler had charged for. That is the Mainframe bug exactly: the
+     automatic handoff being free while par pays for it. It was nearly invisible
+     under the old clock, because a player who drew ahead always left another
+     wire planned and never reached the null branch. Turn-based play reaches it
+     on every single handoff, and ordinary play came in at 20 against a par of
+     28 on circuit-board.
+
+     Note what did NOT catch this: par, every replay, and the contract test, all
+     green throughout — replaySolution issues explicit switch actions, so the
+     one path under test was again the one path that was already right. */
   function setActiveColor(idx){
     if(activeColor === idx) return;
-    if(activeColor !== null && running) pendingSwitchTicks = 1;
+    if(running) pendingSwitchTicks = 1;
     activeColor = idx;
   }
 
@@ -1969,7 +2158,7 @@
       wires[own.idx].intent = wires[own.idx].intent.slice(0, own.pos+1);
       setActiveColor(own.idx);
       dragging = true;
-      startRunIfIdle();
+      takeTurn();
       return;
     }
 
@@ -1989,13 +2178,16 @@
 
     if(term){
       // Re-routing from a terminal only rewrites the PLAN. Whatever current has
-      // already flowed retracts a cell per tick, so committing down a wrong path
-      // costs real time to undo — same as it cost to lay.
+      // already flowed retracts a cell per turn, so committing down a wrong path
+      // costs the same number of moves to undo that it cost to lay.
       wires[term.idx].intent = [cell];
       setActiveColor(term.idx);
       dragging = true;
       sfx.click();
-      startRunIfIdle();
+      // One input, one turn. On the first pick of the level that turn lays the
+      // terminal cell; on a later one it is eaten by the switch setActiveColor
+      // just queued, which is what switching costs.
+      takeTurn();
       return;
     }
 
@@ -2005,14 +2197,26 @@
     }
   }
 
-  // Extends the PLAN toward the reported cell. Drawing is free and instant —
-  // this never moves the current, only the route it will follow.
+  // Extends the PLAN toward the reported cell, ONE CELL PER TURN.
   //
   // Fast real mouse drags (and coarse touch input) don't fire a move event for
   // every cell crossed — the pointer can jump several cells between events. So
   // we walk single unit steps from the last planned cell toward the reported
   // one instead of requiring exact adjacency, applying the normal rules at each
   // step and stopping early if a step is invalid.
+  //
+  // THE TURN GOES INSIDE THAT WALK, and that placement is the whole reason the
+  // game stays frame-rate independent now that nothing else keeps time. Charge
+  // per input EVENT instead and a flick that skips four cells between samples
+  // costs one move while the same four cells drawn slowly cost four — a fast
+  // hand would buy moves, which is the exact exploit the old accumulator
+  // existed to prevent. Per unit step, a route costs what it measures however
+  // it was drawn.
+  //
+  // A retraction is a turn too. propagateActiveWire() calls it 'retract' and
+  // walks the current back a cell, so undoing a route costs the moves it cost
+  // to lay — that has always been the rule, it just used to be charged by a
+  // clock instead of by the hand doing it.
   function planTo(cell){
     if(activeColor===null) return;
     const w = wires[activeColor];
@@ -2026,6 +2230,7 @@
       // Dragging back over the previous cell un-draws the last planned step.
       if(w.intent.length>1 && sameCell(w.intent[w.intent.length-2], cell)){
         w.intent.pop();
+        if(!takeTurn() || w.locked || !w.intent.length) return;
         continue;
       }
 
@@ -2041,6 +2246,7 @@
 
       if(w.intent.length>1 && sameCell(w.intent[w.intent.length-2], step)){
         w.intent.pop();
+        if(!takeTurn() || w.locked || !w.intent.length) return;
         continue;
       }
 
@@ -2052,13 +2258,19 @@
 
       if(w.intent.some(c=>sameCell(c,step))) return; // no self-crossing
 
-      w.intent.push(step);
-
       // Reaching our own far terminal completes the ROUTE. The wire isn't done
-      // until the current actually gets there.
+      // until the current actually gets there. Worked out BEFORE the turn,
+      // because the turn is what may lock the wire and rewrite intent.
       const term = level.terminals[activeColor];
-      if((sameCell(term.a, w.intent[0]) && sameCell(term.b, step)) ||
-         (sameCell(term.b, w.intent[0]) && sameCell(term.a, step))) return;
+      const closes = (sameCell(term.a, w.intent[0]) && sameCell(term.b, step)) ||
+                     (sameCell(term.b, w.intent[0]) && sameCell(term.a, step));
+
+      w.intent.push(step);
+      if(!takeTurn()) return;
+      // The turn can lock this wire, truncate its plan against a cell another
+      // wire just finished across, or end the level. Re-read rather than
+      // trusting what was true before it.
+      if(closes || w.locked || !w.intent.length) return;
     }
   }
 
@@ -2229,12 +2441,37 @@
     }
   }
 
+  /* THE ONLY THING THAT ADVANCES THE WORLD DURING PLAY.
+     One player action, one tick. Everything that costs a move goes through
+     here, and nothing else calls stepTick() on the play path, so "how many
+     turns did that input take" is answerable by reading the call sites rather
+     than by reasoning about a clock.
+
+     The tooling deliberately does NOT go through it: replaySolution(),
+     stageSolution(), stageSealDemo() and selfTest drive stepTick() directly,
+     because they are issuing the solver's own actions and have no player. That
+     separation is why making the game turn-based left par, PAR_CONTRACT and
+     every solver test untouched — the schedule the solver searches was already
+     a list of turns.
+
+     Returns false when the turn did not happen, so an input loop can stop
+     walking rather than pushing moves into a finished board. */
+  function takeTurn(){
+    if(won) return false;
+    startRunIfIdle();
+    stepTick();
+    // Cosmetic catch-up for the renderer. Set after the step, so the frame
+    // that follows draws FROM the previous tick TO this one.
+    stepAnimUntil = (typeof performance === 'object' && performance.now)
+      ? performance.now() + STEP_ANIM_MS : 0;
+    return true;
+  }
+
   function endPointer(){
     dragging = false;
   }
 
   canvas.addEventListener('mousedown', e=>{
-    if(performance.now() < previewUntil) return;
     const [px,py] = pointerPos(e);
     const c = cellAt(px,py);
     if(c) onPointerDown(c);
@@ -2248,7 +2485,6 @@
   window.addEventListener('mouseup', endPointer);
 
   canvas.addEventListener('touchstart', e=>{
-    if(performance.now() < previewUntil) return;
     e.preventDefault();
     const [px,py] = pointerPos(e);
     const c = cellAt(px,py);
@@ -2266,8 +2502,8 @@
   // ---------- Keyboard input (WASD / arrows) ----------
   // Cycles activeColor with Tab/Shift+Tab, then reuses planTo for single-step
   // movement so keyboard play follows the exact same adjacency/occupancy/lock
-  // rules as a drag — no duplicated logic. Like a drag, this edits the plan;
-  // the current still advances one cell per tick.
+  // rules as a drag — no duplicated logic, and crucially the same charging,
+  // since the turn is taken inside planTo. One press is one move either way.
   function cycleActiveColor(dir){
     const n = level.terminals.length;
     if(!n) return;
@@ -2280,7 +2516,7 @@
         wires[idx].intent = [level.terminals[idx].a];
         sfx.click();
       }
-      startRunIfIdle();
+      takeTurn();
       return;
     }
   }
@@ -2295,16 +2531,26 @@
   }
 
   function keyboardStep(dc, dr){
-    if(activeColor === null){
-      cycleActiveColor(1);
-      if(activeColor === null) return;
-    }
+    // One input, one turn. With no wire in hand the arrow SELECTS one — which
+    // seats the probe on its terminal and is visibly something happening — and
+    // the next press moves it. Doing both would charge two moves for one press
+    // and break the only rule this input model has.
+    if(activeColor === null){ cycleActiveColor(1); return; }
     const w = wires[activeColor];
     if(!w || w.locked || !w.intent.length) return;
     const head = planHead();
     const target = [head[0]+dc, head[1]+dr];
     if(!inBounds(target)) return;
     planTo(target);
+  }
+
+  /* Letting the sparks move without moving the current. Under a clock you
+     waited by doing nothing, which needs no control at all; when the world only
+     moves on your input, "wait" has to BE an input or the timing half of the
+     game is unreachable. On touch that is not a nicety — without it a player
+     whose only safe move is to let a spark pass has no legal move at all. */
+  function waitMove(){
+    takeTurn();
   }
 
   function keyboardBack(){
@@ -2350,7 +2596,6 @@
   function handlePlayKey(e){
     if(screen !== 'play') return false;
     if(anyModalOpen()) return false;   // a dialog on top owns the keyboard
-    if(performance.now() < previewUntil) return false;
     const key = e.key;
     if(key === 'Escape'){
       if(!boardHasFocus()) return false;
@@ -2364,11 +2609,20 @@
       e.preventDefault();
       if(key === 'Tab') cycleActiveColor(e.shiftKey ? -1 : 1);
       else if(activeColor === null) cycleActiveColor(1);
+      else waitMove();
       return true;
     }
     if(key === 'Backspace'){
       e.preventDefault();
       keyboardBack();
+      return true;
+    }
+    // Period waits, and stays global for the same reason the arrows do: it is
+    // not focus navigation, so capturing it takes nothing from anybody. Space
+    // waits too, but only with the board focused, because Space scrolls a page.
+    if(key === '.'){
+      e.preventDefault();
+      waitMove();
       return true;
     }
     let dc=0, dr=0;
@@ -2419,8 +2673,9 @@
       applySkin(); // a fresh clear/clean-run may just have unlocked a cosmetic
 
       winScoreEl.textContent = fmtTicks(score) + (medal ? ' ' + MEDAL_ICON[medal] : '');
-      winBreakdownEl.textContent =
-        `${fmtTicks(tickCount)} time + ${zapCount}×${fmtTicks(ZAP_PENALTY_TICKS)} penalty`;
+      winBreakdownEl.textContent = zapCount
+        ? `${tickCount} moves + ${zapCount} short${zapCount===1?'':'s'} × ${ZAP_PENALTY_TICKS}`
+        : `${tickCount} moves, no shorts`;
       winBestLineEl.textContent = improved ? 'New personal best!' : ('Best: ' + fmtTicks(getBest(level)));
       winEarnLineEl.textContent = earnLine;
       const next = nextLevelAfter(level);
@@ -2792,7 +3047,12 @@
       if(head){
         const t = level.terminals[activeColor];
         const x = head[0]*CELL+CELL/2, y = head[1]*CELL+CELL/2;
-        const pulse = settings.reduceMotion ? 0.8 : (0.55 + 0.45*Math.sin(tAnim*(Math.PI*2/TICK_HZ)*1.5));
+        // Period four moves, written out rather than derived from a ticks-per-
+        // second constant that no longer exists. Deliberately still keyed to
+        // tAnim and not to the wall clock: draw() has to stay a pure function of
+        // (tick, frac) or shots.mjs stops being byte-reproducible, and a ring
+        // that holds still on a board that is holding still is honest anyway.
+        const pulse = settings.reduceMotion ? 0.8 : (0.55 + 0.45*Math.sin(tAnim*(Math.PI/2)));
         ctx.save();
         ctx.beginPath();
         ctx.arc(x,y,dotR*1.375,0,Math.PI*2);
@@ -2922,18 +3182,21 @@
       ctx.restore();
     });
 
-    // Trace overlay: shows each hazard's FUTURE positions as numbered ghosts
-    // along its loop. This is the thing the old "Preview" couldn't tell you —
-    // just watching the spark move is something you can already do for free
-    // (the clock doesn't start until your first move), whereas seeing where it
-    // will be in 1s / 2s / 3s at a glance is genuinely new information.
-    if(performance.now() < previewUntil){
+    // Trace overlay: shows each hazard's position after the next one, two and
+    // three MOVES, as numbered ghosts along its loop. It used to say 1s/2s/3s,
+    // which at six ticks a second meant it was showing eighteen moves ahead —
+    // half a level, on a board where a whole solution is about thirty.
+    //
+    // A toggle now, not a timed flash, and it neither costs a move nor blocks
+    // one: you leave it up and watch the ghosts move as you play. The dim is
+    // lighter than it was for that reason — it has to be readable to sit on.
+    if(tracing){
       ctx.save();
-      ctx.fillStyle = 'rgba(4,8,14,0.55)';
+      ctx.fillStyle = 'rgba(4,8,14,0.42)';
       ctx.fillRect(0,0,boardW,boardH);
       level.obstacles.forEach(ob=>{
-        for(let s=1; s<=3; s++){
-          const future = tick + s*TICK_HZ;
+        for(let s=1; s<=TRACE_AHEAD; s++){
+          const future = tick + s;
           if(!obstacleIsDangerous(ob, future)) continue;
           // Cell-aligned, because the future position is an exact cell — drawing
           // it as a floating circle would imply a precision the rules don't have.
@@ -2952,7 +3215,7 @@
           ctx.font = `bold ${Math.round(CELL*0.22)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(s+'s', cx, cy);
+          ctx.fillText(String(s), cx, cy);
         }
       });
       ctx.restore();
@@ -2960,34 +3223,33 @@
   }
 
   // ---------- Main loop ----------
-  // Wall-clock time decides only WHEN a tick fires, never what it does. Ticks
-  // are consumed at a fixed rate from an accumulator, so a 144Hz monitor, a
-  // 30fps phone and a headless test all simulate the identical run — frame rate
-  // cannot buy or cost a player a single tick.
+  // RENDER ONLY. This function cannot change a single thing the simulation
+  // reads, which is the whole point: a 144Hz monitor, a 30fps phone, a
+  // backgrounded tab and a headless test all see the identical board, because
+  // the board only moves when the player does. It used to own an accumulator
+  // fed from the frame delta, and that accumulator was the only real-time thing
+  // in the game.
+  //
+  // The one thing it reads a clock for is stepAnimUntil, which slides the
+  // sparks from last tick's cells to this tick's so a move reads as motion.
+  // Cosmetic: draw() is a pure function of (tick, frac) and writes nothing.
   //
   // Wrapped in try/catch so a single bad frame can't permanently freeze/blank
   // the board — worst case we drop a frame's update and keep going.
   function tick(now){
     try{
       if(screen === 'play'){
-        if(lastFrameMs === null) lastFrameMs = now;
-        let dt = now - lastFrameMs;
-        lastFrameMs = now;
-        if(!(dt >= 0)) dt = 0;
-        if(dt > MAX_FRAME_MS) dt = MAX_FRAME_MS; // don't spiral catching up after a tab-away
-
-        if(running && !won){
-          tickAccum += dt;
-          while(tickAccum >= MS_PER_TICK){
-            tickAccum -= MS_PER_TICK;
-            stepTick();
-            if(won){ tickAccum = 0; break; }
-          }
-        }
         updateHud();
-        draw(tickCount, running && !won ? (tickAccum / MS_PER_TICK) : 0);
-      } else {
-        lastFrameMs = null;
+        // Interpolate BACKWARDS from the tick just taken. tickCount > 0 guards
+        // the negative-tick render that draw() used to throw on at frame zero.
+        let shown = tickCount, frac = 0;
+        if(tickCount > 0 && !settings.reduceMotion && now < stepAnimUntil){
+          shown = tickCount - 1;
+          frac = 1 - (stepAnimUntil - now) / STEP_ANIM_MS;
+          if(!(frac >= 0)) frac = 0;
+          if(frac > 1) frac = 1;
+        }
+        draw(shown, frac);
       }
     } catch(err){
       console.error('Dead Short: frame error', err);
@@ -2996,8 +3258,17 @@
   }
 
   // ---------- Buttons ----------
-  document.getElementById('menuBtn').onclick = showMenu;
-  document.getElementById('winMenu').onclick = showMenu;
+  function leavePlay(){ if(playReturn === 'menu') showMenu(); else showHome(); }
+  document.getElementById('menuBtn').onclick = leavePlay;
+  document.getElementById('winMenu').onclick = leavePlay;
+
+  document.getElementById('homeStartBtn').onclick = ()=>enterLevel(nextUnplayedLevel());
+  document.getElementById('homeLevelsBtn').onclick = showMenu;
+  document.getElementById('homeEditorBtn').onclick = showEditor;
+  document.getElementById('homeDailyBtn').onclick =
+    ()=>enterLevel(generateDailyLevel(localDateString()));
+  document.getElementById('homeSettingsBtn').onclick = ()=>{ settingsReturn = 'home'; showSettings(); };
+  document.getElementById('menuBackBtn').onclick = showHome;
 
   // Winning used to dead-end into Retry / Menu / Share, which made a ten-level
   // set feel like ten separate arcade cabinets. Keyed off the level's identity
@@ -3013,17 +3284,23 @@
     const next = nextLevelAfter(level);
     if(next) enterLevel(next); else showMenu();
   };
-  document.getElementById('settingsBtn').onclick = showSettings;
-  document.getElementById('settingsBackBtn').onclick = showMenu;
+  document.getElementById('settingsBtn').onclick = ()=>{ settingsReturn = 'menu'; showSettings(); };
+  document.getElementById('settingsBackBtn').onclick =
+    ()=>{ if(settingsReturn === 'menu') showMenu(); else showHome(); };
   document.getElementById('restartBtn').onclick = resetPuzzle;
   document.getElementById('sealedRestart').onclick = resetPuzzle;
   document.getElementById('winRestart').onclick = resetPuzzle;
-  // Trace is free and unlimited — the clock keeps running while it's up, so
-  // using it mid-run already costs you time. That natural cost is enough;
-  // no scarce currency needed on top of it.
-  previewBtn.onclick = ()=>{
-    previewUntil = performance.now() + TRACE_MS;
-  };
+  // Trace is free, unlimited and now a toggle. Under a clock it cost time to
+  // read, which was the whole of its price; with the clock gone there is no
+  // price left to charge, so rather than pretend otherwise it became a thing
+  // you leave switched on while you think.
+  function syncTraceBtn(){
+    if(!previewBtn) return;
+    previewBtn.textContent = tracing ? 'Trace ⚡ on' : 'Trace ⚡';
+    if(previewBtn.setAttribute) previewBtn.setAttribute('aria-pressed', tracing ? 'true' : 'false');
+  }
+  previewBtn.onclick = ()=>{ tracing = !tracing; syncTraceBtn(); };
+  document.getElementById('waitBtn').onclick = ()=>{ waitMove(); };
   function shareText(){
     const score = currentScore();
     const best = getBest(level);
@@ -3813,8 +4090,18 @@
     if(kind === 'F' || kind === 'S'){
       const i = parseInt(act.slice(1), 10);
       setActiveColor(i);
-      if(kind === 'F') activeColor = i;         // free: no tick is spent
-      else stepTick();
+      if(kind === 'F'){
+        // Free means free: nothing is owed and no tick is spent. Both lines are
+        // load-bearing. replaySolution sets running = true before issuing any
+        // action, so setActiveColor has just queued a switch this action is
+        // declaring free - leave it queued and the next stepTick() burns on it,
+        // putting every replay one tick over par and breaking the contract the
+        // moment the engine's own charging rule was tightened.
+        activeColor = i;
+        pendingSwitchTicks = 0;
+      } else {
+        stepTick();
+      }
       return null;
     }
     const w = wires[activeColor];
@@ -4262,6 +4549,7 @@
 
   function showEditor(){
     screen = 'editor';
+    homeScreen.classList.add('hidden');
     menuScreen.classList.add('hidden');
     playScreen.classList.add('hidden');
     settingsScreen.classList.add('hidden');
@@ -4291,7 +4579,7 @@
     drawEditor();
   };
 
-  document.getElementById('editorBackBtn').onclick = showMenu;
+  document.getElementById('editorBackBtn').onclick = showHome;
   document.getElementById('editorVerify').onclick = runVerify;
   document.getElementById('editorClear').onclick = editorClear;
   document.getElementById('editorRandom').onclick = editorRandom;
@@ -4370,38 +4658,80 @@
         ok('patrol renders at a negative tick on ' + lv.slug, threw === null, threw || '');
       });
 
-      // --- Current costs a tick per cell, and drawing costs nothing ---------
+      // --- One move is one cell, and nothing moves without a move -----------
+      // The turn-based contract, in the smallest case there is. This block used
+      // to assert the opposite half of the old model - that drawing was free and
+      // a metronome paid for the cells afterwards - which was the same arithmetic
+      // with the clock holding the purse.
       load(plainLevel());
       onPointerDown([0,0]);
-      planTo([0,3]);
-      ok('drawing a route lays no current', wires[0].cells.length === 0,
+      ok('seating the probe on a terminal costs one move', tickCount === 1,
+         'tick=' + tickCount);
+      ok('and lays that terminal cell', wires[0].cells.length === 1,
          'cells=' + wires[0].cells.length);
+      planTo([0,3]);
+      ok('three more cells cost three more moves', tickCount === 4, 'tick=' + tickCount);
       ok('drawing a route plans 4 cells', wires[0].intent.length === 4,
          'intent=' + wires[0].intent.length);
-      ok('clock has not advanced from drawing alone', tickCount === 0, 'tick=' + tickCount);
-      runTicks(3);
-      ok('3 ticks energize exactly 3 cells', wires[0].cells.length === 3,
+      ok('the current is where the route is', wires[0].cells.length === 4,
          'cells=' + wires[0].cells.length);
-      ok('wire is not finished early', wires[0].locked === false);
-      runTicks(1);
-      ok('4th tick completes the wire', wires[0].locked === true);
+      ok('the wire is finished', wires[0].locked === true);
       ok('completing the last wire wins', won === true);
-      ok('a 4-cell wire scores 4 ticks', tickCount === 4, 'tick=' + tickCount);
+      ok('a 4-cell wire scores 4 moves', tickCount === 4, 'tick=' + tickCount);
+
+      // --- The renderer cannot spend a move ---------------------------------
+      // The main loop is the thing that used to advance the simulation, and the
+      // accumulator it fed was the only real-time component in the game. Now it
+      // renders and nothing else, so any number of frames between two player
+      // actions has to leave the board byte-identical. Asserted rather than
+      // argued, because "this function only reads" is the kind of claim that
+      // stops being true one careless line at a time.
+      (function(){
+        load(plainLevel());
+        onPointerDown([0,0]);
+        const before = JSON.stringify([tickCount, zapCount, won, wires[0].cells, wires[0].intent]);
+        for(let i=0;i<50;i++){ draw(tickCount, 0); updateHud(); }
+        ok('fifty rendered frames advance nothing',
+           JSON.stringify([tickCount, zapCount, won, wires[0].cells, wires[0].intent]) === before,
+           'tick=' + tickCount);
+      })();
 
       // --- The exploit this whole model exists to kill -----------------------
-      // A synchronous burst of pointer input, zero frames elapsed. This is the
-      // exact shape that used to finish a 5-wire board in 0.0s.
-      load({ slug:'test-burst', name:'Burst', cols:6, rows:6,
+      // A synchronous burst of pointer input, zero frames elapsed - the shape
+      // that once finished a 5-wire board in 0.0s. The old assertion was that a
+      // burst cost ZERO ticks, because ticks came from frames and a burst spans
+      // none. Turn-based inverts the sentence and keeps the guarantee: a burst
+      // costs one move per cell, which is what the same route costs drawn slowly.
+      //
+      // It matters MORE now than it did, because planTo() walks the gap between
+      // two pointer samples itself. The turn is taken inside that walk, per unit
+      // step. Charge per input EVENT instead and a coarse touch screen, or any
+      // hand fast enough to skip cells between samples, becomes a cheat code.
+      const burstLevel = ()=>({ slug:'test-burst', name:'Burst', cols:6, rows:6,
         terminals:[
           { color:'#ff5d6c', a:[0,0], b:[0,5] },
           { color:'#ffd75a', a:[2,0], b:[2,5] },
           { color:'#54e6a6', a:[5,0], b:[5,5] },
         ], blocked:[], obstacles:[] });
+
+      load(burstLevel());
       [0,2,5].forEach(c=>{ onPointerDown([c,0]); planTo([c,5]); endPointer(); });
-      ok('a synchronous input burst wins nothing', won === false);
-      ok('a synchronous input burst costs 0 ticks', tickCount === 0, 'tick=' + tickCount);
-      ok('a synchronous input burst energizes nothing',
-         [0,1,2].every(i=>wires[i].cells.length === 0));
+      const flickTicks = tickCount, flickWon = won;
+      const flickCells = [0,1,2].map(i=>wires[i].cells.length).join(',');
+
+      load(burstLevel());
+      [0,2,5].forEach(c=>{
+        onPointerDown([c,0]);
+        for(let r=1; r<=5; r++) planTo([c,r]);
+        endPointer();
+      });
+      ok('a flick and a cell-by-cell drag cost the same',
+         tickCount === flickTicks, 'flick=' + flickTicks + ' careful=' + tickCount);
+      ok('a flick and a cell-by-cell drag reach the same board',
+         won === flickWon && [0,1,2].map(i=>wires[i].cells.length).join(',') === flickCells,
+         'flick=' + flickCells + ' careful=' + [0,1,2].map(i=>wires[i].cells.length).join(','));
+      ok('a synchronous input burst wins nothing', flickWon === false);
+      ok('a burst pays for every cell it draws', flickTicks === 18, 'tick=' + flickTicks);
 
       // --- Determinism: same actions from tick 0, same run ------------------
       const scripted = ()=>{
@@ -4447,19 +4777,39 @@
       ok('a route clear of every patrol is never shorted', zapCount === 0, 'zaps=' + zapCount);
       ok('a route clear of every patrol completes', won === true);
 
+      // Drawing spends moves now, so the short can land part-way through the
+      // draw rather than only in the ticks after it. Poll after every single
+      // move, of either kind, and record the board AT the first zap - checking
+      // afterwards would read a current that has already started rebuilding.
       load(laneLevel(0));
-      onPointerDown([0,0]); planTo([0,4]);
-      let zapAt = -1, routeAfterZap = -1;
-      for(let i=0; i<40 && zapAt < 0; i++){
-        const before = zapCount;
-        stepTick();
-        if(zapCount > before){ zapAt = tickCount; routeAfterZap = wires[0].intent.length; }
-      }
+      let zapAt = -1, cellsAtZap = -1, routeBefore = null, routeAtZap = null;
+      // Snapshot the route on the way into every move, so the zap can be caught
+      // with the board exactly as that move left it. The old version asserted
+      // the route was five cells long, which held only because drawing was free
+      // and therefore finished before the first tick could short anything.
+      const move = (fn)=>{
+        if(zapAt >= 0) return;
+        const snap = wires[0].intent.map(c=>c.slice());
+        fn();
+        if(zapCount > 0){
+          zapAt = tickCount;
+          cellsAtZap = wires[0].cells.length;
+          routeBefore = snap;
+          routeAtZap = wires[0].intent.map(c=>c.slice());
+        }
+      };
+      move(()=>onPointerDown([0,0]));
+      [[0,1],[0,2],[0,3],[0,4]].forEach(c=>move(()=>planTo(c)));
+      for(let i=0; i<40 && zapAt < 0; i++) move(()=>stepTick());
       ok('a route crossing a patrol lane gets shorted', zapAt > 0, 'tick=' + zapAt);
-      ok('a short clears the current', wires[0].cells.length === 0,
-         'cells=' + wires[0].cells.length);
-      ok('a short leaves the drawn route intact', routeAfterZap === 5,
-         'route=' + routeAfterZap);
+      ok('a short clears the current', cellsAtZap === 0, 'cells=' + cellsAtZap);
+      // Your route survives a short; only the current is lost. Stated as "took
+      // nothing away" rather than as a length, because the move that shorted may
+      // have been the one that added a cell.
+      ok('a short leaves the drawn route intact',
+         !!routeAtZap && routeBefore.length > 0 &&
+         routeBefore.every((c,i)=>routeAtZap[i] && sameCell(c, routeAtZap[i])),
+         'before=' + JSON.stringify(routeBefore) + ' after=' + JSON.stringify(routeAtZap));
 
       // --- Current waits at a live contact instead of dying on it ------------
       // Regression for a measured failure: a route drawn through a gate used to
@@ -4627,32 +4977,75 @@
         }
       })();
 
-      // --- Ordinary play obeys the same rules par was computed under ----------
-      // The contract test replays an explicit action list, which charges for
-      // every switch. Normal play instead hands off automatically when a wire
-      // finishes — and that path used to be FREE, so a real run came in under
-      // par. Par is meant to be the best a schedule can do, so beating it by
-      // simply drawing every route and waiting is a rules mismatch, not skill.
+      // --- The engine charges for exactly what par charges for ----------------
+      // par = one move per wire cell, plus one per wire selection AFTER the
+      // first, plus one per hold. scheduleSolve() writes that down as 'F' for
+      // the first selection and 'S' for every later one, and par counts every
+      // action that is not an F.
+      //
+      // The tooling cannot check this for itself. replaySolution() issues the
+      // solver's own action list, so it exercises the scheduler's arithmetic
+      // against itself; the engine's charging has now been wrong TWICE while
+      // every replay stayed green, both times on the automatic handoff, both
+      // times found from outside the suite. So these play through the POINTER
+      // path - the one a player takes.
+      (function(){
+        const twoPair = ()=>({ slug:'test-charge', name:'Charge', cols:4, rows:4,
+          terminals:[{ color:'#ff5d6c', a:[0,0], b:[0,3] },
+                     { color:'#ffd75a', a:[3,0], b:[3,3] }],
+          blocked:[], obstacles:[] });
+        load(twoPair());
+        onPointerDown([0,0]); planTo([0,3]);
+        ok('a first wire costs one move per cell and nothing else',
+           tickCount === 4 && wires[0].locked === true, 'tick=' + tickCount);
+
+        const afterFirst = tickCount;
+        onPointerDown([3,0]); planTo([3,3]);
+        // The regression that started all of this. Finishing a wire clears
+        // activeColor, so picking the next one up looked like a FIRST selection
+        // and came free - the engine skipping a move par had already paid for.
+        ok('picking up a wire after one finishes is NOT free',
+           tickCount - afterFirst === 4 &&
+           wires[1].cells.length === 3 && wires[1].intent.length === 4,
+           'spent=' + (tickCount - afterFirst) + ' cells=' + wires[1].cells.length);
+        ok('so its current ends one cell behind the route just drawn',
+           won === false);
+        waitMove();
+        ok('one more move lands it', won === true && wires[1].locked === true);
+        ok('two 4-cell wires and one switch cost 9 moves', tickCount === 9,
+           'tick=' + tickCount);
+        const sol = solveLevel(twoPair());
+        ok('and 9 is exactly what the solver charges',
+           sol.status === 'solved' && sol.par === 9,
+           'par=' + (sol.status === 'solved' ? sol.par : sol.status));
+      })();
+
+      // The same claim across every shipped board, with the hazards removed so
+      // that holds cannot enter the arithmetic and what is left is purely the
+      // charging rule: totalCells + one move per wire after the first. A board
+      // whose player path comes in UNDER this has found a move it is not paying
+      // for, which is the shape of every scoring bug this game has had.
       LEVELS.forEach(lv=>{
-        const sol = solveLevel(lv);
-        if(sol.status !== 'solved') return;
-        load(lv);
-        // Draw the solver's own routes, then let the game run itself.
-        sol.paths.forEach(route=>{
+        const flat = Object.assign({}, lv, { slug: lv.slug + '-flat', obstacles: [] });
+        const sol = solveLevel(flat);
+        if(sol.status !== 'solved'){
+          ok(lv.slug + ': hazard-free clone solves', false, sol.status);
+          return;
+        }
+        load(flat);
+        sol.paths.forEach((route, i)=>{
           onPointerDown(route[0]);
           route.slice(1).forEach(c=>planTo(c));
+          // A wire picked up after another spends a move on the switch, so its
+          // current ends one cell short of the route just drawn and needs one
+          // more move to land. Keyed off THAT wire being locked, not off the
+          // level being won: `!won` is true after the first wire too, and the
+          // free wait it bought put every level exactly one move over par.
+          if(!wires[i].locked) waitMove();
         });
-        // Stop AT the win. Ticking a fixed number past it keeps incrementing the
-        // clock, which inflates the score into the hundreds and hides whatever
-        // the real finishing score was.
-        let guard = 0;
-        while(!won && guard++ < 900) stepTick();
-        const finalScore = currentScore();
-        ok(lv.slug + ': drawing every route up front still finishes', won === true,
-           'ticks=' + tickCount + ' zaps=' + zapCount);
-        if(!won) return;
-        ok(lv.slug + ': ordinary play never beats par', finalScore >= sol.par,
-           'score=' + finalScore + ' par=' + sol.par);
+        ok(lv.slug + ': player path costs exactly par',
+           won === true && tickCount === sol.par,
+           'moves=' + tickCount + ' par=' + sol.par + ' won=' + won);
       });
 
       // --- The play screen is not a keyboard trap ----------------------------
@@ -4667,10 +5060,18 @@
       // while it is focused; everywhere else they belong to the browser.
       (function(){
         const savedScreen = screen, savedActive = document.activeElement;
-        const savedPreview = previewUntil;
-        previewUntil = 0;
+        const savedTracing = tracing;
+        tracing = false;
         load(plainLevel());
         screen = 'play';
+        /* The play screen has to be VISIBLE for any of this to mean anything in
+           a browser: focus() is a no-op on an element inside a display:none
+           subtree, so every "the board owns this key while focused" assertion
+           failed under index.html?test=1 while passing under node, whose stub
+           DOM has no layout to consult. Same drift the browser path exists to
+           prevent, hiding in the path meant to prevent it. */
+        const wasHidden = playScreen.classList.contains('hidden');
+        playScreen.classList.remove('hidden');
         const press = (key, opts)=>{
           let prevented = false;
           const ev = Object.assign({ key, shiftKey:false,
@@ -4679,12 +5080,12 @@
           return { consumed, prevented };
         };
 
-        document.activeElement = canvas;
+        canvas.focus();
         ok('the board owns Tab while it is focused', press('Tab').consumed === true);
         ok('the board owns Enter while it is focused', press('Enter').consumed === true);
         ok('the board owns Space while it is focused', press(' ').consumed === true);
 
-        document.activeElement = document.getElementById('restartBtn');
+        document.getElementById('restartBtn').focus();
         ok('Tab reaches the buttons when the board is not focused',
            press('Tab').consumed === false);
         ok('Enter fires a focused button rather than the board',
@@ -4701,25 +5102,155 @@
            press('d').consumed === true);
 
         // Escape is what makes capturing the other three legitimate.
-        document.activeElement = canvas;
+        canvas.focus();
         const esc = press('Escape');
         ok('Escape is consumed when the board has focus', esc.consumed === true);
         ok('Escape moves focus off the board', document.activeElement !== canvas);
-        document.activeElement = document.getElementById('restartBtn');
+        document.getElementById('restartBtn').focus();
         ok('Escape does nothing when the board is not focused',
            press('Escape').consumed === false);
 
         // A dialog on top owns the keyboard outright, or its own focus trap
         // would be fighting this handler for every Tab.
-        document.activeElement = canvas;
+        canvas.focus();
         winModal.classList.add('show');
         ok('an open dialog takes the keyboard from the board',
            press('Tab').consumed === false);
         winModal.classList.remove('show');
 
         screen = savedScreen;
-        document.activeElement = savedActive;
-        previewUntil = savedPreview;
+        if(wasHidden) playScreen.classList.add('hidden');
+        if(savedActive && savedActive.focus) savedActive.focus();
+        tracing = savedTracing;
+      })();
+
+      // --- The automatic handoff costs what a manual one costs ---------------
+      // When a wire finishes, advanceToNextPlanned() hands the current to the
+      // next wire that still has somewhere to go. That handoff once assigned
+      // activeColor directly, making it FREE while the scheduler charged for
+      // it, and Mainframe came in two ticks under par in ordinary play.
+      //
+      // It needs its own test now. Under a clock a player always had another
+      // route drawn ahead, so every handoff went through this branch; turn-based
+      // play reconciles each wire as it is drawn, so ordinary play reaches it
+      // only when a wire was left with its plan running ahead of its current.
+      // The mutation for this defect SURVIVED the first audit after the change
+      // for exactly that reason - the path was still right, and nothing was
+      // walking it any more.
+      (function(){
+        load({ slug:'test-handoff', name:'Handoff', cols:5, rows:5,
+          terminals:[{ color:'#ff5d6c', a:[0,0], b:[2,0] },
+                     { color:'#ffd75a', a:[0,4], b:[4,4] }],
+          blocked:[], obstacles:[] });
+        onPointerDown([0,0]);          // free first selection; lays [0,0]
+        // Hand-place the state a stall leaves behind: a plan one cell ahead of
+        // the current. Reaching in is the point - this is a unit test of one
+        // engine branch, and going through the pointer would just reproduce the
+        // reason the branch stopped being covered.
+        wires[1].intent = [[0,4],[1,4]];
+        planTo([2,0]);                 // two moves; the second locks wire 0
+        ok('the finished wire is locked', wires[0].locked === true);
+        ok('the automatic handoff charges a move', pendingSwitchTicks === 1,
+           'pending=' + pendingSwitchTicks);
+        ok('and hands off to the wire with somewhere to go', activeColor === 1,
+           'active=' + activeColor);
+      })();
+
+      // --- Wait is a move; Trace is not -------------------------------------
+      // Wait exists because the world only moves on your input: under a clock
+      // you waited by doing nothing, which needs no control at all. On a touch
+      // screen it is the ONLY way to let a spark pass, so a player who cannot
+      // reach it cannot play the timing half of the game - which is why these
+      // go through the buttons rather than through the functions behind them.
+      (function(){
+        load(plainLevel());
+        onPointerDown([0,0]);
+        const waitBtn = document.getElementById('waitBtn');
+        ok('the play screen has a Wait control', typeof waitBtn.onclick === 'function');
+
+        const t0 = tickCount, cells0 = wires[0].cells.length;
+        waitBtn.onclick();
+        ok('waiting spends exactly one move', tickCount === t0 + 1, 'tick=' + tickCount);
+        ok('and lays no wire', wires[0].cells.length === cells0,
+           'cells=' + wires[0].cells.length);
+
+        // Trace was priced by the clock it cost you to read. With no clock there
+        // is no price left to charge, so it must not quietly acquire one.
+        const t1 = tickCount, wasTracing = tracing;
+        previewBtn.onclick();
+        ok('turning Trace on costs no move', tickCount === t1 && tracing === !wasTracing,
+           'tick=' + tickCount);
+        previewBtn.onclick();
+        ok('and turning it off costs none either',
+           tickCount === t1 && tracing === wasTracing, 'tick=' + tickCount);
+      })();
+
+      // --- The front door is one button, and it never points nowhere --------
+      // The campaign position is DERIVED from the recorded bests rather than
+      // stored beside them, so there is no second thing to keep in step and no
+      // way for a saved pointer to disagree with the scores on the cards. These
+      // write through the real setBestIfBetter and read through the real
+      // bestKey, because that key carries a fingerprint of the board - rolling
+      // one by hand here would be testing a key the game does not use.
+      (function(){
+        const saved = LEVELS.map(lv => localStorage.getItem(bestKey(lv)));
+        const restore = ()=>LEVELS.forEach((lv,i)=>{
+          if(saved[i] === null) localStorage.removeItem(bestKey(lv));
+          else localStorage.setItem(bestKey(lv), saved[i]);
+        });
+        LEVELS.forEach(lv => localStorage.removeItem(bestKey(lv)));
+        ok('a fresh save opens on the first level',
+           nextUnplayedLevel().slug === LEVELS[0].slug, nextUnplayedLevel().slug);
+
+        setBestIfBetter(LEVELS[0], 99);
+        ok('a cleared board is skipped', nextUnplayedLevel().slug === LEVELS[1].slug,
+           nextUnplayedLevel().slug);
+
+        // Order matters. Clearing the third board out of sequence - from the
+        // catalogue, or from a challenge link - must not carry the button past
+        // the second one, which is what a saved high-water mark would have done.
+        setBestIfBetter(LEVELS[2], 99);
+        ok('clearing a later board does not skip the one before it',
+           nextUnplayedLevel().slug === LEVELS[1].slug, nextUnplayedLevel().slug);
+
+        LEVELS.forEach(lv => setBestIfBetter(lv, 99));
+        ok('the button is never dead once the whole set is cleared',
+           nextUnplayedLevel().slug === LEVELS[LEVELS.length-1].slug,
+           nextUnplayedLevel().slug);
+
+        restore();
+        ok('reading the campaign position wrote nothing of its own',
+           LEVELS.every((lv,i) => localStorage.getItem(bestKey(lv)) === saved[i]));
+      })();
+
+      // --- Backing out of a level returns you where you came in from --------
+      (function(){
+        const savedScreen = screen, savedLv = level, savedReturn = playReturn;
+        showHome();
+        enterLevel(LEVELS[0]);
+        ok('entering from home comes back to home', playReturn === 'home', playReturn);
+
+        showMenu();
+        enterLevel(LEVELS[0]);
+        ok('entering from the catalogue comes back to the catalogue',
+           playReturn === 'menu', playReturn);
+
+        // Next is not an arrival from a hub. enterLevel is how the win modal
+        // moves through the campaign, and that call lands with screen already
+        // 'play' - if it overwrote the record, finishing one level would send
+        // you somewhere you never came from.
+        enterLevel(LEVELS[1]);
+        ok('Next remembers the hub you came from',
+           playReturn === 'menu', playReturn);
+
+        showHome();
+        ok('home hides the play screen',
+           screen === 'home' && playScreen.classList.contains('hidden'));
+        ok('and the catalogue is still one button away, not gone',
+           typeof showMenu === 'function' && menuScreen.classList.contains('hidden'));
+
+        screen = savedScreen; level = savedLv; playReturn = savedReturn;
+        resetPuzzle();
       })();
 
       // --- The system motion preference seeds the default, never overrides ---
@@ -5051,14 +5582,14 @@
   // Authoring surface. Not debug scaffolding — solve.js uses this to compute par
   // for new levels, and the in-game editor will use the same functions, so a
   // level's par comes from the same code whichever way it was authored.
-  window.__wiredDev = { solveLevel, routeSolve, replaySolution, LEVELS, TICK_HZ,
+  window.__wiredDev = { solveLevel, routeSolve, replaySolution, LEVELS,
                         generateDailyLevel, loopPath, hazardPeriod, PAR_CONTRACT,
                         trapMeasure, measurePressure, encodeLevel, decodeLevel,
                         // Screen and staging control, used by shots.mjs to
                         // photograph real positions. Nothing here can reach a
                         // score: bests live in localStorage and were always
                         // editable from this same console.
-                        ui: { enterLevel, showMenu, showSettings, showEditor,
+                        ui: { enterLevel, showHome, showMenu, showSettings, showEditor,
                               stageSealDemo,
                               stageSolution, draw, updateHud } };
 
@@ -5089,7 +5620,10 @@
     return;
   }
 
-  showMenu();
+  /* A challenge or shared-board link is a specific invitation, and the banner
+     that carries it lives on the catalogue. Opening one on the home screen
+     would drop it silently, so a link lands where its banner is. */
+  if(pendingChallenge || pendingBoard) showMenu(); else showHome();
   playIntro();
 
   if('serviceWorker' in navigator){
