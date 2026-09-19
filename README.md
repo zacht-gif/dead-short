@@ -1,13 +1,18 @@
 # Dead Short
 
-A turn-based circuit-wiring puzzle. Connect every pair of terminals without crossing paths, route around
+A circuit-wiring puzzle against a clock. Connect every pair of terminals without crossing paths, route around
 the components soldered to the board, and get each trace energized without a patrolling spark shorting it
-out. **Nothing on the board moves until you move**, and then everything moves exactly one step: the
-current flows one cell, and every spark takes one step of its patrol. Nothing is random either, so two
-players facing the same board face the identical puzzle and thinking about it is free.
+out. **The board advances three moves a second whether you act or not**, from your first move onward:
+the current flows one cell, and every spark takes one step of its patrol. Nothing is random, so two
+players facing the same board face the identical puzzle — and two players making the same moves post
+the identical time, because the clock is the move count and never a sampled one.
 
-Your score is the number of moves you spent. One cell of route is a move, switching to another color is
-a move, and `Wait` is a move.
+**Drawing costs nothing.** A drag only plans the route, and a flick costs exactly what a careful drag
+costs, so no part of this is a test of hand speed. Your score is the time on the clock: one cell of
+route is a move, switching to another color is a move, and a short adds 1.67s.
+
+**`Untimed practice`** in Settings turns the clock off entirely — one move per action, nothing moving
+while you think — and records nothing at all, so it can never stand in for a run you played.
 
 Plays in any modern browser. Installable as a PWA and fully playable offline **when served from a page
 of its own** — see `Where it is published` below, because the itch build is the exception.
@@ -72,7 +77,7 @@ Writes `dist/dead-short-<version>.zip` with `index.html` at the **root** — itc
 upload plays as a file listing instead of a game. Only runtime files ship.
 
 The build refuses to package if any of these fail, because each one is invisible until a player hits
-it (sixteen gates now, the last eight of them accessibility and architecture ones the test suite
+it (seventeen gates now, the last nine of them accessibility and architecture ones the test suite
 physically cannot see — `selfTest()` runs against a stub DOM with no CSS and no layout):
 
 - the test suite doesn't pass, or any level stops solving;
@@ -100,6 +105,10 @@ physically cannot see — `selfTest()` runs against a stub DOM with no CSS and n
 - the metronome stops beating at a fixed rate — `TRIAL_HZ` must stay a plain number and the interval
   must come from it, or the time trial runs at a different speed on every machine and no two times
   mean the same thing;
+- the store screenshots no longer match the game they were taken from. They are generated, not
+  captured, and they go stale exactly the way `dist/` does — silently. A warning in `build.js`, since
+  a stale screenshot cannot break the game and regenerating needs Chrome; a hard failure under
+  `publish.mjs`, which is the step where stale marketing actually reaches somebody;
 - the finished zip is malformed — a nested path stored with a backslash, or a file missing.
 
 `node mutate.js` audits those gates by introducing each defect and checking something goes red.
@@ -118,7 +127,7 @@ durable share links and for the install path below, not for traffic.
 
 Uploading by hand is the step where a rebuild stops being a deploy — the repo can be clean, the tests
 green, and the thing players load a month old, because nothing in git touches what itch serves. So the
-upload is one command, and it refuses to run on a game that does not pass all sixteen gates.
+upload is one command, and it refuses to run on a game that does not pass all seventeen gates.
 
 **The PWA does not work inside the itch embed.** The install prompt does not fire in a third-party
 iframe, and the service worker is unreliable under third-party storage partitioning — so on itch,

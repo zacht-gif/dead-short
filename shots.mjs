@@ -19,7 +19,8 @@
  * Node 24 ships a global WebSocket, so this needs no dependencies.
  */
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CDP, launch, sleep } from "./chrome.mjs";
@@ -312,6 +313,16 @@ async function main() {
     for (const p of problems) console.error("  " + p);
     process.exitCode = 1;
   } else {
+    /* A fingerprint of the game these were taken FROM. Screenshots are derived
+       from index.html exactly the way dist/ is, and they went stale the same way
+       - three commits changed the HUD, the controls and the rules banner, and
+       every check stayed green because nothing was looking. Same shape as the
+       project's oldest recurring bug: git calls a repo clean while the file you
+       actually open is a week old. */
+    const srcHash = createHash("sha256")
+      .update(await readFile(path.join(ROOT, "index.html")))
+      .digest("hex");
+    await writeFile(path.join(OUT, ".source-hash"), srcHash + "\n");
     console.log(`\nWrote to ${path.relative(ROOT, OUT)}/`);
   }
 }

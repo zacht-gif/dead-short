@@ -12,31 +12,36 @@ still needs your finishing pass (see `store/README.md`).
 ## Short description / tagline
 *(itch's one-line field, shown in listings — keep it under ~140 chars)*
 
-> A turn-based circuit puzzle. Nothing moves until you move — then everything moves one step. No randomness anywhere, no clock, no reflexes: the only variable is you.
+> A circuit puzzle against a clock. Drawing costs nothing, so it is never about hand speed — it is about knowing where the wire goes before the current gets there.
 
 ---
 
 ## Page body
 
-**Dead Short is a turn-based circuit puzzle that never rolls a die.**
+**Dead Short is a circuit puzzle against a clock that never rolls a die.**
 
-Nothing on the board moves until you move. Then everything moves exactly one step: the current flows
-one cell further along the wire you are working on, and every spark takes one step of its patrol.
-There is no clock, no timer and nothing to react to — between two moves the board holds still for as
-long as you want it to.
+Your first move starts it. From then on the board advances three moves a second whether you act or
+not: the current flows one cell further along the wire you are working on, and every spark takes one
+step of its patrol. Nothing is random — every board is the same board for everybody, and two players
+making the same moves post the same time.
 
-Drag a route from each solder pad to its matching pair, or tap your way there cell by cell. Every
-cell is one move. Only one wire carries current at a time, so switching to another colour is a move
-of its own — and the half-built wire you left behind is still live. Routes can't cross each other or
-the components soldered to the board, so the order you run them in decides what's still possible.
+**Drawing costs nothing.** Dragging a route only *plans* it, and a flick costs exactly what a careful
+drag costs, so no part of this is a test of how fast you can move your hand. What the clock charges
+you for is thinking with your hand still — which is the whole game: know where the wire goes before
+the current gets there.
+
+Drag a route from each solder pad to its matching pair, or tap your way there cell by cell. Only one
+wire carries current at a time, so switching to another colour costs a move — and the half-built wire
+you left behind is still live. Routes can't cross each other or the components soldered to the board,
+so the order you run them in decides what's still possible.
 
 Sparks patrol fixed, repeating tracks. The cell a spark is sitting on is outlined, and that outline
 is the hitbox exactly — no guessing, no pixel-perfect margins. Let live current touch it and that
-wire shorts out. Your drawn route survives; only the current is lost.
+wire shorts out, costing you 1.67s on top of the current it destroys. Your drawn route survives, so
+it simply starts filling again.
 
-Your score is simply the moves you spent, which is why the shortest route is not always the cheapest
-one — sometimes the answer is to go the long way round, and sometimes it is to stand still and let a
-spark go past.
+Your score is the time on the clock, which is why the shortest route is not always the fastest one —
+sometimes the answer is to go the long way round, and sometimes it is to let a spark go past.
 
 ### Every level is machine-proved
 
@@ -83,9 +88,15 @@ pairwise under deuteranopia, protanopia and tritanopia — not just one colour a
 Reduce Motion option that genuinely disables the pulsing and flashing rather than toning it down,
 and that switches itself on if your system already asks for less motion.
 
-Being turn-based is itself an accessibility property: nothing here is timed, so no part of the game
-is gated behind reaction speed or how fast you can drag. The whole of it is playable from the
-keyboard, buttons included: Esc hands focus back from the board, and focus is always visibly ringed.
+**Untimed practice** is a switch in Settings, and it is the accessibility answer to a timed game: it
+stops the clock completely, so the board advances one move per action and nothing moves while you
+think. It records nothing — no time, no medal, no streak, no unlock — so it can never stand in for a
+run you played, and it is there to learn a board rather than race it.
+
+Reaction speed is not tested even with the clock running, because drawing is free: a flick and a
+careful drag cost exactly the same, and there is no input anywhere that has to be made quickly. The
+whole game is playable from the keyboard, buttons included: Esc hands focus back from the board, and
+focus is always visibly ringed.
 Pinch-zoom is not disabled. Contrast is measured rather than asserted — every piece of text clears
 WCAG AA, and the component outlines and board grid clear the 3:1 non-text bar, in every unlockable
 skin as well as the default.
@@ -96,25 +107,25 @@ skin as well as the default.
 
 | | |
 |---|---|
-| **Mouse / touch** | Drag from a pad to its matching pair to lay a route. Tap cell by cell if you prefer. Each cell is one move. |
+| **Mouse / touch** | Drag from a pad to its matching pair to lay a route. Tap cell by cell if you prefer. Drawing is free — the clock spends the moves. |
 | **Tap a colour** | Hand the current to that wire — costs one move |
-| **Wait** | Spend a move without moving the current, and let a spark go past |
 | **Trace** | Shows where every spark will be for the next three moves — free, unlimited, and it stays on |
 | **Tab / Shift+Tab** | Select a wire |
 | **Arrows or WASD** | Extend its route one cell per press |
 | **Backspace** | Step back |
-| **Space or .** | Wait a move |
+| **Wait** | Practice only — spend a move without moving the current, and let a spark go past |
+| **Space or .** | Practice only — wait a move |
 | **Esc** | Leave the board and move to the buttons |
 
-The board is frozen between moves, so plan as long as you like — there is no such thing as being too
-slow.
+Every control above costs the same whether you reach it quickly or slowly. The only thing the clock
+charges for is time spent deciding.
 
 ---
 
 ## itch.io upload settings
 
 - **Kind of project:** HTML
-- **Upload:** `dist/dead-short-2.0.0.zip`, ticked **"This file will be played in the browser"**
+- **Upload:** `dist/dead-short-3.0.0.zip`, ticked **"This file will be played in the browser"**
 - **Embed size:** 720 × 900
 - **Options:** ✅ Fullscreen button ✅ Mobile friendly ✅ Automatically start on page load
 - **Pricing:** No payment — with donations enabled
@@ -172,7 +183,7 @@ slow.
 
    </details>
 
-2. **Re-run `node build.js`** so the zip matches whatever you last changed. Sixteen gates have to pass
+2. **Re-run `node build.js`** so the zip matches whatever you last changed. Seventeen gates have to pass
    before it will package anything — see README, `Building for release`.
 3. **Re-run `node shots.mjs`** if the UI moved at all. The screenshots and the cover are generated
    from the real game, so a UI change makes them stale in exactly the way a build goes stale. Upload

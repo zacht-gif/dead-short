@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const crypto = require('crypto');
 
 const ROOT = __dirname;
 const DIST = path.join(ROOT, 'dist');
@@ -409,6 +410,38 @@ function bodyOf(html, signature){
   return null;
 }
 
+function checkScreenshotsCurrent(){
+  // The store screenshots are DERIVED from index.html, exactly the way dist/ is,
+  // and they go stale the same silent way: the UI moved three times in a day and
+  // the committed shots still showed a Score stat that no longer exists, a Wait
+  // button that is now hidden, and a rules banner describing a deleted game.
+  // Nothing failed, because nothing was looking.
+  //
+  // Not a hard failure by default, because regenerating needs Chrome and the
+  // shots are not in the zip - a stale screenshot cannot break the game. It IS
+  // a hard failure under publish.mjs, which is the step where stale marketing
+  // actually reaches somebody. One implementation, two strictnesses, rather
+  // than two copies that can disagree.
+  const shotDir = path.join(ROOT, 'store', 'screenshots');
+  if(!fs.existsSync(shotDir)) return;
+  const stamp = path.join(shotDir, '.source-hash');
+  const current = crypto.createHash('sha256')
+    .update(fs.readFileSync(path.join(ROOT, 'index.html'))).digest('hex');
+  const recorded = fs.existsSync(stamp) ? fs.readFileSync(stamp, 'utf8').trim() : null;
+  if(recorded === current) return;
+
+  const msg = recorded === null
+    ? 'the store screenshots have no record of what they were taken from.'
+    : 'the store screenshots are older than index.html.';
+  const detail = '        They are generated, not captured - run: node shots.mjs\n' +
+                 '        Derived from the game the same way dist/ is, and stale the\n' +
+                 '        same silent way: the UI can move three times in a day with\n' +
+                 '        every check still green, because nothing is looking.';
+  if(process.env.DEAD_SHORT_STRICT_SHOTS === '1') fail(msg + '\n' + detail);
+  console.log('  WARNING: ' + msg);
+  console.log(detail);
+}
+
 function checkMetronomeIsFixedRate(){
   // The time trial's whole defence is that its clock is the SAME clock for
   // everybody. 3/sec on a gaming desktop and 3/sec on a five-year-old phone, or
@@ -700,6 +733,8 @@ function main(){
   checkClockIsMeasureOnly();
   console.log('  checking the metronome beats at a fixed rate…');
   checkMetronomeIsFixedRate();
+  console.log('  checking the store screenshots match the game…');
+  checkScreenshotsCurrent();
   console.log('  running tests…');
   runTests();
   console.log('  solving every level…');

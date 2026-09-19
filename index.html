@@ -582,20 +582,23 @@
     <details id="homeHelp">
       <summary>How to play</summary>
       <div class="helpBody">
-        <b>The board only moves when you do.</b> Drag from a colored dot toward its matching dot to lay a
-        route. Every cell you draw is one move, and every move steps the whole board once: the current
-        flows one cell further along the wire you are working on, and every spark takes one step of its
-        patrol. Between moves nothing happens at all, so take as long as you like.
+        <b>The clock runs at <span id="helpRate">3</span> moves a second.</b> Drag from a colored dot
+        toward its matching dot to lay a route. Drawing only <i>plans</i> it, and planning is free — a
+        flick and a careful drag cost exactly the same. Your first move starts the clock; after that the
+        current flows one cell and every spark takes one step of its patrol, three times a second,
+        whether you act or not.
         <br><br>
         Only one wire carries current at a time, so switching to another color costs a move — and the
         half-built wire you left behind is still live. If a spark reaches it, that wire shorts out and
-        its current is lost. Your drawn route survives; only the current does, and the short adds 5 to
-        your score. Finished wires are insulated for good and are solid: nothing can cross them or the
-        components on the board, so the order you run them in decides what is still possible.
+        its current is lost. Your drawn route survives; only the current does, and the short adds
+        <span id="helpZapCost">1.67s</span> to your time. Finished wires are insulated for good and are
+        solid: nothing can cross them or the components on the board, so the order you run them in
+        decides what is still possible.
         <br><br>
-        <b>Wait</b> spends a move without moving the current, which is how you let a spark go by.
-        <b>Trace</b> is free and shows where every spark will be for the next three moves. Your score is
-        simply the moves you spent, so the shortest route is not always the cheapest one.
+        <b>Trace</b> is free and shows where every spark will be for the next three moves — though the
+        clock runs while you read it. Your score is the time on it, so the shortest route is not always
+        the fastest one. If you would rather learn a board than race it, <b>Untimed practice</b> in
+        Settings stops the clock entirely and records nothing.
       </div>
     </details>
   </div>
@@ -743,28 +746,34 @@
 
     <div class="settingsSection">
       <h3>About</h3>
-      <p>Dead Short is a turn-based circuit-wiring puzzle that never rolls a die. Nothing on the board
-      moves until you move, and then everything moves exactly one step: every spark's path, every board,
-      every consequence is fixed and repeatable, and the only variable in the room is you. Connect the
-      pairs, time the current, beat your own best. No luck to blame for a short, none to thank for a
-      clean run — just better routing and fewer moves.</p>
+      <p>Dead Short is a circuit-wiring puzzle against a clock that never rolls a die. The board
+      advances <span id="aboutRate">3</span> moves a second whether you act or not, and every step of it
+      is fixed and repeatable: every spark's path, every board, every consequence. The only variable in
+      the room is you. Drawing a route costs nothing, so this is never a test of how fast you can move
+      your hand — it is a test of knowing where the wire goes before the clock gets there. No luck to
+      blame for a short, none to thank for a clean run.</p>
     </div>
 
     <div class="settingsSection">
       <h3>How to play</h3>
       <p>Drag from a dot to its matching color — or tap your way there cell by cell — to lay out that
-      pair's route. <b>One cell is one move</b>, and a move steps the entire board: the current flows one
-      cell further, and every spark takes one step of its patrol. Only one wire carries current at a
-      time, so switching to another color costs a move of its own. No two routes may cross, and neither
-      may pass through a component soldered to the board, so the order you run them in decides what is
-      still reachable.</p>
+      pair's route. Drawing is free and instant: it <i>plans</i> the route, nothing more. The clock is
+      what spends it, at a fixed <span id="aboutRate2">3</span> moves a second from your first move
+      onward — one move lays one more cell of current and steps every spark one place along its patrol.
+      Only one wire carries current at a time, so switching to another color costs a move of its own. No
+      two routes may cross, and neither may pass through a component soldered to the board, so the order
+      you run them in decides what is still reachable.</p>
       <p style="margin-top:8px;">Sparks patrol fixed, repeating tracks that are always drawn on the
       board, and the cell a spark occupies right now is outlined — that outline is the hitbox, exactly.
-      Let live current touch it and that wire shorts out for a 5-move penalty; your drawn route survives,
-      so it simply starts filling again. A finished wire is insulated and safe for good. Nothing here is
-      random, and nothing is rushed: <b>Wait</b> spends a move and lets a spark go past, <b>Trace</b>
-      shows you exactly where every spark will be for the next three moves, and between two moves the
-      board holds still for as long as you want it to.</p>
+      Let live current touch it and that wire shorts out and adds <span id="aboutZapCost">1.67s</span> to
+      your time; your drawn route survives, so it simply starts filling again. A finished wire is
+      insulated and safe for good. Nothing here is random: every board is the same board for everybody,
+      and two players making the same moves post the same time. <b>Trace</b> shows you exactly where
+      every spark will be for the next three moves, free and for as long as you leave it on.</p>
+      <p style="margin-top:8px;"><b>Untimed practice</b>, in the section below, turns the clock off
+      completely: the board advances one move per action and nothing moves while you think, with
+      <b>Wait</b> there to let a spark pass. Nothing is recorded in practice — no time, no medal, no
+      streak, no unlock — so it can never stand in for a run you actually played.</p>
     </div>
 
     <div class="settingsSection">
@@ -881,7 +890,7 @@
   // Bump on every release. build.js checks this against sw.js's CACHE_NAME and
   // refuses to package a mismatch — a stale service worker cache is invisible
   // until players report playing a version you thought you'd replaced.
-  const GAME_VERSION = '2.0.0';
+  const GAME_VERSION = '3.0.0';
 
   // Where shared links point: the itch STORE page, so that every share is a
   // play itch can count. Same choice as cut-and-fill's PLAY_URL, and made for
@@ -1547,6 +1556,17 @@
   const colorblindToggle = document.getElementById('colorblindToggle');
   const reduceMotionToggle = document.getElementById('reduceMotionToggle');
 
+  /* EVERY PLACE A RULE QUOTES A NUMBER, filled from the constants rather than
+     typed. The rules are written down in SIX places - this help, the home
+     screen's, the play banner, the practice banner, the screen-reader copy and
+     README - and an audit found three of them still describing a game that had
+     been deleted that morning. Prose cannot be gated; a number can.
+
+     Explicit ids rather than querySelectorAll, because harness.js returns [] for
+     querySelectorAll: a sweep would do nothing under node and the test proving
+     it works would pass by never running. */
+  const RATE_IDS = ['helpRate', 'aboutRate', 'aboutRate2'];
+  const ZAP_COST_IDS = ['trialZapCost', 'helpZapCost', 'aboutZapCost'];
   const trialZapCostEl = document.getElementById('trialZapCost');
   const practiceToggle = document.getElementById('practiceToggle');
   const waitBtnEl = document.getElementById('waitBtn');
@@ -2115,7 +2135,14 @@
     bestValEl.textContent = best!==null ? fmtTicks(best) : '—';
     // Computed, never typed. Hard-coding "1.67s" here would make the banner lie
     // the day either constant moves, which is this file's most repeated bug.
-    if(trialZapCostEl) trialZapCostEl.textContent = fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ);
+    ZAP_COST_IDS.forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.textContent = fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ);
+    });
+    RATE_IDS.forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.textContent = String(TRIAL_HZ);
+    });
   }
 
   // ---------- Geometry helpers ----------
@@ -3503,10 +3530,11 @@
   document.getElementById('restartBtn').onclick = resetPuzzle;
   document.getElementById('sealedRestart').onclick = resetPuzzle;
   document.getElementById('winRestart').onclick = resetPuzzle;
-  // Trace is free, unlimited and now a toggle. Under a clock it cost time to
-  // read, which was the whole of its price; with the clock gone there is no
-  // price left to charge, so rather than pretend otherwise it became a thing
-  // you leave switched on while you think.
+  // Trace is free, unlimited and a toggle. It is not free of COST, though - the
+  // metronome keeps beating while you read it, so studying the next three moves
+  // is paid for in the only currency there is. Charging a move on top would be
+  // billing twice. In practice it is genuinely free, which is the point of
+  // practice.
   function syncTraceBtn(){
     if(!previewBtn) return;
     previewBtn.textContent = tracing ? 'Trace ⚡ on' : 'Trace ⚡';
@@ -3515,6 +3543,18 @@
   waitBtnEl.onclick = ()=>{ waitMove(); };
   previewBtn.onclick = ()=>{ tracing = !tracing; syncTraceBtn(); };
   function shareText(){
+    /* A PRACTICE RUN IS NOT POSTABLE. "Records nothing" is worth nothing if the
+       same run can be sent to a friend as a time - the local stores were the
+       only thing guarded, and the share sheet walked straight past them. The
+       board code still goes out, because sharing a BOARD has nothing to do with
+       the clock and a custom board exists nowhere else. */
+    if(settings.practice){
+      let out = `⚡ Dead Short — ${level.name}\nPractice run — untimed, so there is no score to post.`;
+      if(level.isCustom && level.code){
+        out += '\nBoard code (paste it into the editor): ' + level.code;
+      }
+      return out;
+    }
     const score = currentScore();
     const best = getBest(level);
     let out = `⚡ Dead Short — ${level.name}\nScore ${fmtTicks(score)} (best ${fmtTicks(best!==null?best:score)}), ${zapCount} short${zapCount===1?'':'s'}.`;
@@ -5432,6 +5472,26 @@
         ok('the banner names the real short cost',
            trialZapCostEl.textContent === fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ),
            'text=' + trialZapCostEl.textContent);
+
+        /* EVERY place a rule quotes a number, not just the banner. The rules are
+           written in six places and an audit found three of them describing a
+           game deleted that morning - prose cannot be gated, but a number can,
+           so none of them is typed. Checked across ALL the ids rather than one,
+           because one filled id proves nothing about the other five. */
+        const zapText = fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ);
+        const rateText = String(TRIAL_HZ);
+        const badZap = ZAP_COST_IDS.filter(id=>{
+          const el = document.getElementById(id);
+          return !el || el.textContent !== zapText;
+        });
+        const badRate = RATE_IDS.filter(id=>{
+          const el = document.getElementById(id);
+          return !el || el.textContent !== rateText;
+        });
+        ok('every quoted rule number comes from the code',
+           ZAP_COST_IDS.length === 3 && RATE_IDS.length === 3 &&
+           badZap.length === 0 && badRate.length === 0,
+           'zap=' + badZap.join(',') + ' rate=' + badRate.join(','));
 
         /* THE KEYBOARD STARTS ITS OWN CLOCK. A keyboard-only player never goes
            near onPointerDown, so cycleActiveColor is the only thing that can set

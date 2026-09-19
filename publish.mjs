@@ -13,7 +13,7 @@
  *
  * WHAT IS DIFFERENT HERE. cut-and-fill ships a single index.html and its
  * publish script re-implements its own self-contained check. Dead Short already has
- * build.js as the enforcer — sixteen gates — so this runs that instead of
+ * build.js as the enforcer — seventeen gates — so this runs that instead of
  * duplicating any of it, and stages the same RUNTIME_FILES list build.js zips.
  * There is deliberately no --no-test passthrough: build.js's own comment says
  * not to ship a build you used it on, and the way to honour that is to make it
@@ -129,8 +129,13 @@ function main() {
   // game does not go anywhere.
   console.log("Checking the game before it goes anywhere\n");
   try {
+    /* STRICT here and only here. Stale screenshots cannot break the game, so
+       build.js only warns - but this is the step where stale marketing actually
+       reaches a player, and the store page is the one thing a visitor sees
+       before deciding whether to click. */
     console.log(execFileSync(process.execPath, [path.join(ROOT, "build.js")],
-      { cwd: ROOT, encoding: "utf8" }).trim());
+      { cwd: ROOT, encoding: "utf8",
+        env: { ...process.env, DEAD_SHORT_STRICT_SHOTS: "1" } }).trim());
   } catch (e) {
     fail("build.js did not pass, so nothing was published:\n\n" +
          ((e.stdout || "") + (e.stderr || "")).trim());

@@ -7,7 +7,7 @@
 // Keeps the pre-rename name on purpose, like the other internal keys: it is a
 // cache key, never shown to anyone, and leaving every 'wired-' identifier alone
 // keeps one simple rule - anything still spelled 'wired' is load-bearing.
-const CACHE_NAME = 'wired-v2.0.0';
+const CACHE_NAME = 'wired-v3.0.0';
 const CACHE_FILES = [
   './', './index.html', './manifest.json', './icon.svg',
   './icons/icon-192.png', './icons/icon-512.png',

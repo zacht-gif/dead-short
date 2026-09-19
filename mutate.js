@@ -57,7 +57,7 @@ const MUTATIONS = [
   {
     id: 'sw-cache-name',
     file: 'sw.js',
-    find: "const CACHE_NAME = 'wired-v2.0.0';",
+    find: "const CACHE_NAME = 'wired-v3.0.0';",
     replace: "const CACHE_NAME = 'wired-v1';",
     expect: 'CACHE_NAME',
     note: 'returning players keep being served the old build from cache',
@@ -159,8 +159,11 @@ const MUTATIONS = [
     file: 'index.html',
     // Anchored on the condition, not the string, so no escape sequence has to
     // survive being written into this file - which has broken it twice today.
-    find: "    if(level.isCustom && level.code){",
-    replace: "    if(false && level.isCustom && level.code){",
+    // The leading newline is load-bearing: the practice branch of shareText has
+    // the same condition at six spaces, and a four-space needle matches INSIDE
+    // a six-space line. mutate.js reported "matched 2" rather than guessing.
+    find: "\n    if(level.isCustom && level.code){",
+    replace: "\n    if(false && level.isCustom && level.code){",
     expect: 'carries its code in the text too',
     note: 'a shared custom board becomes unreachable: itch drops the ?board= param',
   },
@@ -395,10 +398,21 @@ const MUTATIONS = [
     note: 'the interval keeps beating against a finished board behind the win card',
   },
   {
+    // The banner's own number stayed filled while the help screens' went blank -
+    // one filled id proves nothing about the other five, which is why the
+    // assertion checks every one of them.
+    id: 'help-screens-quote-nothing',
+    file: 'index.html',
+    find: "  const RATE_IDS = ['helpRate', 'aboutRate', 'aboutRate2'];",
+    replace: "  const RATE_IDS = [];",
+    expect: 'every quoted rule number comes from the code',
+    note: 'the help screens quote a rate that is whatever was typed into the HTML',
+  },
+  {
     id: 'banner-hides-the-short-cost',
     file: 'index.html',
-    find: "    if(trialZapCostEl) trialZapCostEl.textContent = fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ);",
-    replace: "    ;",
+    find: "  const ZAP_COST_IDS = ['trialZapCost', 'helpZapCost', 'aboutZapCost'];",
+    replace: "  const ZAP_COST_IDS = [];",
     expect: 'the banner names the real short cost',
     note: 'the rules charge a penalty they never name, so it reads as a bug',
   },

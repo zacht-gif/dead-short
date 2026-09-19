@@ -71,7 +71,7 @@ what this line used to say.
 
 ## The rules that are not style preferences
 
-**`build.js` is the enforcer, not a packager.** Sixteen gates now, each because
+**`build.js` is the enforcer, not a packager.** Seventeen gates now, each because
 that failure is invisible in a browser until a player hits it: the suite, every
 level still solving, `CACHE_NAME` containing `GAME_VERSION`, `index.html` staying
 self-contained, no debug scaffolding, `CODE-MAP.md` being current, the icon art
@@ -372,12 +372,44 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-19: **389/389 assertions pass under node AND in the
+On `main`, verified 2026-09-19: **390/390 assertions pass under node AND in the
 browser at `?test=1`** - the two had disagreed since the accessibility pass and
 nobody could tell, see above. All ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**56/56 mutations caught** by `node mutate.js`. Sixteen build gates.
-v2.0.0, `dist/dead-short-2.0.0.zip`.
+**57/57 mutations caught** by `node mutate.js`. Seventeen build gates.
+v3.0.0, `dist/dead-short-3.0.0.zip`.
+
+**An audit on 2026-09-19 found five things every check called clean**, and the
+shape of all five is the same: derived or duplicated content that nothing was
+comparing against its source.
+
+1. **The store screenshots were three commits old.** Generated from the game,
+   tracked in git, and showing a Score stat that no longer exists, a Wait button
+   that is now hidden, and a rules banner for a deleted game. `dist/` has always
+   had this failure mode and it was written down; nobody noticed `store/` was the
+   same shape. `shots.mjs` now records a hash of the `index.html` it captured and
+   a gate compares it.
+2. **The in-game rules were stale in THREE of their six homes** - the home
+   screen's How to play, Settings' About, and Settings' How to play - still
+   describing a turn-based game with a 5-move short penalty and a board that
+   "holds still for as long as you want it to". The play banner and the
+   screen-reader copy had been fixed; these had not, because nobody remembers
+   there are six. Every number they quote is now filled from the constants
+   (`RATE_IDS`, `ZAP_COST_IDS`) instead of typed, so at least the numbers cannot
+   drift again.
+3. **`CACHE_NAME` was still `wired-v2.0.0`** after four commits that replaced the
+   scoring model twice. sw.js's own comment says it must be bumped every release
+   or returning players keep the old game - and the Pages mirror is live, so
+   every previous visitor was pinned to a service worker serving the old build.
+   Now v3.0.0. `STORE_PREFIX` is independent of `GAME_VERSION`, so saves survive.
+4. **The itch page body sold a game that no longer exists** - "no clock, no
+   reflexes", "your score is simply the moves you spent", and an accessibility
+   section arguing that being turn-based was itself the accessibility property.
+   Only the feature bullets had been updated. Read the WHOLE document, not the
+   part you edited last.
+5. **A practice run could be shared as though it were raced.** "Records nothing"
+   guarded the four local stores and the share sheet walked straight past them.
+   The board code still goes out; the score does not.
 
 **THE GAME IS STRICTLY A TIME TRIAL as of 2026-09-19.** There is no second mode
 and no setting: a metronome at `TRIAL_HZ` (3/sec) is the only driver, the current
@@ -491,7 +523,7 @@ that lands on the mirror is a discovery signal itch never sees. The mirror stays
 out of the README, out of announcements, and out of anything handed to a player.
 It exists for two things - share links that survive a re-upload, and the PWA.
 
-**`node publish.mjs` is the upload.** It runs all sixteen gates and refuses to push
+**`node publish.mjs` is the upload.** It runs all seventeen gates and refuses to push
 a game that fails any of them. Uploading by hand through the dashboard is the step
 where a rebuild stops being a deploy: the repo can be clean, the suite green, and
 what players load a month old, because nothing in git touches what itch serves.

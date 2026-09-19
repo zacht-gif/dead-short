@@ -160,6 +160,7 @@ invisible in a browser until a player hits it.
 | the clock cannot reach the simulation | `stepTick`, `propagateActiveWire`, `currentScore`, `cellIsHot` or `obstacleCellAt` mentions wall-clock time |
 | the metronome beats at a fixed rate | `TRIAL_HZ` is not a plain literal, the interval stops deriving from it, or `tick(now)` calls `metronomeTick` |
 | Wait exists for practice and hides otherwise | `#waitBtn` gone or unwired, `waitMove()` stops costing a move or stops refusing outside practice, or the button stops hiding with the clock on |
+| the store screenshots match the game | `store/screenshots/.source-hash` is missing or does not match `index.html` (warning in `build.js`, hard failure under `publish.mjs`) |
 | the suite passes | `node test.js` |
 | every level still solves and replays | `node solve.js` |
 
