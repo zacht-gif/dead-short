@@ -24,6 +24,7 @@ of its own** — see `Where it is published` below, because the itch build is th
 | `publish.mjs` | Runs every gate, then pushes to itch with butler |
 | `test.js` / `harness.js` | Headless runner for the in-page test suite |
 | `solve.js` | Proves every level routes and verifies its par |
+| `candidates.js` | Searches for boards that fit a difficulty rung; proposes, never decides |
 | `codemap.js` | Generates `CODE-MAP.md`; `--check` proves it is current |
 | `mutate.js` | Mutation audit — introduces each known defect and checks something catches it |
 | `ARCHITECTURE.md` | Data shapes, invariants, and edit recipes — start here |
@@ -185,6 +186,39 @@ The size cap is 7×7 because that is where certainty actually ends. Measured aga
 4,000,000-node budget: **7×7 resolved 40/40** (worst case ~3.4s), **8×8 only 29–39/40** — and the 8×8
 failures did not improve from 400k to 4M, so those instances are hard rather than starved. Fewer pairs is
 harder, not easier: more empty space means more routes to rule out.
+
+## Designing a level
+
+```bash
+node candidates.js                 # search every rung, print the best fits
+node candidates.js --rung 50       # just that rung
+node candidates.js --tries 9000 --seed 11
+```
+
+Levels are hand-chosen, but not designed on a blank grid. `candidates.js`
+generates boards, proves each one with the same solver `build.js` will later gate
+it with, scores it on the three axes above, and prints the best fits for each rung
+of a ramp — with a share code you can paste straight into the editor and play, and
+a `LEVELS[]` literal for the one it likes best.
+
+**It proposes; it does not decide.** Every pick prints what it *fails* to meet —
+`COMPROMISE: holds 1 - hazards barely bite` — because a search returns the best
+thing it found, which is not the same as a thing that fits, and a board printed
+under "finale" with no note reads as a finale.
+
+Two things it measured that are worth knowing before designing anything:
+
+- **Board shape decides whether trap happens at all.** Over 2,073 verified boards:
+  `shifted` (staggered top-to-bottom, the daily's shape) averaged 22.8% trap and
+  `nested` (interleaved endpoints) 18.5%, while `same-edge` managed 3.9%. If a
+  level needs to teach commitment, its endpoints have to interleave.
+- **At the high end, trap and holds trade against each other.** A board where most
+  plausible routes seal is a board so constrained that there is only one timing
+  left to find, so holds collapse toward zero. Every candidate at the two hardest
+  rungs was a compromise on one axis or the other — and so, measured the same way,
+  is the shipped finale.
+
+The run is deterministic: the same `--seed` and `--tries` give the same proposals.
 
 ## Tests
 

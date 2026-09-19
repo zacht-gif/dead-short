@@ -35,6 +35,7 @@ const SUPPORT = [
   ['harness.js',    'Loads the inline game script into a stub DOM under node:vm.'],
   ['test.js',       'Headless runner for the in-page selfTest().'],
   ['solve.js',      'Proves each level routes, computes par, replays it to verify.'],
+  ['candidates.js', 'Searches for boards that hit a target difficulty rung.'],
   ['sw.js',         'Service worker. CACHE_NAME must contain GAME_VERSION.'],
   ['manifest.json', 'PWA manifest.'],
   ['icon.svg',      'The only image asset the game ships.'],

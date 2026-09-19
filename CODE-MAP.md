@@ -23,7 +23,7 @@ Generated from `index.html` - 5,105 lines, 230,876 bytes, sha256 `e3abd42d61ae`.
 |---|---:|---|
 | `index.html` | 5,105 | The entire game: markup, styles and engine in one file. |
 | `build.js` | 489 | Release gate + packager. Refuses to zip a build that fails a check. |
-| `codemap.js` | 346 | Generates CODE-MAP.md. This file. |
+| `codemap.js` | 347 | Generates CODE-MAP.md. This file. |
 | `make-icons.mjs` | 188 | Rasterizes icons/*.png from the same art as icon.svg. |
 | `shots.mjs` | 301 | Captures store/screenshots/ from the real game. |
 | `chrome.mjs` | 164 | Headless-Chrome plumbing for shots.mjs. |
@@ -31,6 +31,7 @@ Generated from `index.html` - 5,105 lines, 230,876 bytes, sha256 `e3abd42d61ae`.
 | `harness.js` | 147 | Loads the inline game script into a stub DOM under node:vm. |
 | `test.js` | 55 | Headless runner for the in-page selfTest(). |
 | `solve.js` | 89 | Proves each level routes, computes par, replays it to verify. |
+| `candidates.js` | 453 | Searches for boards that hit a target difficulty rung. |
 | `sw.js` | 41 | Service worker. CACHE_NAME must contain GAME_VERSION. |
 | `manifest.json` | 42 | PWA manifest. |
 | `icon.svg` | 6 | The only image asset the game ships. |

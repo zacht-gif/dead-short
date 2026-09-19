@@ -75,6 +75,14 @@ patrol(2, [[1,4],[5,4],[5,2]])   // ticksPerCell, then corner waypoints
 
 `isGate(ob)` is the discriminator — anything not a gate is a patrol.
 
+**`loopPath()` requires each segment to be axis-aligned, and hangs rather than
+throws if it is not.** It walks `c += dc` and `r += dr` together and stops only on
+an exact hit, so a segment that is neither straight nor a perfect diagonal never
+terminates - it grows the path until the heap dies. `decodeLevel()` already
+refuses such waypoints, so the untrusted share-code path is guarded; the exposed
+trap is for anything that *builds* a patrol, which is why `candidates.js` repeats
+the same check before calling it. It found this by hanging on its first run.
+
 **Pass `patrol()` the corners, not the expanded path.** It keeps `waypoints`
 precisely because the share codec needs the corners: re-deriving them from an
 expanded path guesses wrong the moment a patrol turns, and a share code that
@@ -178,6 +186,11 @@ Two traps that tool hit, both worth knowing:
 
 ### Add or change a level
 
+0. Optional, but this is where the boards come from now: `node candidates.js`
+   searches for a board fitting a difficulty rung, proves it with the same solver
+   that will gate it, and prints both a share code (paste into the editor to play
+   it) and a `LEVELS[]` literal. It names each pick's shortfalls rather than
+   presenting a compromise as a fit.
 1. Add the object to `LEVELS[]` (`index.html`, *Level definitions*). Array order is
    play order.
 2. `node solve.js <slug>` — proves it routes and prints its par.
@@ -293,6 +306,7 @@ browsers strip the query string, which kills `?test=1`.
 | self test in browser | `http://localhost:8000/?test=1` |
 | suite | `node test.js` (`--verbose` lists passing assertions) |
 | levels | `node solve.js` (or one slug) |
+| propose levels | `node candidates.js` (`--rung`, `--tries`, `--seed`, `--json`) |
 | map | `node codemap.js` (`--check` to verify) |
 | icons | `node make-icons.mjs` |
 | screenshots | `node shots.mjs` |
