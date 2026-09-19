@@ -363,20 +363,35 @@ function checkTurnBasedDriver(){
          '        turn-based game needs them.');
   }
 
-  // INVERTED, deliberately. This used to require takeTurn() to CALL stepTick,
-  // back when a player action was what spent a move. Now the metronome spends
-  // and the input only plans, so takeTurn calling stepTick would mean the clock
-  // and the hand BOTH advance the board - which is the APM contest this game
-  // exists not to be, and it would look like nothing more than a fast player.
+  // Two modes, one function, and the whole difference is WHO spends the move.
+  // In the timed game takeTurn() must not step - input plans and the metronome
+  // spends, or the clock and the hand both advance the board and drawing fast
+  // beats drawing well. In practice it must step, because there is no clock.
+  //
+  // So the rule is not "never step", it is "step only when guarded", and the
+  // guard has to be on the same line for this to be able to prove it.
   const turnBody = bodyOf(html, 'function takeTurn(){');
   if(turnBody === null) fail('takeTurn() is gone - nothing starts a run.');
-  if(/\bstepTick\s*\(/.test(turnBody)){
-    fail('takeTurn() spends a move.\n' +
-         '        Input plans; the metronome spends. With both advancing the board,\n' +
-         '        drawing fast beats drawing well and the game is an action game.');
+  // Comments stripped FIRST, and that is not tidiness. The comment above the
+  // practice branch mentions stepTick() to explain why it is allowed there, and
+  // this gate promptly failed the build on it - a gate reading prose as code,
+  // which is the mirror of this project's older lesson that a gate's comment is
+  // not evidence. Here the comment became evidence against itself.
+  turnBody.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').forEach(raw=>{
+    const line = raw.replace(/\/\/.*$/, '');
+    if(/\bstepTick\s*\(/.test(line) && !/settings\.practice/.test(line)){
+      fail('takeTurn() spends a move outside practice.\n' +
+           '        With the clock running, input plans and the metronome spends.\n' +
+           '        If both advance the board, drawing fast beats drawing well and\n' +
+           '        it looks like nothing worse than a quick player.');
+    }
+  });
+  if(!/settings\.practice[^\n]*\bstepTick\s*\(/.test(turnBody)){
+    fail('practice no longer advances the board on a player action.\n' +
+         '        With no clock and no step, a practice board never moves at all.');
   }
   if(!/\bstartMetronome\s*\(/.test(turnBody)){
-    fail('takeTurn() no longer starts the metronome, so nothing ever moves.');
+    fail('takeTurn() no longer starts the metronome, so the timed game is frozen.');
   }
 }
 
@@ -492,25 +507,37 @@ function checkClockIsMeasureOnly(){
 }
 
 function checkWaitControl(){
-  // ALSO INVERTED, and worth knowing why rather than just that. Wait used to be
-  // mandatory: the world only moved on input, so letting a spark pass required
-  // an input that spent a move and laid no wire, and on a touch screen the
-  // button WAS that input. Under the metronome the board moves on by itself, so
-  // doing nothing is waiting - on every device, with no control needed.
+  // Wait belongs to exactly one mode, and BOTH halves of that matter. In
+  // practice it is mandatory: the board only moves on input, so letting a spark
+  // pass requires an input that spends a move and lays no wire, and on a touch
+  // screen the button is the only way to make one - lose it and a player whose
+  // only safe move is to wait has no legal move at all. With the clock running
+  // it must be gone: a control that spends nothing and does nothing, in a game
+  // where every other control costs seconds.
   //
-  // It is gated rather than simply deleted because a dead control is its own
-  // kind of bug: a button that spends nothing and does nothing, in the corner
-  // of a game where every other control costs you seconds. The suite cannot
-  // make this claim - harness.js returns a stub for every getElementById, so it
-  // can never see an element's absence - which is exactly why it lives here.
+  // This gate has now been written in both directions, once each way, because
+  // the game changed under it twice in a day. The statement that survives both
+  // is the one below - it exists, it works, and it is hidden when it has no job.
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  if(html.indexOf('id="waitBtn"') !== -1){
-    fail('a Wait button is back in the play screen markup.\n' +
-         '        Under the metronome waiting is what happens when you do nothing,\n' +
-         '        so this is a control that cannot do anything.');
+  if(html.indexOf('id="waitBtn"') === -1){
+    fail('the Wait button is gone from the play screen markup.\n' +
+         '        In practice a touch player has no other way to let a spark pass.');
   }
-  if(/function waitMove\s*\(/.test(html)){
-    fail('waitMove() is back. There is nothing for it to do.');
+  if(!/waitBtnEl\.onclick/.test(html)){
+    fail('#waitBtn exists but nothing is wired to it.');
+  }
+  if(!/function waitMove\(\)\{[\s\S]{0,400}?takeTurn\(\)/.test(html)){
+    fail('waitMove() no longer takes a turn, so waiting costs nothing.\n' +
+         '        A free wait makes every hazard avoidable for zero moves.');
+  }
+  if(!/function waitMove\(\)\{[\s\S]{0,200}?settings\.practice/.test(html)){
+    fail('waitMove() no longer refuses outside practice.\n' +
+         '        Hiding the button is then the ONLY thing stopping a free move,\n' +
+         '        and a keyboard reaches the function without touching the button.');
+  }
+  if(!/waitBtnEl\.classList\.toggle\('hidden', !settings\.practice\)/.test(html)){
+    fail('the Wait button is no longer hidden when the clock is running.\n' +
+         '        It spends nothing and does nothing there.');
   }
   // The board and this row share a column in the landscape layout, and the
   // board's height budget is computed in JS. Leave the row out of that budget
@@ -667,7 +694,7 @@ function main(){
   checkCanvasTokenFallbacks();
   console.log('  checking the render loop cannot spend a move…');
   checkTurnBasedDriver();
-  console.log('  checking no dead Wait control is left…');
+  console.log('  checking Wait exists for practice and hides otherwise…');
   checkWaitControl();
   console.log('  checking the clock cannot reach the simulation…');
   checkClockIsMeasureOnly();

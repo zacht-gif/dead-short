@@ -299,6 +299,28 @@ plays as a file listing instead of a game.
   paths report 358/358. Two lessons, one bug: a suite that stops early still
   prints a total, and the environment a test never runs in is the environment its
   assumptions rot in.
+- **"No observable effect" can be true of the code and false of the design.**
+  The `takeTurn()` calls inside `planTo` were deleted as dead - correctly, for a
+  game that was only ever timed, where they did nothing but confirm a metronome
+  that was already running. Practice put them straight back the next commit: with
+  the clock off, those calls ARE what spends the move, one per cell. The reasoning
+  was sound and the conclusion had a shelf life. Delete a line for being dead, but
+  expect the next feature to resurrect it.
+- **A gate can fail the build on its own comment.** `checkTurnBasedDriver()`
+  scans `takeTurn` line by line for a `stepTick()` that is not guarded by
+  `settings.practice` - and the comment ABOVE the practice branch, explaining why
+  that branch is allowed, says "stepTick()" without the guard word. Red build,
+  correct code. It strips comments first now. The mirror of the older lesson that
+  a gate's comment is not evidence: here the comment became evidence against
+  itself.
+- **An assertion that compares before and after cannot see a losing write.**
+  `practice-records-a-best` and `practice-unlocks-cosmetics` both went SURVIVED
+  against assertions that read perfectly - the test checked that the best "did not
+  change", earlier tests had already banked a 4-tick best on that board, and a
+  practice run also scores 4. Four is not better than four, so the mutation wrote
+  nothing visible. Clear the store first, then ANY write shows. Same family as
+  the empty-search rule: the absence of a change is not evidence until a change
+  would have been detectable.
 - **An unkillable mutation is a line with no observable effect.**
   `drawing-never-starts-the-clock` went SURVIVED and the reflex was to go looking
   for the missing gate. There wasn't one: both ways into `planTo` -
@@ -350,11 +372,11 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-19: **372/372 assertions pass under node AND in the
+On `main`, verified 2026-09-19: **389/389 assertions pass under node AND in the
 browser at `?test=1`** - the two had disagreed since the accessibility pass and
 nobody could tell, see above. All ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**48/48 mutations caught** by `node mutate.js`. Sixteen build gates.
+**56/56 mutations caught** by `node mutate.js`. Sixteen build gates.
 v2.0.0, `dist/dead-short-2.0.0.zip`.
 
 **THE GAME IS STRICTLY A TIME TRIAL as of 2026-09-19.** There is no second mode
@@ -377,6 +399,19 @@ win card printed "14.66s" over "Best: 14 moves".
 par x1.6, still stored in ticks, now shown as seconds - gold on Breadboard is
 4.67s. They also gate the skin unlocks, so deleting them would have needed a new
 unlock rule for no gain.
+
+**PRACTICE MODE is the accessibility half, added straight after.** Off by
+default, in Settings. The clock stops existing, the board advances one move per
+action, and **nothing is recorded** - not the best, the medal, the daily streak,
+the cosmetic unlock or even the play count. That last part is the whole design:
+an untimed mode feeding the same records would be the fastest way to farm every
+one of them, and the medal thresholds ARE times, so a run that was never raced
+cannot have earned one. One flag read once (`const practice = settings.practice`)
+rather than four guards that can drift apart.
+
+`Wait` came back for practice and ONLY practice. `waitMove()` refuses outside it,
+which matters because hiding the button is otherwise the only thing stopping a
+free move and a keyboard reaches the function without touching the button.
 
 **Two gates were INVERTED rather than deleted, and both are worth reading.**
 `checkTurnBasedDriver()` used to require `takeTurn()` to call `stepTick()`; it

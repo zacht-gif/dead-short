@@ -238,11 +238,31 @@ a game whose only score is the clock, and the fastest line through a hot cell wo
 it — which inverts the entire point of the hazard. The banner computes the figure from the two
 constants rather than stating it, because a hard-coded "1.67s" becomes a lie the day either moves.
 
-**There is no `Wait` control, and that is the control becoming unnecessary.** It existed because a
-turn-based board only moved on input, so "let this spark pass" had to *be* an input — and on a touch
-screen the button was the only way to make it. Under the metronome, doing nothing is waiting, on every
-device. A build gate now fails if the button comes back, because a control that spends nothing and
-does nothing is its own kind of bug in a game priced in seconds.
+## Practice
+
+Off by default, in Settings, and it is the accessibility half of the game. Turn it on and the clock
+stops existing: the board advances **one move per action** and nothing moves while you think, which is
+how a level gets learned rather than raced. A player who needs to take their time has somewhere to
+take it.
+
+**It records nothing.** No best, no medal, no daily streak, no cosmetic unlock, not even the play
+count. That is not tidiness — a mode with the clock off that still fed the same records would be the
+fastest way to farm every one of them, and the medal thresholds *are* times, so a run that was never
+raced cannot have earned one. Recording is all-or-nothing behind a single flag rather than four
+guards that can drift apart one commit at a time.
+
+The `Wait` control exists for this mode and only this mode. With the clock running, doing nothing is
+already waiting, so the button would spend nothing and do nothing; with the clock off, letting a spark
+pass has to *be* an input, and on a touch screen the button is the only way to make one — lose it and
+a player whose only safe move is to wait has no legal move at all. A build gate checks all of it: that
+the button exists, that it is wired, that `waitMove()` costs a move, that it **refuses** outside
+practice (hiding the button is otherwise the only thing stopping a free move, and a keyboard reaches
+the function without touching the button), and that it is hidden when the clock runs.
+
+The rules are written down in **four** places — the play banner, the Settings text, the screen-reader
+description above the board, and this file — and practice swaps all of them together. The
+screen-reader copy is the one that rots unseen: it went on describing a turn-based game for a day
+after the metronome landed, where by definition nobody sighted would ever notice.
 
 **The clock never touches the simulation.** The metronome calls `stepTick()`, which still knows
 nothing but `tickCount`; sparks patrol "on the clock" only because the clock advances that counter.

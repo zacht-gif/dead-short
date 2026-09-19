@@ -641,15 +641,19 @@
                   aria-label="Circuit board" aria-describedby="boardKeys"></canvas>
         </div>
         <div class="moveRow">
+          <!-- Hidden unless practice is on, and that is the whole rule. Under the
+               metronome doing nothing IS waiting, so the button would spend
+               nothing and do nothing; with the clock off, letting a spark pass
+               has to BE an input again or a touch player whose only safe move is
+               to wait has no legal move at all. -->
+          <button id="waitBtn" class="primary hidden">Wait ⏸</button>
           <button id="previewBtn" aria-pressed="false">Trace ⚡</button>
         </div>
-        <p id="boardKeys" class="srOnly">
-          The board only moves when you do. Tab and Shift Tab choose a wire.
-          Arrow keys or W A S D extend its route one cell per press, and each
-          press advances the whole board one move. Backspace steps back. Space
-          or the period key waits a move without moving the current. Press
-          Escape to leave the board and reach the Restart and Share buttons.
-        </p>
+        <!-- Set from JS, because the rules differ by mode and this is the FOURTH
+             place they are written down. It was still describing the turn-based
+             game after the metronome landed - and being screen-reader-only, it
+             was the one copy nobody would ever notice had gone stale. -->
+        <p id="boardKeys" class="srOnly"></p>
       </div>
 
       <div id="playBottom">
@@ -667,6 +671,23 @@
           <b>Trace</b> is free, stays on, and shows where every spark will be for the next three moves.
           <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD extend its route one cell
           per press, Backspace steps back. <b>Esc</b> leaves the board and moves to the buttons.
+        </div>
+        <!-- Two banners again, and this time it IS two games. Every sentence of
+             the one above is false with the clock off, and the rules living in
+             more places than anybody remembers is this file's most repeated bug:
+             Settings described a deleted clock for a week, and the screen-reader
+             text above the board did the same where nobody could see it. -->
+        <div id="bannerPractice" class="hidden">
+          <b>Practice. Nothing moves until you do.</b> One move is one cell of route, a switch to
+          another color, or <b>Wait</b> — and every one of them steps the whole board once: the current
+          flows a cell, and every spark takes one step of its patrol. Between moves the board is frozen,
+          so thinking costs nothing and there is no such thing as being too slow.
+          <br><b>Nothing here is recorded.</b> No time, no medal, no daily streak, no cosmetic unlock —
+          practice is for learning a board, never for standing in for a run of it. <b>Trace</b> is free,
+          stays on, and shows where every spark will be for the next three moves.
+          <br><b>Keyboard:</b> Tab / Shift+Tab picks a wire, arrows or WASD extend its route one cell
+          per press, Backspace steps back, Space or <b>.</b> waits.
+          <b>Esc</b> leaves the board and moves to the buttons.
         </div>
       </div>
     </div>
@@ -772,7 +793,17 @@
     </div>
 
     <div class="settingsSection">
-      <h3>Time trial</h3>
+      <h3>Practice</h3>
+      <div class="toggleRow">
+        <div>
+          <div class="toggleLabel">Untimed practice</div>
+          <div class="toggleDesc">Off by default. Turns the clock off entirely: the board advances one
+          move per action and nothing moves while you think, which is how a level can be learned
+          without racing it. Nothing is recorded — no time, no medal, no daily streak, no cosmetic
+          unlock — so a practice run can never stand in for a played one.</div>
+        </div>
+        <input type="checkbox" id="practiceToggle">
+      </div>
     </div>
 
     <div class="settingsSection">
@@ -1517,11 +1548,16 @@
   const reduceMotionToggle = document.getElementById('reduceMotionToggle');
 
   const trialZapCostEl = document.getElementById('trialZapCost');
+  const practiceToggle = document.getElementById('practiceToggle');
+  const waitBtnEl = document.getElementById('waitBtn');
+  const bannerEl = document.getElementById('banner');
+  const bannerPracticeEl = document.getElementById('bannerPractice');
+  const boardKeysEl = document.getElementById('boardKeys');
   const muteToggle = document.getElementById('muteToggle');
   const playerNameInput = document.getElementById('playerNameInput');
 
   const SETTINGS_DEFAULTS = {colorblind:false, reduceMotion:false, muted:false, playerName:'',
-                             };
+                             practice:false};
   const SETTINGS_KEY = STORE_PREFIX + 'settings';
   // Scores from v2 are deliberately dropped (different scoring rules), but
   // settings are carried across: silently resetting somebody's colorblind or
@@ -1599,6 +1635,28 @@
     colorblindToggle.checked = settings.colorblind;
     reduceMotionToggle.checked = settings.reduceMotion;
     muteToggle.checked = settings.muted;
+    practiceToggle.checked = settings.practice;
+    /* The rules, in every place they are written, switched together. Done here
+       rather than in updateHud() because updateHud runs every frame and rewriting
+       an aria-describedby target sixty times a second would make a screen reader
+       unusable - the accessibility text is the one thing that must NOT be
+       repainted on a timer. */
+    if(boardKeysEl){
+      boardKeysEl.textContent = settings.practice
+        ? 'Practice mode: the board only moves when you do. Tab and Shift Tab choose a wire. ' +
+          'Arrow keys or W A S D extend its route one cell per press, and each press advances the ' +
+          'whole board one move. Backspace steps back. Space or the period key waits a move without ' +
+          'moving the current. Nothing is recorded in practice. Press Escape to leave the board and ' +
+          'reach the Restart and Share buttons.'
+        : 'The board advances three moves every second whether you act or not, starting from your ' +
+          'first move. Tab and Shift Tab choose a wire. Arrow keys or W A S D extend its route one ' +
+          'cell per press. Drawing costs no time, so there is no advantage to moving quickly. ' +
+          'Backspace steps back. Press Escape to leave the board and reach the Restart and Share ' +
+          'buttons.';
+    }
+    if(bannerEl) bannerEl.classList.toggle('hidden', settings.practice);
+    if(bannerPracticeEl) bannerPracticeEl.classList.toggle('hidden', !settings.practice);
+    if(waitBtnEl) waitBtnEl.classList.toggle('hidden', !settings.practice);
     playerNameInput.value = settings.playerName;
   }
   colorblindToggle.addEventListener('change', ()=>{
@@ -1615,6 +1673,15 @@
     settings.muted = muteToggle.checked;
     saveSettings();
     applySettings();
+  });
+  practiceToggle.addEventListener('change', ()=>{
+    settings.practice = practiceToggle.checked;
+    saveSettings();
+    applySettings();
+    // The metronome belongs to the timed game. Switching mid-level must stop it
+    // rather than leave an interval beating a board that is now turn-based.
+    stopMetronome();
+    updateHud();
   });
   playerNameInput.addEventListener('input', ()=>{
     settings.playerName = playerNameInput.value.trim();
@@ -2293,16 +2360,20 @@
       const last = w.intent[w.intent.length-1];
       if(sameCell(last, cell)) return;
 
-      /* No takeTurn() here any more, and the reason is worth keeping. Planning
-         costs nothing, and BOTH ways into this function - onPointerDown and
-         cycleActiveColor - already took a turn to seat the colour, so the clock
-         is running before the first step is ever walked. A mutation that removed
-         these calls could not be killed by anything, which is how they were
-         found: an unkillable mutation means a line with no observable effect. */
+      /* THE TURN PER STEP, and it is conditional on the mode without saying so.
+         In the timed game takeTurn() only makes sure the metronome is running, so
+         these cost nothing and a mutation removing them could not be killed - an
+         unkillable mutation is a line with no observable effect, and they were
+         deleted on exactly that reasoning. Practice put them straight back: with
+         the clock off this IS what spends the move, one per cell.
+
+         Worth keeping as a caution. "No observable effect" was true of the code
+         as it stood and false of the design one commit later; a line can be dead
+         in one configuration and load-bearing in the next. */
       // Dragging back over the previous cell un-draws the last planned step.
       if(w.intent.length>1 && sameCell(w.intent[w.intent.length-2], cell)){
         w.intent.pop();
-        if(w.locked || !w.intent.length) return;
+        if(!takeTurn() || w.locked || !w.intent.length) return;
         continue;
       }
 
@@ -2318,7 +2389,7 @@
 
       if(w.intent.length>1 && sameCell(w.intent[w.intent.length-2], step)){
         w.intent.pop();
-        if(w.locked || !w.intent.length) return;
+        if(!takeTurn() || w.locked || !w.intent.length) return;
         continue;
       }
 
@@ -2338,6 +2409,11 @@
                      (sameCell(term.b, w.intent[0]) && sameCell(term.a, step));
 
       w.intent.push(step);
+      // In practice this turn can lock the wire, truncate the plan against a cell
+      // another wire just finished across, or end the level - so re-read rather
+      // than trusting what was true before it. In the timed game it does none of
+      // those, and costs a function call.
+      if(!takeTurn()) return;
       if(closes || w.locked || !w.intent.length) return;
     }
   }
@@ -2526,7 +2602,7 @@
   let metronomeId = null;
 
   function startMetronome(){
-    if(metronomeId !== null) return;
+    if(metronomeId !== null || settings.practice) return;
     metronomeId = setInterval(metronomeTick, Math.round(1000 / TRIAL_HZ));
   }
 
@@ -2573,8 +2649,23 @@
   function takeTurn(){
     if(won) return false;
     startRunIfIdle();
+    // PRACTICE: one move per action and no clock at all. The whole branch is on
+    // one line so checkTurnBasedDriver() can prove that the ONLY stepTick() in
+    // this function is the one guarded by settings.practice - in the timed game
+    // input must never spend, or hand speed becomes skill.
+    if(settings.practice){ stepTick(); stepAnimUntil = clockNow() + STEP_ANIM_MS; return true; }
     startMetronome();
     return true;
+  }
+
+  /* Letting a spark pass without moving the current. Only reachable in practice:
+     with the clock running, doing nothing is already waiting. On touch this is
+     not a nicety - without it a player whose only safe move is to wait has no
+     legal move at all, which is why the button is gated rather than merely
+     hidden. */
+  function waitMove(){
+    if(!settings.practice) return;
+    takeTurn();
   }
 
   function endPointer(){
@@ -2714,13 +2805,25 @@
     if(key === 'Tab' || key === 'Enter' || key === ' '){
       if(!boardHasFocus()) return false;
       e.preventDefault();
+      // Space waits only where waiting is a move. With the clock running it
+      // cycles instead, because a key that silently does nothing is worse than
+      // one that does something useful.
       if(key === 'Tab') cycleActiveColor(e.shiftKey ? -1 : 1);
-      else cycleActiveColor(1);
+      else if(activeColor === null || !settings.practice) cycleActiveColor(1);
+      else waitMove();
       return true;
     }
     if(key === 'Backspace'){
       e.preventDefault();
       keyboardBack();
+      return true;
+    }
+    // Period waits, and stays global for the same reason the arrows do: it is
+    // not focus navigation, so capturing it takes nothing from anybody. Only
+    // claimed in practice - with the clock running there is nothing to wait for.
+    if(key === '.' && settings.practice){
+      e.preventDefault();
+      waitMove();
       return true;
     }
     let dc=0, dr=0;
@@ -2744,13 +2847,22 @@
       stopMetronome();   // the world stops the instant the board is solved
       sfx.win();
       haptic([40,30,40]);
-      bumpCounter(STORE_PREFIX + 'stats-plays');
-      if(level.isDaily) recordDailyPlay(level.dateStr);
+      /* PRACTICE WRITES NOTHING. Not the best, not the play count, not the daily
+         streak, not the clean-clear that unlocks a skin. A mode with the clock
+         off that still fed the same records would be the fastest way to farm
+         every one of them, and the medal thresholds are times - a run that was
+         never raced cannot have earned one. Recording is therefore all or
+         nothing, in one place, rather than four guards that can drift apart. */
+      const practice = settings.practice;
+      if(!practice){
+        bumpCounter(STORE_PREFIX + 'stats-plays');
+        if(level.isDaily) recordDailyPlay(level.dateStr);
+      }
       const score = currentScore();
-      const improved = setBestIfBetter(level, score);
+      const improved = practice ? false : setBestIfBetter(level, score);
 
       let earnLine = '';
-      if(zapCount === 0) markCleanClear(level);
+      if(zapCount === 0 && !practice) markCleanClear(level);
 
       const medal = medalForScore(level, score);
       const t = getMedalThresholds(level);
@@ -2775,8 +2887,9 @@
       winBreakdownEl.textContent = zapCount
         ? `${tickCount} moves + ${zapCount} short${zapCount===1?'':'s'} × ${fmtSeconds(ZAP_PENALTY_TICKS / TRIAL_HZ)}`
         : `${tickCount} moves, no shorts`;
-      winBestLineEl.textContent = improved
-        ? 'Fastest yet!' : ('Fastest: ' + fmtTicks(getBest(level)));
+      winBestLineEl.textContent = practice
+        ? 'Practice — nothing recorded.'
+        : (improved ? 'Fastest yet!' : ('Fastest: ' + fmtTicks(getBest(level))));
       winEarnLineEl.textContent = earnLine;
       const next = nextLevelAfter(level);
       winNextBtn.textContent = next ? 'Next: ' + next.name + ' ›' : 'Menu';
@@ -3399,6 +3512,7 @@
     previewBtn.textContent = tracing ? 'Trace ⚡ on' : 'Trace ⚡';
     if(previewBtn.setAttribute) previewBtn.setAttribute('aria-pressed', tracing ? 'true' : 'false');
   }
+  waitBtnEl.onclick = ()=>{ waitMove(); };
   previewBtn.onclick = ()=>{ tracing = !tracing; syncTraceBtn(); };
   function shareText(){
     const score = currentScore();
@@ -5341,6 +5455,119 @@
         ok('BEST and the card quote the same record',
            bestValEl.textContent === fmtTicks(getBest(level)),
            'hud=' + bestValEl.textContent + ' best=' + fmtTicks(getBest(level)));
+        load(plainLevel());
+      })();
+
+      // --- Practice: the clock off, and nothing written down ------------------
+      // The accessibility half of the game. Making the board strictly timed took
+      // away the one thing a player who needs to think slowly could rely on, so
+      // practice puts it back: one move per action, nothing moves while you
+      // think. The price of that is that it must record NOTHING, or it is simply
+      // the fastest way to farm every medal, streak and cosmetic in the game.
+      (function(){
+        const savedPractice = settings.practice;
+        ok('practice is off until asked for', SETTINGS_DEFAULTS.practice === false);
+
+        settings.practice = true;
+        applySettings();
+        load(plainLevel());
+        /* CLEARED FIRST, and the mutation audit is what said so. Asserting the
+           best "did not change" cannot see a write that loses to an existing
+           record - earlier tests had already banked a 4-tick best on this board,
+           a practice run also scores 4, and 4 is not better than 4. Both
+           practice-records-a-best and practice-unlocks-cosmetics went SURVIVED
+           against an assertion that read perfectly. Start from nothing, then any
+           write at all is visible. */
+        localStorage.removeItem(bestKey(level));
+        localStorage.removeItem(cleanClearKey(level));
+        const bestBefore = getBest(level);
+        const cleanBefore = hasCleanClear(level);
+        ok('the practice board starts with no record',
+           bestBefore === null && cleanBefore === false,
+           'best=' + bestBefore + ' clean=' + cleanBefore);
+
+        onPointerDown([0,0]);
+        ok('in practice, seating the probe costs a move', tickCount === 1,
+           'tick=' + tickCount);
+        planTo([0,3]);
+        ok('in practice a drawn cell costs a move',
+           tickCount === 4 && wires[0].cells.length === 4,
+           'tick=' + tickCount + ' cells=' + wires[0].cells.length);
+        ok('practice never starts the metronome', metronomeId === null,
+           'id=' + metronomeId);
+        /* And the refusal INSIDE startMetronome, separately. takeTurn returns
+           before ever calling it in practice, so that guard is unreachable
+           through play and a mutation on it survived - defence in depth reading
+           exactly like an untested claim, for the second time in this file.
+           Called directly, it is a claim rather than a hope. */
+        startMetronome();
+        ok('startMetronome refuses while practice is on', metronomeId === null,
+           'id=' + metronomeId);
+        ok('and the board still finishes', won === true);
+
+        /* Tab is an action too, and in practice an action is a move. This is
+           where cycleActiveColor's takeTurn() became load-bearing again: with
+           the metronome gone from this mode, it is the only thing that charges
+           a keyboard player for picking up a wire. Removing it used to be
+           unkillable because planTo started the clock anyway - the clock is not
+           what is being paid here. */
+        load(plainLevel());
+        cycleActiveColor(1);
+        ok('in practice, Tab picking a wire costs a move', tickCount === 1,
+           'tick=' + tickCount);
+
+        // The contract. Four separate stores, one guard, because four guards is
+        // four things that can drift apart one commit at a time.
+        ok('a practice win records no best', getBest(level) === bestBefore,
+           'before=' + bestBefore + ' after=' + getBest(level));
+        ok('a practice win unlocks no cosmetic',
+           hasCleanClear(level) === cleanBefore);
+        ok('the card says nothing was recorded',
+           winBestLineEl.textContent.indexOf('nothing recorded') !== -1,
+           'line=' + winBestLineEl.textContent);
+
+        // Wait is the control that only this mode needs. With the clock running
+        // it would spend nothing and do nothing; with the clock off, a touch
+        // player whose only safe move is to let a spark pass has no other way to
+        // make it - the keyboard trap's shape, one control over.
+        ok('the Wait control appears in practice',
+           !waitBtnEl.classList.contains('hidden'));
+        load(plainLevel());
+        onPointerDown([0,0]);
+        const t0 = tickCount, cells0 = wires[0].cells.length;
+        waitBtnEl.onclick();
+        ok('waiting spends a move and lays no wire',
+           tickCount === t0 + 1 && wires[0].cells.length === cells0,
+           'tick=' + tickCount + ' cells=' + wires[0].cells.length);
+
+        const practiceRules = !bannerPracticeEl.classList.contains('hidden') &&
+                               bannerEl.classList.contains('hidden');
+        const practiceKeys = boardKeysEl.textContent.indexOf('only moves when you do') !== -1;
+        settings.practice = false;
+        applySettings();
+        const timedRules = !bannerEl.classList.contains('hidden') &&
+                            bannerPracticeEl.classList.contains('hidden');
+        const timedKeys = boardKeysEl.textContent.indexOf('three moves every second') !== -1;
+        ok('practice swaps the rules on screen', practiceRules && timedRules,
+           'practice=' + practiceRules + ' timed=' + timedRules);
+        // The FOURTH place the rules are written, and the one nobody can see. It
+        // described the turn-based game for a day after the metronome landed.
+        ok('practice swaps the screen-reader rules', practiceKeys && timedKeys,
+           'practice=' + practiceKeys + ' timed=' + timedKeys);
+        ok('the Wait control is hidden with the clock on',
+           waitBtnEl.classList.contains('hidden'));
+        // Waiting is not a move when the clock is running, so the function that
+        // spends one must refuse - otherwise the button being hidden is the ONLY
+        // thing stopping a free move, and a keyboard still reaches it.
+        load(plainLevel());
+        onPointerDown([0,0]);
+        const tTimed = tickCount;
+        waitMove();
+        ok('waiting is refused when the clock runs', tickCount === tTimed,
+           'tick=' + tickCount);
+
+        settings.practice = savedPractice;
+        applySettings();
         load(plainLevel());
       })();
 

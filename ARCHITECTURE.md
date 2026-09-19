@@ -159,6 +159,7 @@ invisible in a browser until a player hits it.
 | no dead Wait control is left | `#waitBtn` or `waitMove()` is back, or `computeCellSize()` stopped reserving `MOVE_ROW_PX` for the Trace row |
 | the clock cannot reach the simulation | `stepTick`, `propagateActiveWire`, `currentScore`, `cellIsHot` or `obstacleCellAt` mentions wall-clock time |
 | the metronome beats at a fixed rate | `TRIAL_HZ` is not a plain literal, the interval stops deriving from it, or `tick(now)` calls `metronomeTick` |
+| Wait exists for practice and hides otherwise | `#waitBtn` gone or unwired, `waitMove()` stops costing a move or stops refusing outside practice, or the button stops hiding with the clock on |
 | the suite passes | `node test.js` |
 | every level still solves and replays | `node solve.js` |
 
@@ -225,7 +226,19 @@ because the clock advances that counter. `checkClockIsMeasureOnly()` enforces th
 than file-wide, because exactly one function still reads a real clock — `clockNow()`, for the cosmetic
 slide between ticks. What must never happen is anything that DECIDES consulting it.
 
-**Input must stay free.** `takeTurn()` never steps; it only starts the metronome, which spends the moves. If both did, hand speed would be skill. That one branch is the entire
+**Input must stay free — with the clock running.** In the timed game `takeTurn()` must not step; it
+only starts the metronome, which spends the moves. In **practice** it must step, because there is no
+metronome. So the gate's rule is not "never step", it is "step only when guarded by
+`settings.practice`", and the guard has to sit on the same line for the gate to prove it.
+
+`checkTurnBasedDriver()` strips comments before scanning, which is not tidiness: the comment
+explaining why the practice branch is allowed mentions `stepTick()`, and the gate promptly failed the
+build on its own prose. The mirror of this project's older lesson that a gate's comment is not
+evidence — here the comment became evidence against itself.
+
+**Practice records nothing**, behind one flag read once (`const practice = settings.practice`) rather
+than four separate guards on the best, the play count, the daily streak and the clean-clear. Four
+guards is four things that can drift apart. If both did, hand speed would be skill. That one branch is the entire
 difference between a puzzle with a timer and an action game.
 
 **The score is `currentScore()` ticks, and only the display divides.** `fmtTicks()` renders a tick

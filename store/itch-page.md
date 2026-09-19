@@ -68,6 +68,8 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
   and from then on the current flows and the sparks patrol at three steps a second, whether you act or
   not. Drawing still costs nothing, so it is a test of reading the board and never of how fast you can
   swipe — but a short adds 1.67s to your clock on top of the wire it destroys.
+- **An untimed practice mode** for learning a board without racing it: the clock stops existing and
+  nothing moves until you do. It records nothing, so it can never stand in for a played run.
 
 ### Built to be played anywhere
 
