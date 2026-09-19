@@ -299,6 +299,25 @@ plays as a file listing instead of a game.
   paths report 358/358. Two lessons, one bug: a suite that stops early still
   prints a total, and the environment a test never runs in is the environment its
   assumptions rot in.
+- **An unkillable mutation is a line with no observable effect.**
+  `drawing-never-starts-the-clock` went SURVIVED and the reflex was to go looking
+  for the missing gate. There wasn't one: both ways into `planTo` -
+  `onPointerDown` and `cycleActiveColor` - already call `takeTurn()`, so the
+  three calls inside the drawing loop could not change anything and the defect
+  being injected was not a defect. The calls are deleted. But the mutation was
+  still worth its afternoon, because aiming the same claim at where it IS load-
+  bearing found a real hole: **nothing tested that the KEYBOARD path starts the
+  clock.** Remove `cycleActiveColor`'s `takeTurn()` and a keyboard-only player
+  gets a board that never moves while the mouse path works perfectly - the exact
+  shape of the keyboard trap, the Wait button off the bottom of a landscape
+  phone, and the board-sealed Restart nobody could press. Now gated.
+- **"Anchor matched 0 times" and "matched 3 times" read identically at a glance.**
+  A mutation anchored on `takeTurn();` + newline + `return;` came back as
+  could-not-apply, and the reflex was the backslash trap again - it wasn't. The
+  string was written correctly and matched in THREE places; mutate.js requires
+  exactly one and refused rather than guessing which. Count the candidates before
+  blaming the escaping, and count them in the file rather than reasoning about
+  it. The fix was a longer unique anchor, verified by counting first.
 - **The suite inherited the player's settings instead of stating them.** node
   reported 382/382 while the browser reported **355/381**, because `harness.js`
   starts settings at the defaults every run and a real browser at `?test=1`
@@ -331,18 +350,41 @@ plays as a file listing instead of a game.
 
 ## Where things stand
 
-On `main`, verified 2026-09-19: **386/386 assertions pass under node AND in the
+On `main`, verified 2026-09-19: **372/372 assertions pass under node AND in the
 browser at `?test=1`** - the two had disagreed since the accessibility pass and
 nobody could tell, see above. All ten shipped
 levels plus that day's daily solve and replay with routing proven minimal, and
-**62/62 mutations caught** by `node mutate.js`. Sixteen build gates.
+**48/48 mutations caught** by `node mutate.js`. Sixteen build gates.
 v2.0.0, `dist/dead-short-2.0.0.zip`.
 
-**The optional TIME TRIAL landed 2026-09-19**, off by default, in Settings. Turn
-it on and a metronome at `TRIAL_HZ` (3/sec) drives the board: the current flows
-and the sparks patrol whether you act or not, and your record on a level becomes
-your time. Off, the game is exactly the turn-based one and every shipped par is
-untouched.
+**THE GAME IS STRICTLY A TIME TRIAL as of 2026-09-19.** There is no second mode
+and no setting: a metronome at `TRIAL_HZ` (3/sec) is the only driver, the current
+flows and the sparks patrol whether you act or not, and your score is the clock.
+Every shipped par is untouched - par was always in ticks and still is.
+
+**The clock IS the tick count, and that is the load-bearing decision.** Nothing
+samples `performance.now()`. A tick is 1/`TRIAL_HZ` of a second, so seconds are
+just ticks divided by the rate. It means two players making identical moves are
+worth identical times on any machine, and it is why the change was small rather
+than large: par, `PAR_CONTRACT`, medals, share codes and the daily are all
+already in ticks, so they kept working untouched and only the DISPLAY divides.
+The wall-clock stopwatch built earlier the same day was deleted for this - it
+could not promise determinism, and it forced a SECOND record per level in
+milliseconds, which is two things that can disagree about one run. They did: the
+win card printed "14.66s" over "Best: 14 moves".
+
+**Medals survived as time targets.** Gold is still par, silver par x1.25, bronze
+par x1.6, still stored in ticks, now shown as seconds - gold on Breadboard is
+4.67s. They also gate the skin unlocks, so deleting them would have needed a new
+unlock rule for no gain.
+
+**Two gates were INVERTED rather than deleted, and both are worth reading.**
+`checkTurnBasedDriver()` used to require `takeTurn()` to call `stepTick()`; it
+now fails if it does, because input plans and only the metronome spends - with
+both advancing the board, drawing fast beats drawing well and it looks like
+nothing worse than a quick player. `checkWaitControl()` used to require the Wait
+button and now fails if it exists: under a metronome, doing nothing IS waiting,
+so the control became a button that spends nothing and does nothing.
 
 **The one branch that makes it a puzzle rather than an action game** is in
 `takeTurn()`: under the clock it returns WITHOUT stepping, so drawing only plans

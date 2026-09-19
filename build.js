@@ -363,10 +363,20 @@ function checkTurnBasedDriver(){
          '        turn-based game needs them.');
   }
 
-  const takeTurn = html.indexOf('function takeTurn(){');
-  if(takeTurn === -1) fail('takeTurn() is gone - nothing turns a player action into a tick.');
-  if(!/function takeTurn\(\)\{[\s\S]{0,800}?stepTick\(\)/.test(html)){
-    fail('takeTurn() no longer calls stepTick().');
+  // INVERTED, deliberately. This used to require takeTurn() to CALL stepTick,
+  // back when a player action was what spent a move. Now the metronome spends
+  // and the input only plans, so takeTurn calling stepTick would mean the clock
+  // and the hand BOTH advance the board - which is the APM contest this game
+  // exists not to be, and it would look like nothing more than a fast player.
+  const turnBody = bodyOf(html, 'function takeTurn(){');
+  if(turnBody === null) fail('takeTurn() is gone - nothing starts a run.');
+  if(/\bstepTick\s*\(/.test(turnBody)){
+    fail('takeTurn() spends a move.\n' +
+         '        Input plans; the metronome spends. With both advancing the board,\n' +
+         '        drawing fast beats drawing well and the game is an action game.');
+  }
+  if(!/\bstartMetronome\s*\(/.test(turnBody)){
+    fail('takeTurn() no longer starts the metronome, so nothing ever moves.');
   }
 }
 
@@ -446,6 +456,12 @@ function checkClockIsMeasureOnly(){
   // exists - updateHud renders it, checkWin freezes it, shareText quotes it.
   // What must never happen is the simulation consulting it.
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  // The list grew when the wall clock went. There is now exactly ONE function
+  // that reads a real clock - clockNow(), for the cosmetic slide between ticks -
+  // so everything that decides anything must be provably clear of it. fmtTicks
+  // and setBestIfBetter are on the list because the SCORE is a time now: if
+  // either ever sampled a clock, two identical runs would be worth different
+  // numbers and every par in PAR_CONTRACT would stop meaning anything.
   const FORBIDDEN = /\b(clockNow|elapsedSeconds|playedMs|runStartMs|finishedMs|pausedMs|hiddenAt|timeTrial)\b|performance\s*\.\s*now|Date\s*\.\s*now/;
   const SEALED = [
     'function stepTick(){',
@@ -453,6 +469,8 @@ function checkClockIsMeasureOnly(){
     'function currentScore(){',
     'function cellIsHot(',
     'function obstacleCellAt(',
+    'function fmtTicks(',
+    'function setBestIfBetter(',
   ];
   let checked = 0;
   SEALED.forEach(sig => {
@@ -474,33 +492,36 @@ function checkClockIsMeasureOnly(){
 }
 
 function checkWaitControl(){
-  // Wait is not a convenience. The world only moves when the player acts, so
-  // letting a spark go past requires an input that spends a move and lays no
-  // wire - and on a touch screen the button IS that input, with no keyboard to
-  // fall back on. Lose it and the timing half of the game becomes unreachable
-  // for every phone player, with nothing failing and the board still playable
-  // enough to look fine. Same shape as the keyboard trap: a game that works,
-  // and a required control the affected player cannot press.
+  // ALSO INVERTED, and worth knowing why rather than just that. Wait used to be
+  // mandatory: the world only moved on input, so letting a spark pass required
+  // an input that spent a move and laid no wire, and on a touch screen the
+  // button WAS that input. Under the metronome the board moves on by itself, so
+  // doing nothing is waiting - on every device, with no control needed.
+  //
+  // It is gated rather than simply deleted because a dead control is its own
+  // kind of bug: a button that spends nothing and does nothing, in the corner
+  // of a game where every other control costs you seconds. The suite cannot
+  // make this claim - harness.js returns a stub for every getElementById, so it
+  // can never see an element's absence - which is exactly why it lives here.
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  if(html.indexOf('id="waitBtn"') === -1){
-    fail('the Wait button is gone from the play screen markup.\n' +
-         '        A touch player has no other way to let a spark pass.');
+  if(html.indexOf('id="waitBtn"') !== -1){
+    fail('a Wait button is back in the play screen markup.\n' +
+         '        Under the metronome waiting is what happens when you do nothing,\n' +
+         '        so this is a control that cannot do anything.');
   }
-  if(!/getElementById\('waitBtn'\)\.onclick/.test(html)){
-    fail('#waitBtn exists but nothing is wired to it.');
-  }
-  if(!/function waitMove\(\)\{[\s\S]{0,200}?takeTurn\(\)/.test(html)){
-    fail('waitMove() no longer takes a turn, so waiting costs nothing.\n' +
-         '        A free wait makes every hazard avoidable for zero moves.');
+  if(/function waitMove\s*\(/.test(html)){
+    fail('waitMove() is back. There is nothing for it to do.');
   }
   // The board and this row share a column in the landscape layout, and the
   // board's height budget is computed in JS. Leave the row out of that budget
   // and it is pushed off the bottom of a landscape phone - measured, not
   // theorised: it happened the first time the row was added.
   if(!/availableH\s*=[^;]*MOVE_ROW_PX/.test(html)){
-    fail('computeCellSize() no longer reserves height for the Wait/Trace row.\n' +
+    fail('computeCellSize() no longer reserves height for the Trace row.\n' +
          '        In landscape the row shares the board\'s column, so a board\n' +
-         '        sized without it hides the control underneath it.');
+         '        sized without it hides the control underneath it. Wait is gone\n' +
+         '        but Trace still lives there, and Trace is how a player reads\n' +
+         '        where the sparks will be - which is the whole game under a clock.');
   }
 }
 
@@ -646,7 +667,7 @@ function main(){
   checkCanvasTokenFallbacks();
   console.log('  checking the render loop cannot spend a move…');
   checkTurnBasedDriver();
-  console.log('  checking the Wait control is reachable…');
+  console.log('  checking no dead Wait control is left…');
   checkWaitControl();
   console.log('  checking the clock cannot reach the simulation…');
   checkClockIsMeasureOnly();

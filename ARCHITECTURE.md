@@ -156,7 +156,7 @@ invisible in a browser until a player hits it.
 | non-text contrast holds | `--panel-border` or `--grid-line` measures under 3:1 — in `:root` **or** in any `SKINS[]` override |
 | the canvas fallbacks agree | a `cssVar(name, '#hex')` fallback no longer equals the CSS token it duplicates |
 | the render loop cannot spend a move | `tick(now)` calls `stepTick`/`takeTurn`, `takeTurn()` stopped calling `stepTick`, or `MS_PER_TICK`/`tickAccum` reappeared |
-| the Wait control is reachable | `#waitBtn` missing or unwired, `waitMove()` no longer takes a turn, or `computeCellSize()` stopped reserving `MOVE_ROW_PX` |
+| no dead Wait control is left | `#waitBtn` or `waitMove()` is back, or `computeCellSize()` stopped reserving `MOVE_ROW_PX` for the Trace row |
 | the clock cannot reach the simulation | `stepTick`, `propagateActiveWire`, `currentScore`, `cellIsHot` or `obstacleCellAt` mentions wall-clock time |
 | the metronome beats at a fixed rate | `TRIAL_HZ` is not a plain literal, the interval stops deriving from it, or `tick(now)` calls `metronomeTick` |
 | the suite passes | `node test.js` |
@@ -212,26 +212,30 @@ hubs reach both sub-screens. `enterLevel()` must only record when `screen` is
 `home` or `menu`: it is also how the win modal's **Next** moves through the
 campaign, and that call arrives with `screen` already `play`.
 
-**There are two drivers, and the render loop is neither.** A player action (`takeTurn`) or the
-metronome (`setInterval` at `TRIAL_HZ`), and nothing else. `checkTurnBasedDriver()` bars `stepTick`,
-`takeTurn` and `metronomeTick` from the body of `tick(now)`, because the claim that survives both
-modes is that **the frame rate is not difficulty** — a board stepping once per paint runs at 144/sec
-on a monitor and 30 on a phone.
+**There is ONE driver: the metronome.** `setInterval` at `TRIAL_HZ`, and nothing else.
+`checkTurnBasedDriver()` bars `stepTick`, `takeTurn` and `metronomeTick` from the body of `tick(now)`,
+because **the frame rate is not difficulty** — a board stepping once per paint runs at 144/sec on a
+monitor and 30 on a phone. The gate also asserts the *inverse* of what it used to: `takeTurn()` must
+NOT call `stepTick`. It used to be required to. With both the clock and the hand advancing the board,
+drawing fast would beat drawing well, and it would look like nothing worse than a quick player.
 
-**The clock still never reaches the simulation.** `settings.timeTrial` changes who calls `stepTick()`,
+**The clock still never reaches the simulation.** The metronome changes WHEN `stepTick()` is called,
 not what `stepTick()` can see: it still knows only `tickCount`, so sparks patrol "on the clock" purely
 because the clock advances that counter. `checkClockIsMeasureOnly()` enforces that per function rather
-than file-wide, because the clock legitimately exists — `updateHud` renders it, `checkWin` freezes it,
-`shareText` quotes it. What must never happen is the simulation consulting it.
+than file-wide, because exactly one function still reads a real clock — `clockNow()`, for the cosmetic
+slide between ticks. What must never happen is anything that DECIDES consulting it.
 
-**Under the clock, input must stay free.** `takeTurn()` returns without stepping when the trial is on;
-the metronome spends the moves. If both did, hand speed would be skill. That one branch is the entire
+**Input must stay free.** `takeTurn()` never steps; it only starts the metronome, which spends the moves. If both did, hand speed would be skill. That one branch is the entire
 difference between a puzzle with a timer and an action game.
 
-**The short penalty is applied in exactly one place.** `trialTimeMs()` is the only function that adds
-`zapPenaltyMs()`, and both the live HUD readout and the frozen win time come through it. Two additions
-of the same penalty would be two places for it to go missing independently, and a run where the HUD
-and the recorded best disagree about your time is worse than either being wrong alone.
+**The score is `currentScore()` ticks, and only the display divides.** `fmtTicks()` renders a tick
+count as seconds; nothing converts in the other direction and nothing stores milliseconds. There is
+one record per level, one unit, and therefore nothing that can disagree with itself — the win card
+once printed `14.66s` over `Best: 14 moves` because two records of one run existed at the same time.
+
+`checkClockIsMeasureOnly()` seals `fmtTicks` and `setBestIfBetter` along with the simulation, because
+the score IS a time now: if either ever sampled a clock, two identical runs would be worth different
+numbers and every par in `PAR_CONTRACT` would stop meaning anything.
 
 Two guards keep a machine-staged run from recording a time, and they are tested **separately**:
 `checkWin` refuses a run with `runStartMs === null` (replay and staging set `running` directly and

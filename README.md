@@ -209,27 +209,40 @@ There is no pointer to migrate and no way for one to disagree with the cards —
 clearing a later board out of order cannot carry the button past one you have never
 played, which is what a high-water mark would do.
 
-## The time trial
+## The time trial — which is the whole game
 
-Off by default, in Settings, and it is a **second game** rather than a second readout. Turn it on and
-the board stops waiting for you: your first move starts a clock at `TRIAL_HZ` — three moves a second —
-and from then on the current flows a cell and every spark takes one step of its patrol three times a
-second, whether you act or not. Your record on a level becomes your time.
+There is no second mode. Your first move starts a clock at `TRIAL_HZ` — three moves a second — and
+from then on the current flows a cell and every spark takes one step of its patrol three times a
+second, whether you act or not. Your score is the time on that clock.
+
+**The clock is the tick count.** Nothing samples `performance.now()`. A tick *is* 1/`TRIAL_HZ` of a
+second, so the score in seconds is the score in ticks divided by the rate — which means two players
+making identical moves are worth identical times on any machine, and a stuttering laptop cannot hand
+its owner a worse run for the same play. Every other number in the game is already in ticks (par,
+`PAR_CONTRACT`, the medal thresholds, share codes, the daily), so one integer answers every question
+and only the display divides.
+
+**Medals are time targets.** Gold is par, silver `par×1.25`, bronze `par×1.6` — unchanged, still in
+ticks, now shown as seconds. On Breadboard gold is 4.67s, which is par 14 at three a second: a target
+that allows almost no dithering, because under a clock every moment of thought is a beat spent.
 
 **Drawing still costs nothing.** This is the part that keeps it a puzzle. Under the metronome a drag
 only *plans* the route; the clock is the sole thing that spends moves, so a flick and a careful drag
 cost exactly the same and no amount of hand speed buys anything. If both the clock and the input
 advanced the board it would be an APM contest, and the accessibility pass would be undone.
 
-**A short costs seconds, not points.** `ZAP_PENALTY_TICKS` is already written in ticks, and under the
-metronome a tick *is* `1000/TRIAL_HZ` milliseconds — so the penalty is not a new rule, it is the
-existing one said in the unit the trial scores in: five ticks at 3/sec is **1.67s**, added straight
-onto your time the instant the wire dies, and then you pay again to rebuild it. Without that, shorting
-would be free in the one mode where only the clock counts, and the fastest line through a hot cell
-would be to walk into it — which inverts the entire point of the hazard. The banner computes the
-figure from the two constants rather than stating it, because a hard-coded "1.67s" becomes a lie the
-day either one moves. The `Score` stat is hidden here: under the clock it is neither the score nor
-anything you can act on, and `Time` already carries both halves.
+**A short costs seconds, not points.** `ZAP_PENALTY_TICKS` is in ticks and `currentScore()` already
+adds it, so the penalty needs no conversion at all: five ticks at three a second is **1.67s**, charged
+the instant the wire dies, and then you pay again to rebuild it. Without it, shorting would be free in
+a game whose only score is the clock, and the fastest line through a hot cell would be to walk into
+it — which inverts the entire point of the hazard. The banner computes the figure from the two
+constants rather than stating it, because a hard-coded "1.67s" becomes a lie the day either moves.
+
+**There is no `Wait` control, and that is the control becoming unnecessary.** It existed because a
+turn-based board only moved on input, so "let this spark pass" had to *be* an input — and on a touch
+screen the button was the only way to make it. Under the metronome, doing nothing is waiting, on every
+device. A build gate now fails if the button comes back, because a control that spends nothing and
+does nothing is its own kind of bug in a game priced in seconds.
 
 **The clock never touches the simulation.** The metronome calls `stepTick()`, which still knows
 nothing but `tickCount`; sparks patrol "on the clock" only because the clock advances that counter.

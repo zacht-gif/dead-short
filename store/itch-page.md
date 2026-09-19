@@ -64,11 +64,10 @@ Most puzzle games ask you to trust that a level is beatable. This one can prove 
   whoever's machine opens it.
 - **Challenge links** that greet a friend with your time as the target.
 - **Unlockable board skins**, earned by clean clears.
-- **An optional time trial.** Off by default, because the game is about thinking and nothing here is
-  timed. Switch it on and the board stops waiting for you: the current flows and the sparks patrol at
-  three steps a second whether you act or not, and your record becomes your time. Drawing still costs
-  nothing, so it is a test of reading the board, never of how fast you can swipe — but a short adds
-  1.67s to your clock on top of the wire it destroys.
+- **A time trial, start to finish.** The board does not wait for you: your first move starts a clock
+  and from then on the current flows and the sparks patrol at three steps a second, whether you act or
+  not. Drawing still costs nothing, so it is a test of reading the board and never of how fast you can
+  swipe — but a short adds 1.67s to your clock on top of the wire it destroys.
 
 ### Built to be played anywhere
 
